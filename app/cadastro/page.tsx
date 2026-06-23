@@ -10,27 +10,34 @@ export default function CadastroPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setSuccessMsg(null)
 
     if (!email.trim()) { setError('E-mail é obrigatório'); return }
     if (password.length < 8) { setError('A senha deve ter no mínimo 8 caracteres'); return }
 
     setLoading(true)
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    setLoading(false)
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password })
 
-    if (error) { setError(error.message); return }
+      if (error) { setError(error.message); return }
 
-    if (!data.session) {
-      setError('Cadastro realizado! Verifique seu e-mail para confirmar a conta.')
-      return
+      if (!data.session) {
+        setSuccessMsg('Cadastro realizado! Verifique seu e-mail para confirmar a conta.')
+        return
+      }
+
+      window.location.href = '/cadastro/boas-vindas'
+    } catch {
+      setError('Ocorreu um erro inesperado. Tente novamente.')
+    } finally {
+      setLoading(false)
     }
-
-    window.location.href = '/cadastro/boas-vindas'
   }
 
   async function handleGoogle() {
@@ -75,6 +82,7 @@ export default function CadastroPage() {
             />
 
             {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+            {successMsg && <p role="status" className="text-sm text-green-600">{successMsg}</p>}
 
             <button
               type="submit"

@@ -18,14 +18,14 @@ export function ThemeProvider({
   children: React.ReactNode
   initialTheme?: Theme
 }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (initialTheme) return initialTheme
-    if (typeof window !== 'undefined') {
+  const [theme, setTheme] = useState<Theme>(initialTheme ?? 'dark')
+
+  useEffect(() => {
+    if (!initialTheme) {
       const saved = localStorage.getItem('ef_theme') as Theme | null
-      if (saved === 'light' || saved === 'dark') return saved
+      if (saved === 'light' || saved === 'dark') setTheme(saved)
     }
-    return 'dark'
-  })
+  }, [initialTheme])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')

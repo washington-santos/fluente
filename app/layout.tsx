@@ -13,6 +13,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        {/* Runs synchronously before paint — applies saved theme class before React hydrates, preventing FOUC */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('ef_theme');document.documentElement.classList.toggle('dark',t!=='light')}catch(e){}`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider>
           {children}

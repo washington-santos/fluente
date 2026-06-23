@@ -82,6 +82,8 @@ alter table public.sessions enable row level security;
 create policy "sessions: own rows" on public.sessions
   for all using (auth.uid() = user_id);
 
+create index sessions_user_id_idx on public.sessions(user_id);
+
 -- ── messages ────────────────────────────────────────────────────────────
 create table public.messages (
   id              uuid primary key default gen_random_uuid(),
