@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function LoginPage() {
+  const supabase = useMemo(() => createSupabaseClient(), [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -19,7 +20,6 @@ export default function LoginPage() {
     if (!password) { setError('Senha é obrigatória'); return }
 
     setLoading(true)
-    const supabase = createSupabaseClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
 
@@ -29,11 +29,11 @@ export default function LoginPage() {
   }
 
   async function handleGoogle() {
-    const supabase = createSupabaseClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/api/auth/callback` },
     })
+    if (error) setError('Não foi possível conectar com o Google. Tente novamente.')
   }
 
   return (

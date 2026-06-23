@@ -27,8 +27,8 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const isProtected = PROTECTED.some((p) => pathname.startsWith(p))
-  const isAuthOnly = AUTH_ONLY.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  const isProtected = PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  const isAuthOnly = AUTH_ONLY.includes(pathname)
 
   if (isProtected && !user) {
     return NextResponse.redirect(new URL('/login', request.url))

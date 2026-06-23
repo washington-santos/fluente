@@ -96,7 +96,7 @@ create table public.messages (
 alter table public.messages enable row level security;
 create policy "messages: own session" on public.messages
   for all using (
-    auth.uid() = (select user_id from public.sessions where id = session_id)
+    session_id in (select id from public.sessions where user_id = auth.uid())
   );
 
 -- ── session_memory ───────────────────────────────────────────────────────

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function CadastroPage() {
+  const supabase = useMemo(() => createSupabaseClient(), [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -19,23 +20,27 @@ export default function CadastroPage() {
     if (password.length < 8) { setError('A senha deve ter no mínimo 8 caracteres'); return }
 
     setLoading(true)
-    const supabase = createSupabaseClient()
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     setLoading(false)
 
     if (error) { setError(error.message); return }
+
+    if (!data.session) {
+      setError('Cadastro realizado! Verifique seu e-mail para confirmar a conta.')
+      return
+    }
 
     window.location.href = '/cadastro/boas-vindas'
   }
 
   async function handleGoogle() {
-    const supabase = createSupabaseClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback?next=/cadastro/boas-vindas`,
       },
     })
+    if (error) setError('Não foi possível conectar com o Google. Tente novamente.')
   }
 
   return (
