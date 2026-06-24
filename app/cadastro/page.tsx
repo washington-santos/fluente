@@ -27,9 +27,10 @@ export default function CadastroPage() {
 
       if (error) {
         const msg = error.message ?? ''
-        if (msg === 'User already registered') {
+        const code = (error as { code?: string }).code ?? ''
+        if (code === 'user_already_exists' || msg === 'User already registered') {
           setError('Este e-mail já está cadastrado. Faça login ou recupere sua senha.')
-        } else if (msg.toLowerCase().includes('password')) {
+        } else if (code === 'weak_password' || msg.toLowerCase().includes('password')) {
           setError('A senha não atende aos critérios de segurança. Tente com letras e números.')
         } else {
           setError('Não foi possível criar a conta. Tente novamente.')

@@ -6,18 +6,23 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const raw = searchParams.get('next') ?? ''
-  // Accept only same-origin relative paths; block protocol-relative and path traversal (raw and %2e%2e)
+  // Accept only same-origin relative paths; block protocol-relative and path traversal at any encoding depth
   let next = '/dashboard'
   try {
     if (raw.startsWith('/') && !raw.startsWith('//')) {
       const rawPath = raw.split('?')[0].split('#')[0]
-      const hasTraversal = rawPath.split('/').some(
-        (seg) => seg === '..' || decodeURIComponent(seg) === '..'
-      )
+      const hasTraversal = rawPath.split('/').some((seg) => {
+        let s = seg
+        // Decode until stable: catches %2e%2e, %252e%252e, and deeper double-encoding
+        while (true) {
+          if (s === '..') return true
+          try { const d = decodeURIComponent(s); if (d === s) return false; s = d } catch { return false }
+        }
+      })
       if (!hasTraversal) {
         const parsed = new URL(raw, origin)
-        // Omit hash: browsers strip fragments before sending HTTP requests, so it never arrives
-        if (parsed.origin === origin) next = parsed.pathname + parsed.search
+        // Include parsed.hash: searchParams.get() already decodes %23→#, so a hash in raw is intentional
+        if (parsed.origin === origin) next = parsed.pathname + parsed.search + parsed.hash
       }
     }
   } catch { /* malformed URL — keep default */ }
