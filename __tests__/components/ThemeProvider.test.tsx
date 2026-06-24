@@ -22,8 +22,14 @@ describe('ThemeProvider', () => {
     expect(screen.getByTestId('theme').textContent).toBe('dark')
   })
 
-  it('applies dark class to html element', () => {
+  it('manages dark class on html element after first toggle', async () => {
+    // The inline script in layout.tsx owns the initial class; ThemeProvider skips
+    // the first DOM sync to avoid overriding it. After the first toggle the effect
+    // takes over and correctly reflects the new theme.
     render(<ThemeProvider><TestConsumer /></ThemeProvider>)
+    await act(async () => screen.getByText('toggle').click()) // dark → light
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    await act(async () => screen.getByText('toggle').click()) // light → dark
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 

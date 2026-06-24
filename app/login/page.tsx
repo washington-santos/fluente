@@ -20,12 +20,15 @@ export default function LoginPage() {
     if (!password) { setError('Senha é obrigatória'); return }
 
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-
-    if (error) { setError('E-mail ou senha incorretos'); return }
-
-    window.location.href = '/dashboard'
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) { setError('E-mail ou senha incorretos'); return }
+      window.location.href = '/dashboard'
+    } catch {
+      setError('Ocorreu um erro inesperado. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleGoogle() {

@@ -5,12 +5,14 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const raw = searchParams.get('next') ?? '/dashboard'
-  // URL-parse to canonicalize encoded sequences (e.g. /%2F%2F → //evil.com) before the origin check
+  const raw = searchParams.get('next') ?? ''
+  // Accept only relative paths: must start with '/', not '//', and contain no '..' segments
   let next = '/dashboard'
   try {
-    const parsed = new URL(raw, origin)
-    if (parsed.origin === origin) next = parsed.pathname + parsed.search + parsed.hash
+    if (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('..')) {
+      const parsed = new URL(raw, origin)
+      if (parsed.origin === origin) next = parsed.pathname + parsed.search + parsed.hash
+    }
   } catch { /* malformed URL — keep default */ }
 
   if (!code) {

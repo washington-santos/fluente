@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -19,6 +19,9 @@ export function ThemeProvider({
   initialTheme?: Theme
 }) {
   const [theme, setTheme] = useState<Theme>(initialTheme ?? 'dark')
+  // Tracks whether the first effect run has passed; on first run the inline script
+  // in layout.tsx already applied the correct class, so we skip to avoid a flash.
+  const isFirstRender = useRef(true)
 
   useEffect(() => {
     if (!initialTheme) {
@@ -28,9 +31,13 @@ export function ThemeProvider({
   }, [initialTheme])
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     document.documentElement.classList.toggle('dark', theme === 'dark')
-    if (!initialTheme) localStorage.setItem('ef_theme', theme)
-  }, [theme, initialTheme])
+    localStorage.setItem('ef_theme', theme)
+  }, [theme])
 
   const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
 
