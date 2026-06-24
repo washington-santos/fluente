@@ -6,10 +6,10 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const raw = searchParams.get('next') ?? ''
-  // Accept only relative paths: must start with '/', not '//', and contain no '..' segments
+  // Accept only same-origin relative paths; reject protocol-relative (//evil.com) and empty
   let next = '/dashboard'
   try {
-    if (raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('..')) {
+    if (raw.startsWith('/') && !raw.startsWith('//')) {
       const parsed = new URL(raw, origin)
       if (parsed.origin === origin) next = parsed.pathname + parsed.search + parsed.hash
     }

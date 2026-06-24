@@ -24,7 +24,8 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setError('E-mail ou senha incorretos'); return }
       window.location.href = '/dashboard'
-    } catch {
+    } catch (e) {
+      console.error('[login] signInWithPassword threw:', e)
       setError('Ocorreu um erro inesperado. Tente novamente.')
     } finally {
       setLoading(false)

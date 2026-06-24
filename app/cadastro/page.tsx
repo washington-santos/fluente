@@ -25,7 +25,7 @@ export default function CadastroPage() {
     try {
       const { data, error } = await supabase.auth.signUp({ email, password })
 
-      if (error) { setError(error.message); return }
+      if (error) { setError('Não foi possível criar a conta. Tente novamente.'); return }
 
       if (!data.session) {
         setSuccessMsg('Cadastro realizado! Verifique seu e-mail para confirmar a conta.')
@@ -33,7 +33,8 @@ export default function CadastroPage() {
       }
 
       window.location.href = '/cadastro/boas-vindas'
-    } catch {
+    } catch (e) {
+      console.error('[cadastro] signUp threw:', e)
       setError('Ocorreu um erro inesperado. Tente novamente.')
     } finally {
       setLoading(false)
