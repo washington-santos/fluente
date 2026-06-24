@@ -1,3 +1,5 @@
+'use client'
+
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ProgressBar } from '@/components/onboarding/ProgressBar'
 
