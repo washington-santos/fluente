@@ -10,6 +10,9 @@ export default defineConfig({
     globals: true,
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, '.') },
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+      'framer-motion': path.resolve(__dirname, './__mocks__/framer-motion.tsx'),
+    },
   },
 })
