@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -12,6 +12,11 @@ export default function CadastroPage() {
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [safeNext, setSafeNext] = useState('')
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get('next') ?? ''
+    if (raw.startsWith('/') && !raw.startsWith('//')) setSafeNext(raw)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -43,7 +48,7 @@ export default function CadastroPage() {
         return
       }
 
-      window.location.href = '/cadastro/boas-vindas'
+      window.location.href = safeNext || '/cadastro/boas-vindas'
     } catch (e) {
       console.error('[cadastro] signUp threw:', e instanceof Error ? e.message : String(e))
       setError('Ocorreu um erro inesperado. Tente novamente.')
@@ -53,10 +58,11 @@ export default function CadastroPage() {
   }
 
   async function handleGoogle() {
+    const dest = safeNext || '/cadastro/boas-vindas'
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=/cadastro/boas-vindas`,
+        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(dest)}`,
       },
     })
     if (error) setError('Não foi possível conectar com o Google. Tente novamente.')

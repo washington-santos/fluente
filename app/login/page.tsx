@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createSupabaseClient } from '@/lib/supabase'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -11,6 +11,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [safeNext, setSafeNext] = useState('')
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get('next') ?? ''
+    if (raw.startsWith('/') && !raw.startsWith('//')) setSafeNext(raw)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,8 +28,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setError('E-mail ou senha incorretos'); return }
-      const nextPath = new URLSearchParams(window.location.search).get('next') ?? '/dashboard'
-      window.location.href = nextPath
+      window.location.href = safeNext || '/dashboard'
     } catch (e) {
       console.error('[login] signInWithPassword threw:', e instanceof Error ? e.message : String(e))
       setError('Ocorreu um erro inesperado. Tente novamente.')
@@ -34,11 +38,10 @@ export default function LoginPage() {
   }
 
   async function handleGoogle() {
-    const nextPath = new URLSearchParams(window.location.search).get('next')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
+        redirectTo: `${window.location.origin}/api/auth/callback${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ''}`,
       },
     })
     if (error) setError('Não foi possível conectar com o Google. Tente novamente.')
@@ -103,7 +106,10 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-content-light-secondary dark:text-content-dark-secondary">
             Não tem conta?{' '}
-            <Link href="/cadastro" className="text-brand-interactive hover:underline">
+            <Link
+              href={safeNext ? `/cadastro?next=${encodeURIComponent(safeNext)}` : '/cadastro'}
+              className="text-brand-interactive hover:underline"
+            >
               Criar conta grátis
             </Link>
           </p>
