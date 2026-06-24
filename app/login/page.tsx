@@ -23,7 +23,8 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setError('E-mail ou senha incorretos'); return }
-      window.location.href = '/dashboard'
+      const nextPath = new URLSearchParams(window.location.search).get('next') ?? '/dashboard'
+      window.location.href = nextPath
     } catch (e) {
       console.error('[login] signInWithPassword threw:', e instanceof Error ? e.message : String(e))
       setError('Ocorreu um erro inesperado. Tente novamente.')
@@ -33,9 +34,12 @@ export default function LoginPage() {
   }
 
   async function handleGoogle() {
+    const nextPath = new URLSearchParams(window.location.search).get('next')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''}`,
+      },
     })
     if (error) setError('Não foi possível conectar com o Google. Tente novamente.')
   }

@@ -27,7 +27,7 @@ export default function CadastroPage() {
 
       if (error) {
         const msg = error.message ?? ''
-        const code = (error as { code?: string }).code ?? ''
+        const code = 'code' in error && typeof error.code === 'string' ? error.code : ''
         if (code === 'user_already_exists' || msg === 'User already registered') {
           setError('Este e-mail já está cadastrado. Faça login ou recupere sua senha.')
         } else if (code === 'weak_password' || msg.toLowerCase().includes('password')) {

@@ -31,7 +31,9 @@ export async function middleware(request: NextRequest) {
   const isAuthOnly = AUTH_ONLY.includes(pathname)
 
   if (isProtected && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   if (isAuthOnly && user) {

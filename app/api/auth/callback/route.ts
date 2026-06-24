@@ -11,14 +11,12 @@ export async function GET(request: Request) {
   try {
     if (raw.startsWith('/') && !raw.startsWith('//')) {
       const rawPath = raw.split('?')[0].split('#')[0]
-      const hasTraversal = rawPath.split('/').some((seg) => {
-        let s = seg
-        // Decode until stable: catches %2e%2e, %252e%252e, and deeper double-encoding
-        while (true) {
-          if (s === '..') return true
-          try { const d = decodeURIComponent(s); if (d === s) return false; s = d } catch { return false }
-        }
-      })
+      // Decode the full path until stable — handles any encoding depth and %2F-encoded slashes within segments
+      let decodedPath = rawPath
+      while (true) {
+        try { const d = decodeURIComponent(decodedPath); if (d === decodedPath) break; decodedPath = d } catch { break }
+      }
+      const hasTraversal = decodedPath.split('/').some((seg) => seg === '..')
       if (!hasTraversal) {
         const parsed = new URL(raw, origin)
         // Include parsed.hash: searchParams.get() already decodes %23→#, so a hash in raw is intentional
