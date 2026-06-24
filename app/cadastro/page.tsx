@@ -25,7 +25,17 @@ export default function CadastroPage() {
     try {
       const { data, error } = await supabase.auth.signUp({ email, password })
 
-      if (error) { setError('Não foi possível criar a conta. Tente novamente.'); return }
+      if (error) {
+        const msg = error.message ?? ''
+        if (msg === 'User already registered') {
+          setError('Este e-mail já está cadastrado. Faça login ou recupere sua senha.')
+        } else if (msg.toLowerCase().includes('password')) {
+          setError('A senha não atende aos critérios de segurança. Tente com letras e números.')
+        } else {
+          setError('Não foi possível criar a conta. Tente novamente.')
+        }
+        return
+      }
 
       if (!data.session) {
         setSuccessMsg('Cadastro realizado! Verifique seu e-mail para confirmar a conta.')
@@ -34,7 +44,7 @@ export default function CadastroPage() {
 
       window.location.href = '/cadastro/boas-vindas'
     } catch (e) {
-      console.error('[cadastro] signUp threw:', e)
+      console.error('[cadastro] signUp threw:', e instanceof Error ? e.message : String(e))
       setError('Ocorreu um erro inesperado. Tente novamente.')
     } finally {
       setLoading(false)

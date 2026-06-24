@@ -25,7 +25,7 @@ export default function LoginPage() {
       if (error) { setError('E-mail ou senha incorretos'); return }
       window.location.href = '/dashboard'
     } catch (e) {
-      console.error('[login] signInWithPassword threw:', e)
+      console.error('[login] signInWithPassword threw:', e instanceof Error ? e.message : String(e))
       setError('Ocorreu um erro inesperado. Tente novamente.')
     } finally {
       setLoading(false)
