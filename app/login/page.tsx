@@ -14,7 +14,14 @@ export default function LoginPage() {
   const [safeNext, setSafeNext] = useState('')
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get('next') ?? ''
-    if (raw.startsWith('/') && !raw.startsWith('//')) setSafeNext(raw)
+    if (raw.startsWith('/') && !raw.startsWith('//')) {
+      const rawPath = raw.split('?')[0].split('#')[0]
+      let dp = rawPath
+      while (true) {
+        try { const d = decodeURIComponent(dp); if (d === dp) break; dp = d } catch { break }
+      }
+      if (!dp.split('/').some((s) => s === '..')) setSafeNext(raw)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -107,7 +114,13 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-sm text-content-light-secondary dark:text-content-dark-secondary">
             Não tem conta?{' '}
             <Link
-              href={safeNext ? `/cadastro?next=${encodeURIComponent(safeNext)}` : '/cadastro'}
+              href="/cadastro"
+              onClick={(e) => {
+                if (safeNext) {
+                  e.preventDefault()
+                  window.location.href = `/cadastro?next=${encodeURIComponent(safeNext)}`
+                }
+              }}
               className="text-brand-interactive hover:underline"
             >
               Criar conta grátis

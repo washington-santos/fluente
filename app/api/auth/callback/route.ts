@@ -19,8 +19,10 @@ export async function GET(request: Request) {
       const hasTraversal = decodedPath.split('/').some((seg) => seg === '..')
       if (!hasTraversal) {
         const parsed = new URL(raw, origin)
-        // Include parsed.hash: searchParams.get() already decodes %23→#, so a hash in raw is intentional
-        if (parsed.origin === origin) next = parsed.pathname + parsed.search + parsed.hash
+        if (parsed.origin === origin) {
+          const safeHash = parsed.hash && !parsed.hash.slice(1).split('/').some((s) => s === '..') ? parsed.hash : ''
+          next = parsed.pathname + parsed.search + safeHash
+        }
       }
     }
   } catch { /* malformed URL — keep default */ }

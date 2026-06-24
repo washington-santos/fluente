@@ -15,7 +15,14 @@ export default function CadastroPage() {
   const [safeNext, setSafeNext] = useState('')
   useEffect(() => {
     const raw = new URLSearchParams(window.location.search).get('next') ?? ''
-    if (raw.startsWith('/') && !raw.startsWith('//')) setSafeNext(raw)
+    if (raw.startsWith('/') && !raw.startsWith('//')) {
+      const rawPath = raw.split('?')[0].split('#')[0]
+      let dp = rawPath
+      while (true) {
+        try { const d = decodeURIComponent(dp); if (d === dp) break; dp = d } catch { break }
+      }
+      if (!dp.split('/').some((s) => s === '..')) setSafeNext(raw)
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
