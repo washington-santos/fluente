@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PROTECTED = ['/dashboard', '/aula', '/professores', '/planos', '/perfil', '/admin', '/cadastro/boas-vindas']
 const AUTH_ONLY = ['/login', '/cadastro']
+const NO_NEXT_REDIRECT = new Set(['/cadastro/boas-vindas'])
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -32,7 +33,7 @@ export async function middleware(request: NextRequest) {
 
   if (isProtected && !user) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', pathname + search)
+    if (!NO_NEXT_REDIRECT.has(pathname)) loginUrl.searchParams.set('next', pathname + search)
     return NextResponse.redirect(loginUrl)
   }
 

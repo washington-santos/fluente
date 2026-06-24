@@ -30,8 +30,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`)
   }
 
-  // Build the redirect response first so cookies can be written directly onto it
-  const redirectResponse = NextResponse.redirect(`${origin}${next}`)
+  // Buffer session cookies so they are only applied to the success response
+  const sessionCookies: {
+    name: string
+    value: string
+    options: {
+      domain?: string
+      expires?: Date
+      httpOnly?: boolean
+      maxAge?: number
+      path?: string
+      sameSite?: boolean | 'lax' | 'strict' | 'none'
+      secure?: boolean
+    }
+  }[] = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,7 +53,7 @@ export async function GET(request: NextRequest) {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) =>
           cookiesToSet.forEach(({ name, value, options }) =>
-            redirectResponse.cookies.set(name, value, options)
+            sessionCookies.push({ name, value, options })
           ),
       },
     }
@@ -53,5 +65,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
   }
 
+  const redirectResponse = NextResponse.redirect(`${origin}${next}`)
+  sessionCookies.forEach(({ name, value, options }) =>
+    redirectResponse.cookies.set(name, value, options)
+  )
   return redirectResponse
 }
