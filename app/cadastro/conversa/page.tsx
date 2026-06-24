@@ -10,7 +10,7 @@ import type { OnboardingLevelResponse } from '@/types'
 type RecordState = 'idle' | 'recording' | 'processing'
 
 export default function ConversaPage() {
-  const { saveStep, loading } = useOnboardingProgress(5)
+  const { progress, saveStep, loading } = useOnboardingProgress(5)
   const [state, setState] = useState<RecordState>('idle')
   const [countdown, setCountdown] = useState(45)
   const [error, setError] = useState<string | null>(null)
@@ -60,8 +60,12 @@ export default function ConversaPage() {
     try {
       const res = await fetch('/api/onboarding/level', { method: 'POST', body: form })
       if (!res.ok) throw new Error('API error')
-      const { transcript } = (await res.json()) as OnboardingLevelResponse
-      await saveStep(5, { conversation_transcript: transcript })
+      const { transcript, level } = (await res.json()) as OnboardingLevelResponse
+      const prevAnswers = progress?.written_answers ?? []
+      await saveStep(5, {
+        conversation_transcript: transcript,
+        written_answers: [...prevAnswers, level],
+      })
     } catch {
       setError('Erro ao processar o áudio. Tente novamente.')
       setState('idle')
