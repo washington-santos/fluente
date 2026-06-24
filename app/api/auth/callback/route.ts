@@ -21,7 +21,7 @@ export async function GET(request: Request) {
         const parsed = new URL(raw, origin)
         if (parsed.origin === origin) {
           const safeHash = parsed.hash && !parsed.hash.slice(1).split('/').some((s) => s === '..') ? parsed.hash : ''
-          next = parsed.pathname + parsed.search + safeHash
+          next = encodeURI(decodedPath) + parsed.search + safeHash
         }
       }
     }
