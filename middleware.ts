@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED = ['/dashboard', '/aula', '/professores', '/planos', '/perfil', '/admin', '/cadastro/boas-vindas']
+const PROTECTED = ['/dashboard', '/aula', '/professores', '/planos', '/perfil', '/admin', '/cadastro']
 const AUTH_ONLY = ['/login', '/cadastro']
 const NO_NEXT_REDIRECT = new Set(['/cadastro/boas-vindas'])
 

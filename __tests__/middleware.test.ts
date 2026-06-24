@@ -47,4 +47,25 @@ describe('middleware', () => {
     const res = await middleware(makeRequest('/'))
     expect(res.status).toBe(200)
   })
+
+  it('redirects unauthenticated request to /cadastro/objetivo → /login', async () => {
+    mockUser(null)
+    const { middleware } = await import('@/middleware')
+    const res = await middleware(makeRequest('/cadastro/objetivo'))
+    expect(res.headers.get('location')).toContain('/login')
+  })
+
+  it('allows authenticated request to /cadastro/objetivo through', async () => {
+    mockUser({ id: 'user-123' })
+    const { middleware } = await import('@/middleware')
+    const res = await middleware(makeRequest('/cadastro/objetivo'))
+    expect(res.status).toBe(200)
+  })
+
+  it('redirects authenticated request to /cadastro exactly → /dashboard', async () => {
+    mockUser({ id: 'user-123' })
+    const { middleware } = await import('@/middleware')
+    const res = await middleware(makeRequest('/cadastro'))
+    expect(res.headers.get('location')).toContain('/dashboard')
+  })
 })
