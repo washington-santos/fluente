@@ -144,3 +144,15 @@ export interface ConversationResponse {
   had_correction: boolean
   error_report: ErrorReport
 }
+
+export interface McqQuestion {
+  id: string
+  text: string
+  options: string[]
+  correct: string
+}
+
+export interface OnboardingLevelResponse {
+  level: CefrLevel
+  transcript: string
+}
