@@ -3,18 +3,31 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 const mockOnComplete = vi.fn()
 
-const mockMediaRecorder = {
-  start: vi.fn(),
-  stop: vi.fn(),
-  ondataavailable: null as ((e: any) => void) | null,
-  onstop: null as (() => void) | null,
-  mimeType: 'audio/webm',
-  state: 'inactive',
+let mockRecorderInstance: {
+  start: ReturnType<typeof vi.fn>
+  stop: ReturnType<typeof vi.fn>
+  ondataavailable: ((e: any) => void) | null
+  onstop: (() => void) | null
+  mimeType: string
+  state: string
+}
+
+class MockMediaRecorder {
+  start = vi.fn()
+  stop = vi.fn()
+  ondataavailable: ((e: any) => void) | null = null
+  onstop: (() => void) | null = null
+  mimeType = 'audio/webm'
+  state = 'inactive'
+  constructor() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    mockRecorderInstance = this as any
+  }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.stubGlobal('MediaRecorder', vi.fn().mockImplementation(() => mockMediaRecorder))
+  vi.stubGlobal('MediaRecorder', MockMediaRecorder)
   vi.stubGlobal('navigator', {
     mediaDevices: {
       getUserMedia: vi.fn().mockResolvedValue({
@@ -31,7 +44,7 @@ describe('useAudioRecorder', () => {
     const { result } = renderHook(() => useAudioRecorder({ onComplete: mockOnComplete }))
     await act(async () => { await result.current.startRecording() })
     expect(result.current.isRecording).toBe(true)
-    expect(mockMediaRecorder.start).toHaveBeenCalled()
+    expect(mockRecorderInstance.start).toHaveBeenCalled()
   })
 
   it('is not recording initially', () => {
@@ -55,11 +68,11 @@ describe('useAudioRecorder', () => {
     const { result } = renderHook(() => useAudioRecorder({ onComplete: mockOnComplete }))
     await act(async () => { await result.current.startRecording() })
     act(() => {
-      mockMediaRecorder.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/webm' }) })
+      mockRecorderInstance.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/webm' }) })
     })
     act(() => {
       result.current.stopRecording()
-      mockMediaRecorder.onstop?.()
+      mockRecorderInstance.onstop?.()
     })
     expect(mockOnComplete).toHaveBeenCalledWith(expect.any(Blob))
   })
