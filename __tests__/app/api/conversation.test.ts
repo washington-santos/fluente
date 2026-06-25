@@ -10,7 +10,13 @@ vi.mock('@supabase/ssr', () => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
     from: vi.fn((table: string) => {
       if (table === 'sessions') return {
-        select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockSession, error: null }) })) })),
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: mockSession, error: null }),
+            })),
+          })),
+        })),
       }
       if (table === 'users') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
@@ -20,6 +26,13 @@ vi.mock('@supabase/ssr', () => ({
         insert: vi.fn().mockResolvedValue({ error: null }),
       }
       if (table === 'usage_log') return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          })),
+        })),
         upsert: vi.fn().mockResolvedValue({ error: null }),
       }
       return {}

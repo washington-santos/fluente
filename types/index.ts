@@ -144,6 +144,7 @@ export interface ConversationResponse {
   video_url: string | null
   had_correction: boolean
   error_report: ErrorReport
+  transcript?: string
 }
 
 export interface McqQuestion {

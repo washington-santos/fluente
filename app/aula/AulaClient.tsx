@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { RecordButton } from '@/components/aula/RecordButton'
@@ -18,6 +18,7 @@ interface AulaClientProps {
 }
 
 export function AulaClient({ teacher, user }: AulaClientProps) {
+  const router = useRouter()
   const { sessionId, messages, loading, sending, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
@@ -47,18 +48,18 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
 
   async function handleEnd() {
     await endSession()
+    router.push('/dashboard')
   }
 
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col max-h-screen overflow-hidden">
       <header className="flex items-center justify-between p-4 shrink-0">
-        <Link
-          href="/dashboard"
+        <button
           onClick={handleEnd}
           className="flex items-center gap-1 text-sm text-content-light-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
         >
           <X size={16} /> Encerrar aula
-        </Link>
+        </button>
         <ThemeToggle />
       </header>
 

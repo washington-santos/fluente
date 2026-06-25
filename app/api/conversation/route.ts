@@ -31,12 +31,13 @@ export async function POST(request: Request) {
   if (!sessionId) return NextResponse.json({ error: 'session_id required' }, { status: 400 })
   if (!audio && !panicText) return NextResponse.json({ error: 'audio or panic_text required' }, { status: 400 })
 
-  // Load session with teacher
+  // Load session with teacher — also checks user_id to prevent IDOR
   const { data: session } = await supabase
     .from('sessions')
     .select('*, teacher:teachers(*)')
     .eq('id', sessionId)
-    .single()
+    .eq('user_id', user.id)
+    .maybeSingle()
 
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
@@ -127,18 +128,26 @@ When an error is detected set error_detected to true and fill the correction fie
     { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
   ])
 
-  // Update usage log
+  // Increment today's usage log
   const usage = claudeRes.usage
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: existingUsage } = await supabase
+    .from('usage_log')
+    .select('whisper_minutes, tts_chars, claude_tokens, did_credits')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle()
+
   await supabase.from('usage_log').upsert(
     {
       user_id: user.id,
-      date: new Date().toISOString().slice(0, 10),
-      whisper_minutes: audio ? 0.5 : 0,
-      tts_chars: replyText.length,
-      claude_tokens: usage.input_tokens + usage.output_tokens,
-      did_credits: videoUrl ? 1 : 0,
+      date: today,
+      whisper_minutes: (existingUsage?.whisper_minutes ?? 0) + (audio ? 0.5 : 0),
+      tts_chars: (existingUsage?.tts_chars ?? 0) + replyText.length,
+      claude_tokens: (existingUsage?.claude_tokens ?? 0) + usage.input_tokens + usage.output_tokens,
+      did_credits: (existingUsage?.did_credits ?? 0) + (videoUrl ? 1 : 0),
     },
-    { onConflict: 'user_id,date', ignoreDuplicates: false }
+    { onConflict: 'user_id,date' }
   )
 
   const response: ConversationResponse = {
@@ -147,6 +156,7 @@ When an error is detected set error_detected to true and fill the correction fie
     video_url: videoUrl,
     had_correction: errorReport.error_detected,
     error_report: errorReport,
+    transcript,
   }
 
   return NextResponse.json(response)

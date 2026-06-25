@@ -59,13 +59,6 @@ export function useSession(teacherId: string): UseSessionReturn {
     if (!sessionId) return null
     setSending(true)
 
-    const userText = typeof input === 'string' ? input : 'Audio message'
-
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', text: userText, audio_url: null, had_correction: false },
-    ])
-
     try {
       const form = new FormData()
       form.append('session_id', sessionId)
@@ -79,14 +72,12 @@ export function useSession(teacherId: string): UseSessionReturn {
       if (!res.ok) return null
       const data = (await res.json()) as ConversationResponse
 
+      const userText = data.transcript ?? (typeof input === 'string' ? input : '...')
+
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text: data.text,
-          audio_url: data.audio_url,
-          had_correction: data.had_correction,
-        },
+        { role: 'user', text: userText, audio_url: null, had_correction: false },
+        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction },
       ])
 
       return data
