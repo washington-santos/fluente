@@ -2,15 +2,20 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { SessionMode } from '@/types'
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(request.url)
+  const teacherId = searchParams.get('teacher_id')
+  if (!teacherId) return NextResponse.json({ error: 'teacher_id required' }, { status: 400 })
 
   const { data: session } = await supabase
     .from('sessions')
     .select('*, teacher:teachers(*)')
     .eq('user_id', user.id)
+    .eq('teacher_id', teacherId)
     .is('ended_at', null)
     .order('started_at', { ascending: false })
     .limit(1)

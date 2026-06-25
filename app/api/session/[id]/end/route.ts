@@ -11,12 +11,14 @@ export async function PATCH(
 
   const body = await request.json() as { duration_seconds: number }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('sessions')
     .update({ ended_at: new Date().toISOString(), duration_seconds: body.duration_seconds })
     .eq('id', params.id)
     .eq('user_id', user.id)
+    .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!data || data.length === 0) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   return NextResponse.json({ ok: true })
 }

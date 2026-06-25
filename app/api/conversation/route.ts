@@ -28,8 +28,9 @@ export async function POST(request: Request) {
   const audio = formData.get('audio') as Blob | null
   const panicText = formData.get('panic_text') as string | null
 
+  const trimmedPanicText = panicText ? panicText.trim() : null
   if (!sessionId) return NextResponse.json({ error: 'session_id required' }, { status: 400 })
-  if (!audio && !panicText) return NextResponse.json({ error: 'audio or panic_text required' }, { status: 400 })
+  if (!audio && !trimmedPanicText) return NextResponse.json({ error: 'No audio or panic_text' }, { status: 400 })
 
   // Load session with teacher — also checks user_id to prevent IDOR
   const { data: session } = await supabase
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     })
     transcript = result.text.trim()
   } else {
-    transcript = (panicText as string).trim()
+    transcript = trimmedPanicText as string
   }
 
   // Load conversation history (last 20 messages)
@@ -102,8 +103,8 @@ When an error is detected set error_detected to true and fill the correction fie
     parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null } }
   }
 
-  const replyText = parsed.reply
-  const correctionRaw = parsed.correction
+  const replyText: string = parsed.reply ?? rawText
+  const correctionRaw = parsed.correction ?? {}
 
   const errorReport: ErrorReport = {
     error_detected: correctionRaw.error_detected ?? false,
@@ -111,6 +112,12 @@ When an error is detected set error_detected to true and fill the correction fie
     correct_form: correctionRaw.correct_form ?? undefined,
     error_type: VALID_ERROR_TYPES.has(correctionRaw.error_type ?? '') ? (correctionRaw.error_type as ErrorType) : undefined,
   }
+
+  // Persist messages before TTS/D-ID so a serverless timeout does not lose them
+  await supabase.from('messages').insert([
+    { session_id: sessionId, role: 'user', text: transcript, audio_url: null, had_correction: false },
+    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
+  ])
 
   // TTS
   const audioUrl = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
@@ -121,12 +128,6 @@ When an error is detected set error_detected to true and fill the correction fie
   const videoUrl = sourceUrl
     ? await createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', sourceUrl)
     : null
-
-  // Persist messages
-  await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'user', text: transcript, audio_url: null, had_correction: false },
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
-  ])
 
   // Increment today's usage log
   const usage = claudeRes.usage

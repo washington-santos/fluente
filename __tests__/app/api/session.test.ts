@@ -17,6 +17,19 @@ vi.mock('@supabase/ssr', () => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           single: vi.fn().mockResolvedValue({ data: mockTeacher, error: null }),
+          // Second .eq() chained for teacher_id filter (Fix 3)
+          eq: vi.fn(() => ({
+            is: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { ...mockSession, teacher: mockTeacher },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          })),
           is: vi.fn(() => ({
             order: vi.fn(() => ({
               limit: vi.fn(() => ({
@@ -32,9 +45,12 @@ vi.mock('@supabase/ssr', () => ({
           })),
         })),
       })),
+      // update chain now includes .select('id') after the second .eq() (Fix 6)
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({ error: null }),
+          eq: vi.fn(() => ({
+            select: vi.fn().mockResolvedValue({ data: [{ id: 'session-1' }], error: null }),
+          })),
         })),
       })),
     })),
@@ -82,7 +98,7 @@ describe('GET /api/session', () => {
 
   it('returns the latest active session with teacher', async () => {
     const { GET } = await import('@/app/api/session/route')
-    const res = await GET()
+    const res = await GET(new Request('http://localhost/api/session?teacher_id=teacher-1'))
     const body = await res.json()
     expect(body.session.id).toBe('session-1')
     expect(body.session.teacher.slug).toBe('mrs-carol')

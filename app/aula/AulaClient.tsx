@@ -23,6 +23,7 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   async function handleTurn(input: File | string) {
     const response = await sendTurn(input)
@@ -31,11 +32,22 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
   }
 
   function playAudio(response: ConversationResponse) {
+    // Stop any currently playing audio before starting new playback
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.onended = null
+      audioRef.current = null
+    }
+
     setVideoUrl(response.video_url)
-    setIsSpeaking(true)
     const audio = new Audio(response.audio_url)
-    audio.onended = () => setIsSpeaking(false)
+    audioRef.current = audio
+    setIsSpeaking(true)
     audio.play().catch(() => setIsSpeaking(false))
+    audio.onended = () => {
+      setIsSpeaking(false)
+      audioRef.current = null
+    }
   }
 
   const { isRecording, startRecording, stopRecording, error: micError } = useAudioRecorder({

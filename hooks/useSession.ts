@@ -28,30 +28,44 @@ export function useSession(teacherId: string): UseSessionReturn {
 
   useEffect(() => {
     ;(async () => {
-      const getRes = await fetch('/api/session')
-      const { session } = await getRes.json()
+      try {
+        const getRes = await fetch(`/api/session?teacher_id=${encodeURIComponent(teacherId)}`)
+        const { session } = await getRes.json()
 
-      if (session) {
-        setSessionId(session.id)
-        setMessages(
-          (session.messages ?? []).map((m: any) => ({
-            role: m.role,
-            text: m.text,
-            audio_url: m.audio_url,
-            had_correction: m.had_correction,
-          }))
-        )
-      } else {
+        if (session) {
+          setSessionId(session.id)
+          setMessages(
+            (session.messages ?? []).map((m: any) => ({
+              role: m.role,
+              text: m.text,
+              audio_url: m.audio_url,
+              had_correction: m.had_correction,
+            }))
+          )
+          // Use the session's actual start time for accurate duration on resume
+          const sessionStart = session.started_at ?? session.created_at
+          if (sessionStart) {
+            startedAt.current = new Date(sessionStart).getTime()
+          }
+          return
+        }
+
         const postRes = await fetch('/api/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId }),
         })
+        if (!postRes.ok) {
+          console.error('Failed to create session:', postRes.status)
+          return
+        }
         const { session_id } = await postRes.json()
         setSessionId(session_id)
+      } catch (err) {
+        console.error('useSession init error:', err)
+      } finally {
+        setLoading(false)
       }
-
-      setLoading(false)
     })()
   }, [teacherId])
 
