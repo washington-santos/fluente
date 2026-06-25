@@ -34,6 +34,7 @@ export interface OnboardingProgress {
 
 export interface Teacher {
   id: string
+  slug: string
   name: string
   system_prompt: string
   tts_voice: string
