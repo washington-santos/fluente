@@ -25,7 +25,7 @@ vi.mock('@/hooks/useOnboardingProgress', () => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step, ...extra }),
       })
-      pushMock('/cadastro/intencoes')
+      pushMock('/cadastro/horario')
     }),
   })),
 }))

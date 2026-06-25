@@ -14,6 +14,7 @@ export function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
     <div className="w-full space-y-1">
       <div
         role="progressbar"
+        aria-label="Progresso do cadastro"
         aria-valuenow={currentStep}
         aria-valuemin={1}
         aria-valuemax={totalSteps}

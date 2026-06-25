@@ -53,7 +53,7 @@ export default function ProfessorPage() {
         .eq('id', user.id)
     }
 
-    await saveStep(6, { completed: true } as any)
+    await saveStep(6, { completed: true })
     setSubmitting(false)
   }
 

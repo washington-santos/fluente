@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Mic, MicOff, Loader2 } from 'lucide-react'
 import { OnboardingLayout } from '@/components/onboarding/OnboardingLayout'
 import { useOnboardingProgress } from '@/hooks/useOnboardingProgress'
-import { TEACHERS } from '@/config/teachers'
-import type { OnboardingLevelResponse } from '@/types'
+import { TEACHERS, getTeacherForLevel } from '@/config/teachers'
+import type { CefrLevel, OnboardingLevelResponse } from '@/types'
 
 type RecordState = 'idle' | 'recording' | 'processing'
 
@@ -17,6 +17,7 @@ export default function ConversaPage() {
   const mediaRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const countdownRef = useRef(45)
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
@@ -34,12 +35,14 @@ export default function ConversaPage() {
       recorder.start()
       mediaRef.current = recorder
       setState('recording')
+      countdownRef.current = 45
       setCountdown(45)
       timerRef.current = setInterval(() => {
-        setCountdown((c) => {
-          if (c <= 1) { stopRecording(); return 0 }
-          return c - 1
-        })
+        countdownRef.current -= 1
+        setCountdown(countdownRef.current)
+        if (countdownRef.current <= 0) {
+          stopRecording()
+        }
       }, 1000)
     } catch {
       setError('Não foi possível acessar o microfone. Verifique as permissões do navegador.')
@@ -74,13 +77,14 @@ export default function ConversaPage() {
 
   if (loading) return null
 
-  const teacher = TEACHERS['mrs-carol']
+  const mcqLevel = (progress?.written_answers?.[3] as CefrLevel | undefined) ?? 'A1'
+  const teacher = TEACHERS[getTeacherForLevel(mcqLevel)]
 
   return (
     <OnboardingLayout currentStep={5} title="Fale um pouco em inglês" subtitle="Não precisa ser perfeito!">
       <div className="space-y-6">
         <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card">
-          <p className="text-xs font-semibold text-brand-interactive mb-2">Mrs. Carol diz:</p>
+          <p className="text-xs font-semibold text-brand-interactive mb-2">{teacher.name} diz:</p>
           <p className="text-sm text-content-light dark:text-content-dark italic">
             "{teacher.onboarding_prompt}"
           </p>

@@ -35,7 +35,10 @@ export async function POST(request: Request) {
     messages: [{ role: 'user', content: `Transcript: "${transcript}"` }],
   })
 
-  const raw = (message.content[0] as { type: string; text: string }).text.trim().toUpperCase()
+  const firstBlock = message.content[0]
+  const raw = firstBlock?.type === 'text'
+    ? (firstBlock as { type: 'text'; text: string }).text.trim().toUpperCase()
+    : ''
   const level: CefrLevel = VALID_LEVELS.has(raw) ? (raw as CefrLevel) : 'A2'
 
   const body: OnboardingLevelResponse = { level, transcript }

@@ -12,7 +12,7 @@ export function useOnboardingProgress(pageStep: number) {
 
   useEffect(() => {
     fetch('/api/onboarding/progress')
-      .then((r) => r.json())
+      .then((r) => r.ok ? r.json() : { progress: null })
       .then(({ progress: p }: { progress: OnboardingProgress | null }) => {
         setProgress(p)
         if (!p) return

@@ -23,7 +23,6 @@ export default function HorarioPage() {
     setSubmitting(true)
     const prev = progress?.written_answers ?? []
     await saveStep(3, { written_answers: [...prev, selected] })
-    setSubmitting(false)
   }
 
   if (loading) return null

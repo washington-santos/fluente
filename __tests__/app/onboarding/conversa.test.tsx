@@ -22,10 +22,10 @@ import ConversaPage from '@/app/cadastro/conversa/page'
 describe('ConversaPage', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders the Mrs. Carol prompt text', async () => {
+  it('renders the assigned teacher prompt based on MCQ level', async () => {
     render(<ConversaPage />)
     await waitFor(() =>
-      expect(screen.getByText(/mrs\. carol diz/i)).toBeInTheDocument()
+      expect(screen.getByText(/mr\. jake diz/i)).toBeInTheDocument()
     )
   })
 

@@ -43,6 +43,10 @@ describe('combineLevels', () => {
   it('is symmetric', () => {
     expect(combineLevels('B2', 'C1')).toBe(combineLevels('C1', 'B2'))
   })
+
+  it('averages adjacent beginner levels — A1 + A2 = A2', () => {
+    expect(combineLevels('A1', 'A2')).toBe('A2')
+  })
 })
 
 describe('stepToRoute', () => {

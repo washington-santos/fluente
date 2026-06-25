@@ -20,11 +20,18 @@ export default function BoasVindasPage() {
     const supabase = createSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      await supabase.from('users').update({ name: name.trim() }).eq('id', user.id)
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ name: name.trim() })
+        .eq('id', user.id)
+      if (updateError) {
+        setError('Erro ao salvar o nome. Tente novamente.')
+        setSubmitting(false)
+        return
+      }
     }
 
     await saveStep(1)
-    setSubmitting(false)
   }
 
   if (loading) return null

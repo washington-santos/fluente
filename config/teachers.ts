@@ -47,7 +47,8 @@ const LEVEL_ORDER: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 export function getTeacherForLevel(level: CefrLevel): string {
   const idx = LEVEL_ORDER.indexOf(level)
-  if (idx <= 1) return 'mrs-carol'
-  if (idx <= 3) return 'mr-jake'
-  return 'dr-reynolds'
+  if (idx <= 1) return 'mrs-carol'  // A1, A2
+  if (idx === 2) return 'mr-jake'   // B1
+  if (idx === 3) return 'sofia'     // B2
+  return 'dr-reynolds'              // C1, C2
 }
