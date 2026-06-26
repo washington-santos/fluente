@@ -8,7 +8,7 @@ interface Props {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds) return '—'
+  if (seconds == null) return '—'
   const mins = Math.round(seconds / 60)
   return `${mins} min`
 }

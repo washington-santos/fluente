@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { StreakBadge } from '@/components/dashboard/StreakBadge'
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
-import type { Teacher, User } from '@/types'
+import type { Teacher, User, Session, ErrorLog, ErrorType } from '@/types'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -98,13 +98,13 @@ export default async function DashboardPage() {
               Aulas recentes
             </h2>
             <div className="flex flex-col gap-2">
-              {(recentSessions ?? []).map((s: any) => (
+              {(recentSessions ?? []).map((s: { id: string; started_at: string; duration_seconds: number | null; teacher: Array<{ name: string }> | null }) => (
                 <SessionCard
                   key={s.id}
                   id={s.id}
                   started_at={s.started_at}
                   duration_seconds={s.duration_seconds}
-                  teacher_name={s.teacher?.name ?? 'Professor'}
+                  teacher_name={s.teacher?.[0]?.name ?? 'Professor'}
                 />
               ))}
             </div>
@@ -118,12 +118,12 @@ export default async function DashboardPage() {
               Erros frequentes
             </h2>
             <div className="flex flex-col gap-2">
-              {(errors ?? []).map((e: any) => (
+              {(errors ?? []).map((e: { id: string; error_type: string; error_text: string; correct_form: string; seen_count: number }) => (
                 <ErrorCard
                   key={e.id}
                   errorText={e.error_text}
                   correctForm={e.correct_form}
-                  errorType={e.error_type}
+                  errorType={e.error_type as ErrorType}
                   seenCount={e.seen_count}
                 />
               ))}
