@@ -19,7 +19,7 @@ interface AulaClientProps {
 
 export function AulaClient({ teacher, user }: AulaClientProps) {
   const router = useRouter()
-  const { sessionId, messages, loading, sending, sendTurn, endSession } = useSession(teacher.id)
+  const { sessionId, messages, loading, sending, initError, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -58,9 +58,35 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
     messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })
   }, [messages])
 
+  // Fix 4: Clean up audio on unmount to prevent memory leaks and orphaned callbacks
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.onended = null
+        audioRef.current = null
+      }
+    }
+  }, [])
+
   async function handleEnd() {
     await endSession()
     router.push('/dashboard')
+  }
+
+  // Fix 5: Surface session init errors so the UI is not silently non-functional
+  if (initError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <p className="text-red-500">{initError}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
   }
 
   return (

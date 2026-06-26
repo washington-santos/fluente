@@ -15,6 +15,7 @@ interface UseSessionReturn {
   messages: SessionMessage[]
   loading: boolean
   sending: boolean
+  initError: string | null
   sendTurn: (input: File | string) => Promise<ConversationResponse | null>
   endSession: () => Promise<void>
 }
@@ -24,15 +25,27 @@ export function useSession(teacherId: string): UseSessionReturn {
   const [messages, setMessages] = useState<SessionMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  // Fix 2 / Fix 5: unified error state for GET and POST failures
+  const [initError, setInitError] = useState<string | null>(null)
+  // Fix 6: startedAt.current = Date.now() at mount; never overwritten so
+  // endSession records CURRENT visit duration, not total session lifetime
   const startedAt = useRef(Date.now())
 
   useEffect(() => {
     ;(async () => {
       try {
         const getRes = await fetch(`/api/session?teacher_id=${encodeURIComponent(teacherId)}`)
-        const { session } = await getRes.json()
 
-        if (session) {
+        // Fix 2: Check GET ok before destructuring — auth/server errors must not fall into POST
+        if (!getRes.ok) {
+          setInitError('Não foi possível carregar a sessão. Tente novamente.')
+          return
+        }
+
+        const data = await getRes.json()
+        const session = data.session ?? data
+
+        if (session?.id) {
           setSessionId(session.id)
           setMessages(
             (session.messages ?? []).map((m: any) => ({
@@ -42,11 +55,8 @@ export function useSession(teacherId: string): UseSessionReturn {
               had_correction: m.had_correction,
             }))
           )
-          // Use the session's actual start time for accurate duration on resume
-          const sessionStart = session.started_at ?? session.created_at
-          if (sessionStart) {
-            startedAt.current = new Date(sessionStart).getTime()
-          }
+          // Fix 6: Do NOT backdate startedAt — keep Date.now() from mount so that
+          // endSession records the CURRENT visit duration, not total session lifetime
           return
         }
 
@@ -55,14 +65,16 @@ export function useSession(teacherId: string): UseSessionReturn {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId }),
         })
+        // Fix 5: Surface POST failure instead of silently doing nothing
         if (!postRes.ok) {
-          console.error('Failed to create session:', postRes.status)
+          setInitError('Não foi possível iniciar a sessão. Tente novamente.')
           return
         }
         const { session_id } = await postRes.json()
         setSessionId(session_id)
       } catch (err) {
         console.error('useSession init error:', err)
+        setInitError('Erro de conexão. Tente novamente.')
       } finally {
         setLoading(false)
       }
@@ -102,13 +114,21 @@ export function useSession(teacherId: string): UseSessionReturn {
 
   async function endSession() {
     if (!sessionId) return
-    const duration = Math.round((Date.now() - startedAt.current) / 1000)
-    await fetch(`/api/session/${sessionId}/end`, {
+    // Fix 7: Guard against NaN/negative duration values
+    const elapsed = Date.now() - startedAt.current
+    const duration_seconds = Number.isFinite(elapsed) && elapsed > 0
+      ? Math.round(elapsed / 1000)
+      : 0
+    // Fix 8: Check PATCH response instead of silently swallowing errors
+    const patchRes = await fetch(`/api/session/${sessionId}/end`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ duration_seconds: duration }),
+      body: JSON.stringify({ duration_seconds }),
     })
+    if (!patchRes.ok) {
+      console.error('Failed to end session:', patchRes.status)
+    }
   }
 
-  return { sessionId, messages, loading, sending, sendTurn, endSession }
+  return { sessionId, messages, loading, sending, initError, sendTurn, endSession }
 }

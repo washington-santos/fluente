@@ -12,6 +12,7 @@ vi.mock('@/hooks/useSession', () => ({
     ],
     loading: false,
     sending: false,
+    initError: null,
     sendTurn: vi.fn().mockResolvedValue(null),
     endSession: vi.fn(),
   })),

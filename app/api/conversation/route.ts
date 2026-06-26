@@ -103,7 +103,10 @@ When an error is detected set error_detected to true and fill the correction fie
     parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null } }
   }
 
-  const replyText: string = parsed.reply ?? rawText
+  // Fix 3: Guard against null/empty reply before falling back to rawText
+  const replyText: string = (typeof parsed.reply === 'string' && parsed.reply.trim().length > 0)
+    ? parsed.reply
+    : rawText
   const correctionRaw = parsed.correction ?? {}
 
   const errorReport: ErrorReport = {
@@ -113,10 +116,9 @@ When an error is detected set error_detected to true and fill the correction fie
     error_type: VALID_ERROR_TYPES.has(correctionRaw.error_type ?? '') ? (correctionRaw.error_type as ErrorType) : undefined,
   }
 
-  // Persist messages before TTS/D-ID so a serverless timeout does not lose them
+  // Fix 1: Insert USER message before TTS so a serverless timeout does not lose user input
   await supabase.from('messages').insert([
     { session_id: sessionId, role: 'user', text: transcript, audio_url: null, had_correction: false },
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
   ])
 
   // TTS
@@ -128,6 +130,11 @@ When an error is detected set error_detected to true and fill the correction fie
   const videoUrl = sourceUrl
     ? await createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', sourceUrl)
     : null
+
+  // Fix 1: Insert ASSISTANT message AFTER TTS so audio_url is populated (not null)
+  await supabase.from('messages').insert([
+    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: audioUrl, had_correction: errorReport.error_detected },
+  ])
 
   // Increment today's usage log
   const usage = claudeRes.usage

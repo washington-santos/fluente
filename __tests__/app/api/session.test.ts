@@ -17,7 +17,7 @@ vi.mock('@supabase/ssr', () => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           single: vi.fn().mockResolvedValue({ data: mockTeacher, error: null }),
-          // Second .eq() chained for teacher_id filter (Fix 3)
+          // Second .eq() chained for teacher_id filter (session GET) or user_id (session end)
           eq: vi.fn(() => ({
             is: vi.fn(() => ({
               order: vi.fn(() => ({
@@ -29,6 +29,8 @@ vi.mock('@supabase/ssr', () => ({
                 })),
               })),
             })),
+            // Fix 9: support select('id').eq().eq().maybeSingle() for ownership check
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'session-1' }, error: null }),
           })),
           is: vi.fn(() => ({
             order: vi.fn(() => ({
@@ -45,12 +47,10 @@ vi.mock('@supabase/ssr', () => ({
           })),
         })),
       })),
-      // update chain now includes .select('id') after the second .eq() (Fix 6)
+      // Fix 9: plain update without chained .select() — resolves directly to { error }
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn().mockResolvedValue({ data: [{ id: 'session-1' }], error: null }),
-          })),
+          eq: vi.fn().mockResolvedValue({ error: null }),
         })),
       })),
     })),
