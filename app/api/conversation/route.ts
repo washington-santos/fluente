@@ -103,8 +103,9 @@ When an error is detected set error_detected to true and fill the correction fie
     parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null } }
   }
 
-  // Fix 3: Guard against null/empty reply before falling back to rawText
-  const replyText: string = (typeof parsed.reply === 'string' && parsed.reply.trim().length > 0)
+  // Fix 3: Only fall back to rawText when parsed.reply is not a string at all.
+  // Whitespace-only strings are still better than speaking the full JSON blob.
+  const replyText: string = (typeof parsed.reply === 'string' && parsed.reply.length > 0)
     ? parsed.reply
     : rawText
   const correctionRaw = parsed.correction ?? {}
@@ -116,25 +117,36 @@ When an error is detected set error_detected to true and fill the correction fie
     error_type: VALID_ERROR_TYPES.has(correctionRaw.error_type ?? '') ? (correctionRaw.error_type as ErrorType) : undefined,
   }
 
-  // Fix 1: Insert USER message before TTS so a serverless timeout does not lose user input
-  await supabase.from('messages').insert([
+  // Fix 1+2: Insert USER message — check error so DB failures are not silent
+  const { error: userInsertError } = await supabase.from('messages').insert([
     { session_id: sessionId, role: 'user', text: transcript, audio_url: null, had_correction: false },
   ])
+  if (userInsertError) console.error('User message insert failed:', userInsertError.message)
 
-  // TTS
-  const audioUrl = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
+  // Fix 1+2: TTS with graceful fallback — if TTS throws we still insert the assistant message
+  let audioUrl: string | null = null
+  try {
+    audioUrl = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
+  } catch (err) {
+    console.error('TTS failed, continuing without audio:', err)
+  }
 
-  // D-ID (optional)
-  const origin = process.env.EF_PUBLIC_ORIGIN ?? ''
-  const sourceUrl = origin ? `${origin}${teacher.avatar_image_url}` : ''
-  const videoUrl = sourceUrl
-    ? await createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', sourceUrl)
-    : null
+  // Fix 1+2: D-ID with graceful fallback
+  let videoUrl: string | null = null
+  try {
+    const origin = process.env.EF_PUBLIC_ORIGIN
+    if (origin) {
+      videoUrl = await createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', `${origin}${teacher.avatar_image_url}`)
+    }
+  } catch (err) {
+    console.error('D-ID failed, continuing without video:', err)
+  }
 
-  // Fix 1: Insert ASSISTANT message AFTER TTS so audio_url is populated (not null)
-  await supabase.from('messages').insert([
+  // Fix 1+2: Always insert ASSISTANT message (audio_url may be null if TTS failed) — check error
+  const { error: assistantInsertError } = await supabase.from('messages').insert([
     { session_id: sessionId, role: 'assistant', text: replyText, audio_url: audioUrl, had_correction: errorReport.error_detected },
   ])
+  if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
 
   // Increment today's usage log
   const usage = claudeRes.usage

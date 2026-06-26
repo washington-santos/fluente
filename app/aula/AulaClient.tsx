@@ -40,6 +40,8 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
     }
 
     setVideoUrl(response.video_url)
+    // audio_url may be null if TTS failed — skip playback gracefully
+    if (!response.audio_url) return
     const audio = new Audio(response.audio_url)
     audioRef.current = audio
     setIsSpeaking(true)

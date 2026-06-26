@@ -47,10 +47,12 @@ vi.mock('@supabase/ssr', () => ({
           })),
         })),
       })),
-      // Fix 9: plain update without chained .select() — resolves directly to { error }
+      // Fix 4: update chains .select('id') — resolves to { data: [...], error: null }
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
-          eq: vi.fn().mockResolvedValue({ error: null }),
+          eq: vi.fn(() => ({
+            select: vi.fn().mockResolvedValue({ data: [{ id: 'session-1' }], error: null }),
+          })),
         })),
       })),
     })),

@@ -140,7 +140,7 @@ export interface ErrorReport {
 
 export interface ConversationResponse {
   text: string
-  audio_url: string
+  audio_url: string | null
   video_url: string | null
   had_correction: boolean
   error_report: ErrorReport
