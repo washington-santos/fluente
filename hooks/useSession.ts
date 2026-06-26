@@ -127,7 +127,14 @@ export function useSession(teacherId: string): UseSessionReturn {
     })
     if (!patchRes.ok) {
       console.error('Failed to end session:', patchRes.status)
+      return
     }
+
+    // Fire-and-forget: generate memory, update streak, upsert errors
+    // Do not await — navigation should not be blocked by this
+    fetch(`/api/session/${sessionId}/finalize`, { method: 'POST' }).catch((err) =>
+      console.error('Finalize failed:', err),
+    )
   }
 
   return { sessionId, messages, loading, sending, initError, sendTurn, endSession }

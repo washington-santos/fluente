@@ -65,4 +65,21 @@ describe('useSession', () => {
     expect(result.current.messages[0].role).toBe('user')
     expect(result.current.messages[1].role).toBe('assistant')
   })
+
+  it('calls finalize after endSession succeeds', async () => {
+    mockFetchSequence(
+      { session: { id: 's1', messages: [] } },
+      { ok: true },
+      { ok: true }
+    )
+    const { result } = renderHook(() => useSession('teacher-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(async () => { await result.current.endSession() })
+
+    // Should have called fetch 3 times: GET session, PATCH end, POST finalize
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+    const calls = (global.fetch as any).mock.calls
+    expect(calls[2][0]).toContain('/finalize')
+    expect(calls[2][1]?.method).toBe('POST')
+  })
 })
