@@ -29,7 +29,7 @@ vi.mock('@supabase/ssr', () => ({
       if (table === 'users') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
       }
-      if (table === 'session_memories') return {
+      if (table === 'session_memory') return {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             order: vi.fn(() => ({
@@ -143,7 +143,7 @@ describe('POST /api/conversation', () => {
         if (table === 'users') return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
         }
-        if (table === 'session_memories') return {
+        if (table === 'session_memory') return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               order: vi.fn(() => ({

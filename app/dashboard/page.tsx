@@ -37,7 +37,7 @@ export default async function DashboardPage() {
 
   // Load top recurring errors (unresolved, ordered by seen_count desc)
   const { data: errors } = await supabase
-    .from('error_log')
+    .from('errors_log')
     .select('id, error_type, error_text, correct_form, seen_count')
     .eq('user_id', authUser.id)
     .is('resolved_at', null)
@@ -98,13 +98,13 @@ export default async function DashboardPage() {
               Aulas recentes
             </h2>
             <div className="flex flex-col gap-2">
-              {(recentSessions ?? []).map((s: { id: string; started_at: string; duration_seconds: number | null; teacher: Array<{ name: string }> | null }) => (
+              {(recentSessions ?? []).map((s) => (
                 <SessionCard
                   key={s.id}
                   id={s.id}
                   started_at={s.started_at}
                   duration_seconds={s.duration_seconds}
-                  teacher_name={s.teacher?.[0]?.name ?? 'Professor'}
+                  teacher_name={(s.teacher as any)?.name ?? 'Professor'}
                 />
               ))}
             </div>

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
   // Load latest session memory for cross-session context
   const { data: sessionMemory } = await supabase
-    .from('session_memories')
+    .from('session_memory')
     .select('summary, key_topics, personal_details')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
@@ -73,13 +73,15 @@ export async function POST(request: Request) {
     transcript = trimmedPanicText as string
   }
 
-  // Load conversation history (last 20 messages)
+  // Load conversation history (last 20 messages, most-recent first, then reversed for chronological order)
   const { data: prevMessages } = await supabase
     .from('messages')
     .select('role, text')
     .eq('session_id', sessionId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(20)
+
+  const chronologicalMessages = (prevMessages ?? []).reverse()
 
   const teacher = session.teacher as any
 
@@ -104,7 +106,7 @@ When an error is detected set error_detected to true and fill the correction fie
     max_tokens: 512,
     system: systemPrompt,
     messages: [
-      ...((prevMessages ?? []).map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
+      ...(chronologicalMessages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
       { role: 'user', content: transcript },
     ],
   })
@@ -161,6 +163,33 @@ When an error is detected set error_detected to true and fill the correction fie
     { session_id: sessionId, role: 'assistant', text: replyText, audio_url: audioUrl, had_correction: errorReport.error_detected },
   ])
   if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
+
+  // Upsert error into errors_log when a correction was detected
+  if (errorReport.error_detected && errorReport.error_text && errorReport.correct_form && errorReport.error_type) {
+    const { data: existingError } = await supabase
+      .from('errors_log')
+      .select('id, seen_count')
+      .eq('user_id', user.id)
+      .eq('error_text', errorReport.error_text)
+      .maybeSingle()
+
+    if (existingError) {
+      await supabase
+        .from('errors_log')
+        .update({ seen_count: existingError.seen_count + 1, last_seen_at: new Date().toISOString() })
+        .eq('id', existingError.id)
+    } else {
+      await supabase.from('errors_log').insert([{
+        user_id: user.id,
+        error_type: errorReport.error_type,
+        error_text: errorReport.error_text,
+        correct_form: errorReport.correct_form,
+        seen_count: 1,
+        last_seen_at: new Date().toISOString(),
+        resolved_at: null,
+      }])
+    }
+  }
 
   // Increment today's usage log
   const usage = claudeRes.usage

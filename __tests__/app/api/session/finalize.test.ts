@@ -77,8 +77,8 @@ describe('POST /api/session/[id]/finalize', () => {
         return fromCallCount <= 3 ? userChain : userUpdateChain
       }
       if (table === 'messages') return msgListChain
-      if (table === 'session_memories') return memInsertChain
-      if (table === 'error_log') return errorUpsertChain
+      if (table === 'session_memory') return memInsertChain
+      if (table === 'errors_log') return errorUpsertChain
       return makeChain(null)
     })
 
