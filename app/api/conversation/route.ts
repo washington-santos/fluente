@@ -49,6 +49,15 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single()
 
+  // Load latest session memory for cross-session context
+  const { data: sessionMemory } = await supabase
+    .from('session_memories')
+    .select('summary, key_topics, personal_details')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   // Transcribe audio or use panic text
   let transcript: string
   if (audio) {
@@ -73,12 +82,17 @@ export async function POST(request: Request) {
     .limit(20)
 
   const teacher = session.teacher as any
+
+  const memoryBlock = sessionMemory
+    ? `\nPrevious session context:\n${sessionMemory.summary}\nTopics covered: ${(sessionMemory.key_topics ?? []).join(', ')}\nAbout the student: ${(sessionMemory.personal_details ?? []).join('; ')}`
+    : ''
+
   const systemPrompt = `${teacher.system_prompt}
 
 Student profile:
 - Name: ${userData?.name ?? 'Student'}
 - CEFR level: ${userData?.cefr_level ?? 'B1'}
-
+${memoryBlock}
 Respond ONLY with valid JSON — no markdown, no extra text:
 {"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.`

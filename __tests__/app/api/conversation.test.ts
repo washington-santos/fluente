@@ -5,6 +5,14 @@ const mockUser = { id: 'user-1' }
 const mockUserData = { id: 'user-1', name: 'Ana', cefr_level: 'B1', teacher_id: 'teacher-1' }
 const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1', teacher: { id: 'teacher-1', slug: 'mr-jake', name: 'Mr. Jake', system_prompt: 'You are Mr. Jake.', tts_voice: 'echo', avatar_image_url: '/avatars/mr-jake.png' } }
 
+// Hoist so the fn reference is available inside the vi.mock factory below
+const { mockAnthropicCreate } = vi.hoisted(() => ({
+  mockAnthropicCreate: vi.fn().mockResolvedValue({
+    content: [{ type: 'text', text: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' }],
+    usage: { input_tokens: 100, output_tokens: 50 },
+  }),
+}))
+
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
@@ -20,6 +28,17 @@ vi.mock('@supabase/ssr', () => ({
       }
       if (table === 'users') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
+      }
+      if (table === 'session_memories') return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            order: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
+            })),
+          })),
+        })),
       }
       if (table === 'messages') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
@@ -57,10 +76,7 @@ vi.mock('openai', () => ({
 vi.mock('@anthropic-ai/sdk', () => ({
   default: class MockAnthropic {
     messages = {
-      create: vi.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' }],
-        usage: { input_tokens: 100, output_tokens: 50 },
-      }),
+      create: mockAnthropicCreate,
     }
   },
 }))
@@ -108,5 +124,60 @@ describe('POST /api/conversation', () => {
     } as any)
     const res = await POST(makeFormRequest({ session_id: 'session-1', panic_text: 'hi' }))
     expect(res.status).toBe(401)
+  })
+
+  it('injects session memory into system prompt when memory exists', async () => {
+    const { createServerClient } = await import('@supabase/ssr')
+    vi.mocked(createServerClient).mockReturnValueOnce({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
+      from: vi.fn((table: string) => {
+        if (table === 'sessions') return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: mockSession, error: null }),
+              })),
+            })),
+          })),
+        }
+        if (table === 'users') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
+        }
+        if (table === 'session_memories') return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { summary: 'Student likes coding.', key_topics: ['present perfect'], personal_details: ['software engineer'] },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          })),
+        }
+        if (table === 'messages') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
+          insert: vi.fn().mockResolvedValue({ error: null }),
+        }
+        if (table === 'usage_log') return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
+            })),
+          })),
+          upsert: vi.fn().mockResolvedValue({ error: null }),
+        }
+        return {}
+      }),
+    } as any)
+
+    await POST(makeFormRequest({ session_id: 'session-1', panic_text: 'Hello.' }))
+
+    const callArgs = mockAnthropicCreate.mock.calls[0][0]
+    expect(callArgs.system).toContain('Student likes coding.')
   })
 })
