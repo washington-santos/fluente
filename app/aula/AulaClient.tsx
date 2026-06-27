@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -19,17 +19,18 @@ interface AulaClientProps {
 
 export function AulaClient({ teacher, user }: AulaClientProps) {
   const router = useRouter()
-  const { sessionId, messages, loading, sending, initError, sendTurn, endSession } = useSession(teacher.id)
+  const { sessionId, messages, loading, sending, turnError, initError, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  async function handleTurn(input: File | string) {
+  const handleTurn = useCallback(async (input: File | string) => {
     const response = await sendTurn(input)
     if (!response) return
     playAudio(response)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendTurn])
 
   function playAudio(response: ConversationResponse) {
     // Stop any currently playing audio before starting new playback
@@ -60,7 +61,7 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
     messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' })
   }, [messages])
 
-  // Fix 4: Clean up audio on unmount to prevent memory leaks and orphaned callbacks
+  // Clean up audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -70,6 +71,13 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
       }
     }
   }, [])
+
+  // Call endSession when user closes tab or navigates away without clicking the button
+  useEffect(() => {
+    const handleUnload = () => { endSession() }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [endSession])
 
   async function handleEnd() {
     await endSession()
@@ -83,7 +91,7 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
         <p className="text-red-500">{initError}</p>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90 transition-opacity"
+          className="px-4 py-2 rounded-lg bg-brand-cta text-white hover:opacity-90 transition-opacity"
         >
           Tentar novamente
         </button>
@@ -96,7 +104,8 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
       <header className="flex items-center justify-between p-4 shrink-0">
         <button
           onClick={handleEnd}
-          className="flex items-center gap-1 text-sm text-content-light-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors"
+          disabled={sending || loading}
+          className="flex items-center gap-1 text-sm text-content-light-secondary dark:text-content-dark-secondary hover:text-red-500 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           <X size={16} /> Encerrar aula
         </button>
@@ -132,8 +141,8 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
       </div>
 
       <div className="shrink-0 px-4 py-6 flex flex-col items-center gap-4">
-        {micError && (
-          <p role="alert" className="text-xs text-red-500 text-center">{micError}</p>
+        {(micError || turnError) && (
+          <p role="alert" className="text-xs text-red-500 text-center">{micError ?? turnError}</p>
         )}
         <RecordButton
           isRecording={isRecording}

@@ -34,7 +34,9 @@ export async function createTalk(
     })
     if (!createRes.ok) return null
 
-    const { id } = (await createRes.json()) as { id: string }
+    const body = (await createRes.json()) as { id?: string }
+    const id = body.id
+    if (!id) return null
     const deadline = Date.now() + POLL_TIMEOUT_MS
 
     while (Date.now() < deadline) {

@@ -16,6 +16,7 @@ const { mockAnthropicCreate } = vi.hoisted(() => ({
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
+    rpc: vi.fn().mockResolvedValue({ error: null }),
     from: vi.fn((table: string) => {
       if (table === 'sessions') return {
         select: vi.fn(() => ({
@@ -43,16 +44,6 @@ vi.mock('@supabase/ssr', () => ({
       if (table === 'messages') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
         insert: vi.fn().mockResolvedValue({ error: null }),
-      }
-      if (table === 'usage_log') return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-          })),
-        })),
-        upsert: vi.fn().mockResolvedValue({ error: null }),
       }
       return {}
     }),
@@ -130,6 +121,7 @@ describe('POST /api/conversation', () => {
     const { createServerClient } = await import('@supabase/ssr')
     vi.mocked(createServerClient).mockReturnValueOnce({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
+      rpc: vi.fn().mockResolvedValue({ error: null }),
       from: vi.fn((table: string) => {
         if (table === 'sessions') return {
           select: vi.fn(() => ({
@@ -160,16 +152,6 @@ describe('POST /api/conversation', () => {
         if (table === 'messages') return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
           insert: vi.fn().mockResolvedValue({ error: null }),
-        }
-        if (table === 'usage_log') return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-              })),
-            })),
-          })),
-          upsert: vi.fn().mockResolvedValue({ error: null }),
         }
         return {}
       }),

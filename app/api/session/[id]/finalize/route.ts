@@ -42,41 +42,52 @@ export async function POST(
     had_correction: boolean
   }> = messages ?? []
 
-  // 1 — Generate and store session memory
-  try {
-    const memory = await generateSessionMemory(
-      msgs.map((m) => ({ role: m.role, text: m.text })),
-      userData?.name ?? 'Student',
-      userData?.cefr_level ?? 'B1',
-    )
-    await supabase.from('session_memory').insert({
-      user_id: user.id,
-      summary: memory.summary,
-      key_topics: memory.key_topics,
-      personal_details: memory.personal_details,
-    })
-  } catch (err) {
-    console.error('Memory generation failed:', err)
+  // 1 — Generate and store session memory (skip if no messages — nothing to summarise)
+  if (msgs.length > 0) {
+    try {
+      const memory = await generateSessionMemory(
+        msgs.map((m) => ({ role: m.role, text: m.text })),
+        userData?.name ?? 'Student',
+        userData?.cefr_level ?? 'B1',
+      )
+      await supabase.from('session_memory').insert({
+        user_id: user.id,
+        summary: memory.summary,
+        key_topics: memory.key_topics,
+        personal_details: memory.personal_details,
+      })
+    } catch (err) {
+      console.error('Memory generation failed:', err)
+    }
   }
 
-  // 2 — Update streak
-  const today = new Date().toISOString().slice(0, 10)
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
-  const lastDate = userData?.last_session_at ? userData.last_session_at.slice(0, 10) : null
+  // 2 — Update streak (skip if no messages — user opened but did not practice)
+  if (msgs.length > 0) {
+    // Use Brazil local date (UTC-3) so evening sessions don't roll to the next UTC day
+    const brazilOffset = -3 * 60 * 60 * 1000
+    const nowBrazil = new Date(Date.now() + brazilOffset)
+    const yesterdayBrazil = new Date(Date.now() + brazilOffset - 86_400_000)
+    const today = nowBrazil.toISOString().slice(0, 10)
+    const yesterday = yesterdayBrazil.toISOString().slice(0, 10)
+    const lastDate = userData?.last_session_at
+      ? new Date(new Date(userData.last_session_at).getTime() + brazilOffset).toISOString().slice(0, 10)
+      : null
 
-  let newStreak = userData?.streak_days ?? 0
-  if (lastDate === today) {
-    // Already counted today — no change
-  } else if (lastDate === yesterday) {
-    newStreak += 1
-  } else {
-    newStreak = 1
+    let newStreak = userData?.streak_days ?? 0
+    if (lastDate === today) {
+      // Already counted today — no change
+    } else if (lastDate === yesterday) {
+      newStreak += 1
+    } else {
+      newStreak = 1
+    }
+
+    const { error: streakError } = await supabase
+      .from('users')
+      .update({ streak_days: newStreak, last_session_at: new Date().toISOString() })
+      .eq('id', user.id)
+    if (streakError) console.error('Streak update failed:', streakError.message)
   }
-
-  await supabase
-    .from('users')
-    .update({ streak_days: newStreak, last_session_at: new Date().toISOString() })
-    .eq('id', user.id)
 
   return NextResponse.json({ ok: true })
 }

@@ -15,21 +15,28 @@ export default function ConversaPage() {
   const [countdown, setCountdown] = useState(45)
   const [error, setError] = useState<string | null>(null)
   const mediaRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countdownRef = useRef(45)
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    mediaRef.current?.stop()
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
 
   async function startRecording() {
     setError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
         processRecording(recorder.mimeType)
       }
       recorder.start()

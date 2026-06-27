@@ -42,6 +42,12 @@ export async function POST(request: Request) {
 
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
+  const teacher = session.teacher as {
+    id: string; slug: string; name: string; system_prompt: string
+    tts_voice: string; avatar_image_url: string; correction_style: string
+  } | null
+  if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
+
   // Load user profile
   const { data: userData } = await supabase
     .from('users')
@@ -82,8 +88,6 @@ export async function POST(request: Request) {
     .limit(20)
 
   const chronologicalMessages = (prevMessages ?? []).reverse()
-
-  const teacher = session.teacher as any
 
   const memoryBlock = sessionMemory
     ? `\nPrevious session context:\n${sessionMemory.summary}\nTopics covered: ${(sessionMemory.key_topics ?? []).join(', ')}\nAbout the student: ${(sessionMemory.personal_details ?? []).join('; ')}`
@@ -158,60 +162,35 @@ When an error is detected set error_detected to true and fill the correction fie
     console.error('D-ID failed, continuing without video:', err)
   }
 
-  // Fix 1+2: Always insert ASSISTANT message (audio_url may be null if TTS failed) — check error
+  // Always insert ASSISTANT message; store null in DB (base64 audio is response-only, not persisted)
   const { error: assistantInsertError } = await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: audioUrl, had_correction: errorReport.error_detected },
+    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
   ])
   if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
 
-  // Upsert error into errors_log when a correction was detected
+  // Atomic errors_log upsert via RPC — avoids SELECT-then-INSERT race under concurrent requests
   if (errorReport.error_detected && errorReport.error_text && errorReport.correct_form && errorReport.error_type) {
-    const { data: existingError } = await supabase
-      .from('errors_log')
-      .select('id, seen_count')
-      .eq('user_id', user.id)
-      .eq('error_text', errorReport.error_text)
-      .maybeSingle()
-
-    if (existingError) {
-      await supabase
-        .from('errors_log')
-        .update({ seen_count: existingError.seen_count + 1, last_seen_at: new Date().toISOString() })
-        .eq('id', existingError.id)
-    } else {
-      await supabase.from('errors_log').insert([{
-        user_id: user.id,
-        error_type: errorReport.error_type,
-        error_text: errorReport.error_text,
-        correct_form: errorReport.correct_form,
-        seen_count: 1,
-        last_seen_at: new Date().toISOString(),
-        resolved_at: null,
-      }])
-    }
+    const { error: errLogError } = await supabase.rpc('upsert_error_log', {
+      p_user_id: user.id,
+      p_error_type: errorReport.error_type,
+      p_error_text: errorReport.error_text,
+      p_correct_form: errorReport.correct_form,
+    })
+    if (errLogError) console.error('Error log upsert failed:', errLogError.message)
   }
 
-  // Increment today's usage log
+  // Atomic usage_log increment via RPC — avoids SELECT-then-UPSERT race
   const usage = claudeRes.usage
   const today = new Date().toISOString().slice(0, 10)
-  const { data: existingUsage } = await supabase
-    .from('usage_log')
-    .select('whisper_minutes, tts_chars, claude_tokens, did_credits')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .maybeSingle()
-
-  await supabase.from('usage_log').upsert(
-    {
-      user_id: user.id,
-      date: today,
-      whisper_minutes: (existingUsage?.whisper_minutes ?? 0) + (audio ? 0.5 : 0),
-      tts_chars: (existingUsage?.tts_chars ?? 0) + replyText.length,
-      claude_tokens: (existingUsage?.claude_tokens ?? 0) + usage.input_tokens + usage.output_tokens,
-      did_credits: (existingUsage?.did_credits ?? 0) + (videoUrl ? 1 : 0),
-    },
-    { onConflict: 'user_id,date' }
-  )
+  const { error: usageError } = await supabase.rpc('increment_usage_log', {
+    p_user_id: user.id,
+    p_date: today,
+    p_whisper_minutes: audio ? 0.5 : 0,
+    p_tts_chars: replyText.length,
+    p_claude_tokens: usage.input_tokens + usage.output_tokens,
+    p_did_credits: videoUrl ? 1 : 0,
+  })
+  if (usageError) console.error('Usage log increment failed:', usageError.message)
 
   const response: ConversationResponse = {
     text: replyText,

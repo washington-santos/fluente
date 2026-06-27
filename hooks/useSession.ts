@@ -16,6 +16,7 @@ interface UseSessionReturn {
   loading: boolean
   sending: boolean
   initError: string | null
+  turnError: string | null
   sendTurn: (input: File | string) => Promise<ConversationResponse | null>
   endSession: () => Promise<void>
 }
@@ -25,20 +26,18 @@ export function useSession(teacherId: string): UseSessionReturn {
   const [messages, setMessages] = useState<SessionMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  // Fix 2 / Fix 5: unified error state for GET and POST failures
   const [initError, setInitError] = useState<string | null>(null)
-  // Fix 6: startedAt.current = Date.now() at mount; never overwritten so
-  // endSession records CURRENT visit duration, not total session lifetime
+  const [turnError, setTurnError] = useState<string | null>(null)
   const startedAt = useRef(Date.now())
 
   useEffect(() => {
+    let mounted = true
     ;(async () => {
       try {
         const getRes = await fetch(`/api/session?teacher_id=${encodeURIComponent(teacherId)}`)
 
-        // Fix 2: Check GET ok before destructuring — auth/server errors must not fall into POST
         if (!getRes.ok) {
-          setInitError('Não foi possível carregar a sessão. Tente novamente.')
+          if (mounted) setInitError('Não foi possível carregar a sessão. Tente novamente.')
           return
         }
 
@@ -46,6 +45,7 @@ export function useSession(teacherId: string): UseSessionReturn {
         const session = data.session ?? data
 
         if (session?.id) {
+          if (!mounted) return
           setSessionId(session.id)
           setMessages(
             (session.messages ?? []).map((m: any) => ({
@@ -55,8 +55,6 @@ export function useSession(teacherId: string): UseSessionReturn {
               had_correction: m.had_correction,
             }))
           )
-          // Fix 6: Do NOT backdate startedAt — keep Date.now() from mount so that
-          // endSession records the CURRENT visit duration, not total session lifetime
           return
         }
 
@@ -65,25 +63,26 @@ export function useSession(teacherId: string): UseSessionReturn {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ teacher_id: teacherId }),
         })
-        // Fix 5: Surface POST failure instead of silently doing nothing
         if (!postRes.ok) {
-          setInitError('Não foi possível iniciar a sessão. Tente novamente.')
+          if (mounted) setInitError('Não foi possível iniciar a sessão. Tente novamente.')
           return
         }
         const { session_id } = await postRes.json()
-        setSessionId(session_id)
+        if (mounted) setSessionId(session_id)
       } catch (err) {
         console.error('useSession init error:', err)
-        setInitError('Erro de conexão. Tente novamente.')
+        if (mounted) setInitError('Erro de conexão. Tente novamente.')
       } finally {
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
     })()
+    return () => { mounted = false }
   }, [teacherId])
 
   async function sendTurn(input: File | string): Promise<ConversationResponse | null> {
     if (!sessionId) return null
     setSending(true)
+    setTurnError(null)
 
     try {
       const form = new FormData()
@@ -95,7 +94,10 @@ export function useSession(teacherId: string): UseSessionReturn {
       }
 
       const res = await fetch('/api/conversation', { method: 'POST', body: form })
-      if (!res.ok) return null
+      if (!res.ok) {
+        setTurnError('Erro ao enviar. Tente novamente.')
+        return null
+      }
       const data = (await res.json()) as ConversationResponse
 
       const userText = data.transcript ?? (typeof input === 'string' ? input : '...')
@@ -137,5 +139,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }
 
-  return { sessionId, messages, loading, sending, initError, sendTurn, endSession }
+  return { sessionId, messages, loading, sending, initError, turnError, sendTurn, endSession }
 }
