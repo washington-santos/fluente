@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { PlanCheckoutButton } from './PlanCheckoutButton'
+import { SuccessBanner } from './SuccessBanner'
 
 const PLANS = [
   {
@@ -20,7 +22,7 @@ const PLANS = [
     payable: false,
   },
   {
-    key: 'basico',
+    key: 'basic',
     name: 'Básico',
     price: 'R$ 39,90',
     period: 'por mês',
@@ -55,7 +57,7 @@ const PLANS = [
     payable: true,
   },
   {
-    key: 'anual',
+    key: 'annual',
     name: 'Anual',
     price: 'R$ 599,90',
     period: 'por ano',
@@ -73,20 +75,25 @@ const PLANS = [
     highlight: false,
     payable: true,
   },
-]
+] as const
 
 export default async function PlanosPage() {
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: userData } = await supabase
-    .from('users')
-    .select('plan')
-    .eq('id', user.id)
-    .single()
+  // Active subscription takes precedence over the denormalized plan_id on users
+  const [{ data: userData }, { data: activeSub }] = await Promise.all([
+    supabase.from('users').select('plan_id').eq('id', user.id).single(),
+    supabase
+      .from('subscriptions')
+      .select('plan_id, status, current_period_end')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle(),
+  ])
 
-  const currentPlan = (userData?.plan as string | null) ?? 'free'
+  const currentPlan = activeSub?.plan_id ?? userData?.plan_id ?? 'free'
 
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col">
@@ -101,6 +108,17 @@ export default async function PlanosPage() {
       </header>
 
       <div className="flex-1 px-4 py-8 max-w-2xl mx-auto w-full">
+        {activeSub && (
+          <div className="mb-6 p-3 rounded-xl bg-brand-interactive/10 border border-brand-interactive/30 text-sm text-content-light dark:text-content-dark text-center">
+            Assinatura ativa até{' '}
+            <span className="font-semibold">
+              {new Date(activeSub.current_period_end).toLocaleDateString('pt-BR')}
+            </span>
+          </div>
+        )}
+
+        <SuccessBanner />
+
         <p className="text-center text-sm text-content-light-secondary dark:text-content-dark-secondary mb-8">
           Escolha o plano ideal para o seu ritmo de aprendizado.
         </p>
@@ -114,13 +132,13 @@ export default async function PlanosPage() {
                 key={p.key}
                 className={`rounded-xl p-5 flex flex-col gap-4 ${
                   p.highlight
-                    ? 'bg-brand-cta ring-2 ring-brand-cta'
+                    ? 'bg-brand-cta'
                     : 'bg-surface-light-card dark:bg-surface-dark-card'
-                } ${isCurrent ? 'ring-2 ring-brand-interactive' : ''}`}
+                } ${isCurrent ? 'ring-2 ring-brand-interactive' : p.highlight ? 'ring-2 ring-brand-cta' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className={`font-bold text-lg ${p.highlight ? 'text-white' : 'text-content-light dark:text-content-dark'}`}>
                         {p.name}
                       </p>
@@ -157,7 +175,11 @@ export default async function PlanosPage() {
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                       <span className={`text-sm ${p.highlight ? 'text-white/90' : 'text-content-light-secondary dark:text-content-dark-secondary'}`}>
                         {f}
@@ -167,17 +189,11 @@ export default async function PlanosPage() {
                 </ul>
 
                 {p.payable && !isCurrent && (
-                  <button
-                    disabled
-                    className={`py-3 rounded-lg font-semibold text-sm transition-opacity ${
-                      p.highlight
-                        ? 'bg-white text-brand-cta hover:opacity-90'
-                        : 'bg-brand-cta text-white hover:opacity-90'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    title="Integração com Mercado Pago em breve"
-                  >
-                    {p.cta} · Em breve
-                  </button>
+                  <PlanCheckoutButton
+                    plan={p.key as 'basic' | 'pro' | 'annual'}
+                    label={p.cta}
+                    highlight={p.highlight}
+                  />
                 )}
 
                 {isCurrent && (
