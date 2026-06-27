@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConversationResponse } from '@/types'
 
 interface SessionMessage {
@@ -79,7 +79,7 @@ export function useSession(teacherId: string): UseSessionReturn {
     return () => { mounted = false }
   }, [teacherId])
 
-  async function sendTurn(input: File | string): Promise<ConversationResponse | null> {
+  const sendTurn = useCallback(async (input: File | string): Promise<ConversationResponse | null> => {
     if (!sessionId) return null
     setSending(true)
     setTurnError(null)
@@ -109,35 +109,38 @@ export function useSession(teacherId: string): UseSessionReturn {
       ])
 
       return data
+    } catch (err) {
+      console.error('sendTurn network error:', err)
+      setTurnError('Erro de conexão. Tente novamente.')
+      return null
     } finally {
       setSending(false)
     }
-  }
+  }, [sessionId])
 
-  async function endSession() {
+  const endSession = useCallback(async () => {
     if (!sessionId) return
-    // Fix 7: Guard against NaN/negative duration values
     const elapsed = Date.now() - startedAt.current
     const duration_seconds = Number.isFinite(elapsed) && elapsed > 0
       ? Math.round(elapsed / 1000)
       : 0
-    // Fix 8: Check PATCH response instead of silently swallowing errors
+    // keepalive: true ensures the request completes even if the page is closing
     const patchRes = await fetch(`/api/session/${sessionId}/end`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ duration_seconds }),
+      keepalive: true,
     })
     if (!patchRes.ok) {
       console.error('Failed to end session:', patchRes.status)
       return
     }
 
-    // Fire-and-forget: generate memory, update streak, upsert errors
-    // Do not await — navigation should not be blocked by this
-    fetch(`/api/session/${sessionId}/finalize`, { method: 'POST' }).catch((err) =>
+    // keepalive: true so the finalize POST survives tab close
+    fetch(`/api/session/${sessionId}/finalize`, { method: 'POST', keepalive: true }).catch((err) =>
       console.error('Finalize failed:', err),
     )
-  }
+  }, [sessionId])
 
   return { sessionId, messages, loading, sending, initError, turnError, sendTurn, endSession }
 }

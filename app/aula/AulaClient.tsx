@@ -29,7 +29,6 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
     const response = await sendTurn(input)
     if (!response) return
     playAudio(response)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sendTurn])
 
   function playAudio(response: ConversationResponse) {
@@ -142,7 +141,7 @@ export function AulaClient({ teacher, user }: AulaClientProps) {
 
       <div className="shrink-0 px-4 py-6 flex flex-col items-center gap-4">
         {(micError || turnError) && (
-          <p role="alert" className="text-xs text-red-500 text-center">{micError ?? turnError}</p>
+          <p role="alert" className="text-xs text-red-500 text-center">{micError || turnError}</p>
         )}
         <RecordButton
           isRecording={isRecording}

@@ -19,10 +19,15 @@ export default function ConversaPage() {
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countdownRef = useRef(45)
+  const mountedRef = useRef(true)
 
   useEffect(() => () => {
+    mountedRef.current = false
     if (timerRef.current) clearInterval(timerRef.current)
-    mediaRef.current?.stop()
+    if (mediaRef.current) {
+      mediaRef.current.stop()
+      mediaRef.current = null
+    }
     streamRef.current?.getTracks().forEach((t) => t.stop())
   }, [])
 
@@ -58,11 +63,15 @@ export default function ConversaPage() {
 
   function stopRecording() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-    mediaRef.current?.stop()
+    if (mediaRef.current) {
+      mediaRef.current.stop()
+      mediaRef.current = null  // prevent cleanup from calling stop() on inactive recorder (throws DOMException)
+    }
     setState('processing')
   }
 
   async function processRecording(mimeType: string) {
+    if (!mountedRef.current) return  // component unmounted mid-recording — abort silently
     const blob = new Blob(chunksRef.current, { type: mimeType })
     const form = new FormData()
     form.append('audio', blob, 'recording.webm')
@@ -71,12 +80,14 @@ export default function ConversaPage() {
       const res = await fetch('/api/onboarding/level', { method: 'POST', body: form })
       if (!res.ok) throw new Error('API error')
       const { transcript, level } = (await res.json()) as OnboardingLevelResponse
+      if (!mountedRef.current) return
       const prevAnswers = progress?.written_answers ?? []
       await saveStep(5, {
         conversation_transcript: transcript,
         written_answers: [...prevAnswers, level],
       })
     } catch {
+      if (!mountedRef.current) return
       setError('Erro ao processar o áudio. Tente novamente.')
       setState('idle')
     }

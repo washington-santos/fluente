@@ -181,7 +181,8 @@ When an error is detected set error_detected to true and fill the correction fie
 
   // Atomic usage_log increment via RPC — avoids SELECT-then-UPSERT race
   const usage = claudeRes.usage
-  const today = new Date().toISOString().slice(0, 10)
+  // Brazil local date (UTC-3) so usage_log rows match the streak date from finalize
+  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { error: usageError } = await supabase.rpc('increment_usage_log', {
     p_user_id: user.id,
     p_date: today,

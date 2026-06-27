@@ -12,10 +12,10 @@ export async function POST(
 
   const { id: sessionId } = params
 
-  // Verify session ownership
+  // Verify session ownership; also load duration_seconds to decide streak eligibility
   const { data: session } = await supabase
     .from('sessions')
-    .select('id, user_id')
+    .select('id, user_id, duration_seconds')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -30,11 +30,16 @@ export async function POST(
     .single()
 
   // Load all messages for this session
-  const { data: messages } = await supabase
+  const { data: messages, error: messagesError } = await supabase
     .from('messages')
     .select('role, text, had_correction')
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true })
+
+  if (messagesError) {
+    console.error('Failed to load session messages:', messagesError.message)
+    return NextResponse.json({ error: 'Failed to load session data' }, { status: 500 })
+  }
 
   const msgs: Array<{
     role: string
@@ -61,8 +66,10 @@ export async function POST(
     }
   }
 
-  // 2 — Update streak (skip if no messages — user opened but did not practice)
-  if (msgs.length > 0) {
+  // 2 — Update streak if the session had actual practice time (duration set by /end PATCH
+  // before finalize fires). Using duration_seconds avoids the race where finalize runs
+  // before the conversation route has committed the last messages INSERT.
+  if ((session.duration_seconds ?? 0) > 0) {
     // Use Brazil local date (UTC-3) so evening sessions don't roll to the next UTC day
     const brazilOffset = -3 * 60 * 60 * 1000
     const nowBrazil = new Date(Date.now() + brazilOffset)

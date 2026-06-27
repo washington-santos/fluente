@@ -1,3 +1,12 @@
+-- Remove any duplicate (user_id, error_text) pairs left by the old TOCTOU race before
+-- adding the constraint, keeping the row with the highest seen_count.
+DELETE FROM public.errors_log
+WHERE id NOT IN (
+  SELECT DISTINCT ON (user_id, error_text) id
+  FROM public.errors_log
+  ORDER BY user_id, error_text, seen_count DESC
+);
+
 -- Unique constraint enables the atomic upsert_error_log RPC below
 ALTER TABLE public.errors_log
   ADD CONSTRAINT errors_log_user_error_unique UNIQUE (user_id, error_text);
@@ -31,5 +40,7 @@ CREATE OR REPLACE FUNCTION public.upsert_error_log(
   VALUES (p_user_id, p_error_type, p_error_text, p_correct_form, 1, now())
   ON CONFLICT (user_id, error_text) DO UPDATE SET
     seen_count   = errors_log.seen_count + 1,
-    last_seen_at = now();
+    last_seen_at = now(),
+    error_type   = EXCLUDED.error_type,
+    correct_form = EXCLUDED.correct_form;
 $$;
