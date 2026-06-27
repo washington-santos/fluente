@@ -53,7 +53,15 @@ export default async function DashboardPage() {
         <h1 className="text-lg font-bold text-content-light dark:text-content-dark">
           English Fluent
         </h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/perfil"
+            className="text-sm text-content-light-secondary dark:text-content-dark-secondary hover:opacity-70 transition-opacity"
+          >
+            Perfil
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col px-4 py-6 gap-6 max-w-sm mx-auto w-full">
@@ -80,16 +88,36 @@ export default async function DashboardPage() {
 
         {/* Teacher */}
         {t && (
-          <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card">
-            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mb-1">
-              Seu professor
-            </p>
-            <p className="font-bold text-content-light dark:text-content-dark">{t.name}</p>
-            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">
-              Nível {u.cefr_level}
+          <Link
+            href="/professores"
+            className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity flex items-center justify-between"
+          >
+            <div>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mb-1">
+                Seu professor
+              </p>
+              <p className="font-bold text-content-light dark:text-content-dark">{t.name}</p>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">
+                Nível {u.cefr_level}
+              </p>
+            </div>
+            <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+          </Link>
+        )}
+
+        {/* Planos */}
+        <Link
+          href="/planos"
+          className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
+        >
+          <div>
+            <p className="text-sm font-semibold text-content-light dark:text-content-dark">Planos e assinaturas</p>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+              {(u as any).plan ? `Plano ${(u as any).plan}` : 'Plano Grátis'}
             </p>
           </div>
-        )}
+          <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+        </Link>
 
         {/* Recent sessions */}
         {(recentSessions ?? []).length > 0 && (
