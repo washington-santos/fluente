@@ -82,4 +82,52 @@ describe('useSession', () => {
     expect(calls[2][0]).toContain('/finalize')
     expect(calls[2][1]?.method).toBe('POST')
   })
+
+  describe('quota detection', () => {
+    it('sets quotaExceeded=true and stores quotaInfo when conversation returns 429', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session: { id: 'sess-1', messages: [] } }),
+      } as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({ error: 'quota_exceeded', minutesUsed: 10.5, minutesLimit: 10 }),
+      } as unknown as Response)
+
+      const { result } = renderHook(() => useSession('teacher-1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => {
+        await result.current.sendTurn('Hello')
+      })
+
+      expect(result.current.quotaExceeded).toBe(true)
+      expect(result.current.quotaInfo).toEqual({ minutesUsed: 10.5, minutesLimit: 10 })
+      expect(result.current.turnError).toBeNull()
+    })
+
+    it('does not set quotaExceeded for non-429 errors', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session: { id: 'sess-2', messages: [] } }),
+      } as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: 'internal' }),
+      } as unknown as Response)
+
+      const { result } = renderHook(() => useSession('teacher-2'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => {
+        await result.current.sendTurn('Hello')
+      })
+
+      expect(result.current.quotaExceeded).toBe(false)
+      expect(result.current.quotaInfo).toBeNull()
+      expect(result.current.turnError).toBe('Erro ao enviar. Tente novamente.')
+    })
+  })
 })

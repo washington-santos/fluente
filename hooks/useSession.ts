@@ -17,6 +17,8 @@ interface UseSessionReturn {
   sending: boolean
   initError: string | null
   turnError: string | null
+  quotaExceeded: boolean
+  quotaInfo: { minutesUsed: number; minutesLimit: number } | null
   sendTurn: (input: File | string) => Promise<ConversationResponse | null>
   endSession: () => Promise<void>
 }
@@ -28,6 +30,8 @@ export function useSession(teacherId: string): UseSessionReturn {
   const [sending, setSending] = useState(false)
   const [initError, setInitError] = useState<string | null>(null)
   const [turnError, setTurnError] = useState<string | null>(null)
+  const [quotaExceeded, setQuotaExceeded] = useState(false)
+  const [quotaInfo, setQuotaInfo] = useState<{ minutesUsed: number; minutesLimit: number } | null>(null)
   const startedAt = useRef(Date.now())
 
   useEffect(() => {
@@ -95,7 +99,13 @@ export function useSession(teacherId: string): UseSessionReturn {
 
       const res = await fetch('/api/conversation', { method: 'POST', body: form })
       if (!res.ok) {
-        setTurnError('Erro ao enviar. Tente novamente.')
+        if (res.status === 429) {
+          const body = await res.json() as { minutesUsed: number; minutesLimit: number }
+          setQuotaExceeded(true)
+          setQuotaInfo({ minutesUsed: body.minutesUsed, minutesLimit: body.minutesLimit })
+        } else {
+          setTurnError('Erro ao enviar. Tente novamente.')
+        }
         return null
       }
       const data = (await res.json()) as ConversationResponse
@@ -142,5 +152,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }, [sessionId])
 
-  return { sessionId, messages, loading, sending, initError, turnError, sendTurn, endSession }
+  return { sessionId, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, sendTurn, endSession }
 }

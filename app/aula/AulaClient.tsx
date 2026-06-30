@@ -18,7 +18,7 @@ interface AulaClientProps {
 
 export function AulaClient({ teacher }: AulaClientProps) {
   const router = useRouter()
-  const { messages, loading, sending, turnError, initError, sendTurn, endSession } = useSession(teacher.id)
+  const { messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -139,16 +139,35 @@ export function AulaClient({ teacher }: AulaClientProps) {
       </div>
 
       <div className="shrink-0 px-4 py-6 flex flex-col items-center gap-4">
-        {(micError || turnError) && (
-          <p role="alert" className="text-xs text-red-500 text-center">{micError || turnError}</p>
+        {quotaExceeded ? (
+          <div className="w-full rounded-2xl bg-surface-light-card dark:bg-surface-dark-card p-5 flex flex-col items-center gap-2 text-center">
+            <p className="text-sm font-semibold text-content-light dark:text-content-dark">
+              Limite do plano atingido
+            </p>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
+              Você usou {quotaInfo?.minutesUsed.toFixed(1)} de {quotaInfo?.minutesLimit} minutos este mês.
+            </p>
+            <a
+              href="/planos"
+              className="mt-1 px-4 py-2 rounded-lg bg-brand-cta text-white text-sm hover:opacity-90 transition-opacity"
+            >
+              Ver planos
+            </a>
+          </div>
+        ) : (
+          <>
+            {(micError || turnError) && (
+              <p role="alert" className="text-xs text-red-500 text-center">{micError || turnError}</p>
+            )}
+            <RecordButton
+              isRecording={isRecording}
+              onPressStart={startRecording}
+              onPressEnd={stopRecording}
+              disabled={sending || loading}
+            />
+            <PanicButton onSubmit={(text) => handleTurn(text)} disabled={sending || loading || isRecording} />
+          </>
         )}
-        <RecordButton
-          isRecording={isRecording}
-          onPressStart={startRecording}
-          onPressEnd={stopRecording}
-          disabled={sending || loading}
-        />
-        <PanicButton onSubmit={(text) => handleTurn(text)} disabled={sending || loading || isRecording} />
       </div>
     </main>
   )
