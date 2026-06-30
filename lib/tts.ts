@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 
-export async function synthesizeTts(text: string, voice: string): Promise<string> {
+export async function synthesizeTts(text: string, voice: string): Promise<{ dataUrl: string; buffer: Buffer }> {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const response = await openai.audio.speech.create({
@@ -12,5 +12,5 @@ export async function synthesizeTts(text: string, voice: string): Promise<string
 
   const arrayBuffer = await response.arrayBuffer()
   const buffer = Buffer.from(new Uint8Array(arrayBuffer))
-  return `data:audio/mp3;base64,${buffer.toString('base64')}`
+  return { dataUrl: `data:audio/mp3;base64,${buffer.toString('base64')}`, buffer }
 }
