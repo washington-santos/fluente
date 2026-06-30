@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { AulaClient } from './AulaClient'
-import type { Teacher, User } from '@/types'
+import type { Teacher } from '@/types'
 
 export default async function AulaPage() {
   const supabase = createSupabaseServer()
@@ -24,5 +24,5 @@ export default async function AulaPage() {
 
   if (!teacher) redirect('/dashboard')
 
-  return <AulaClient teacher={teacher as Teacher} user={userData as User} />
+  return <AulaClient teacher={teacher as Teacher} />
 }

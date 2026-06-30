@@ -10,11 +10,10 @@ import { TeacherAvatar } from '@/components/aula/TeacherAvatar'
 import { PanicButton } from '@/components/aula/PanicButton'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
-import type { Teacher, User, ConversationResponse } from '@/types'
+import type { Teacher, ConversationResponse } from '@/types'
 
 interface AulaClientProps {
   teacher: Teacher
-  user: User
 }
 
 export function AulaClient({ teacher }: AulaClientProps) {
