@@ -37,6 +37,7 @@ export default async function AdminSessionDetailPage({
     .select('id, role, text, had_correction')
     .eq('session_id', params.id)
     .order('created_at', { ascending: true })
+    .limit(500)
 
   const u = session.user as unknown as { name: string | null; email: string } | null
   const t = session.teacher as unknown as { name: string } | null

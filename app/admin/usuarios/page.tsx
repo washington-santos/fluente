@@ -1,6 +1,8 @@
 import { createSupabaseAdmin } from '@/lib/supabase-admin'
 import Link from 'next/link'
 
+const PAGE_SIZE = 50
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR')
 }
@@ -8,24 +10,30 @@ function formatDate(iso: string): string {
 export default async function AdminUsuariosPage({
   searchParams,
 }: {
-  searchParams: { q?: string }
+  searchParams: { q?: string; page?: string }
 }) {
   const supabase = createSupabaseAdmin()
   const q = searchParams.q ?? ''
+  const page = Math.max(0, parseInt(searchParams.page ?? '0', 10) || 0)
 
   // Strip characters that would corrupt the PostgREST filter string
   const safeQ = q.replace(/[,%()]/g, '')
 
   let query = supabase
     .from('users')
-    .select('id, name, email, plan_id, cefr_level, streak_days, created_at, subscriptions(status)')
+    .select('id, name, email, plan_id, cefr_level, streak_days, created_at, subscriptions(status)', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
   if (safeQ) {
     query = query.or(`name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`)
   }
 
-  const { data: users } = await query
+  const { data: users, count } = await query
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
+
+  const pageUrl = (p: number) =>
+    `?page=${p}${safeQ ? `&q=${encodeURIComponent(safeQ)}` : ''}`
 
   return (
     <div>
@@ -92,6 +100,24 @@ export default async function AdminUsuariosPage({
           </p>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center gap-3 mt-4 text-sm">
+          {page > 0 && (
+            <Link href={pageUrl(page - 1)} className="px-3 py-1 rounded-lg bg-surface-light-card dark:bg-surface-dark-card text-content-light dark:text-content-dark hover:opacity-70">
+              ← Anterior
+            </Link>
+          )}
+          <span className="text-content-light-secondary dark:text-content-dark-secondary">
+            Página {page + 1} de {totalPages}
+          </span>
+          {page < totalPages - 1 && (
+            <Link href={pageUrl(page + 1)} className="px-3 py-1 rounded-lg bg-surface-light-card dark:bg-surface-dark-card text-content-light dark:text-content-dark hover:opacity-70">
+              Próxima →
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   )
 }

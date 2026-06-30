@@ -10,7 +10,8 @@ function calcAiCost(row: {
 }): number {
   return (
     (row.whisper_minutes ?? 0) * 0.006 * USD_TO_BRL +
-    ((row.claude_tokens ?? 0) / 1_000_000) * 3 * USD_TO_BRL +
+    // Blended rate: 70% input ($3/1M) + 30% output ($15/1M) = $6.60/1M
+    ((row.claude_tokens ?? 0) / 1_000_000) * 6.6 * USD_TO_BRL +
     ((row.tts_chars ?? 0) / 1_000_000) * 15 * USD_TO_BRL +
     (row.did_credits ?? 0) * 0.1 * USD_TO_BRL
   )

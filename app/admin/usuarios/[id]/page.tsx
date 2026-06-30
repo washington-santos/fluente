@@ -41,7 +41,7 @@ export default async function AdminUsuarioDetailPage({
 
   const { data: errors } = await supabase
     .from('errors_log')
-    .select('error_type, error_text, correct_form, seen_count')
+    .select('id, error_type, error_text, correct_form, seen_count')
     .eq('user_id', params.id)
     .is('resolved_at', null)
     .order('seen_count', { ascending: false })
@@ -133,9 +133,9 @@ export default async function AdminUsuarioDetailPage({
               Nenhum erro registrado.
             </p>
           )}
-          {(errors ?? []).map((e, i) => (
+          {(errors ?? []).map((e) => (
             <div
-              key={i}
+              key={e.id}
               className="p-3 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-sm"
             >
               <p className="text-content-light dark:text-content-dark">

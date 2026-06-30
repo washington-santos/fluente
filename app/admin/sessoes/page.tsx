@@ -38,13 +38,13 @@ export default async function AdminSessoesPage({
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
   if (from) query = query.gte('started_at', from)
-  if (to) query = query.lte('started_at', `${to}T23:59:59`)
+  if (to) query = query.lte('started_at', `${to}T23:59:59.999Z`)
 
   const { data: sessions, count } = await query
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
 
   const pageUrl = (p: number) =>
-    `?page=${p}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`
+    `?page=${p}${from ? `&from=${encodeURIComponent(from)}` : ''}${to ? `&to=${encodeURIComponent(to)}` : ''}`
 
   return (
     <div>
