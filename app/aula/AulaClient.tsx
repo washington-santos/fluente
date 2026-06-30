@@ -17,9 +17,9 @@ interface AulaClientProps {
   user: User
 }
 
-export function AulaClient({ teacher, user }: AulaClientProps) {
+export function AulaClient({ teacher }: AulaClientProps) {
   const router = useRouter()
-  const { sessionId, messages, loading, sending, turnError, initError, sendTurn, endSession } = useSession(teacher.id)
+  const { messages, loading, sending, turnError, initError, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)

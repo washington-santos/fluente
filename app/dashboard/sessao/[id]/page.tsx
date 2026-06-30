@@ -59,7 +59,7 @@ export default async function SessionReplayPage({
       </header>
 
       <div className="flex-1 flex flex-col gap-3 px-4 py-6 max-w-sm mx-auto w-full">
-        {(messages ?? []).map((m: any) => (
+        {(messages ?? []).map((m) => (
           <div
             key={m.id}
             className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}

@@ -104,7 +104,7 @@ export default function ConversaPage() {
         <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card">
           <p className="text-xs font-semibold text-brand-interactive mb-2">{teacher.name} diz:</p>
           <p className="text-sm text-content-light dark:text-content-dark italic">
-            "{teacher.onboarding_prompt}"
+            &ldquo;{teacher.onboarding_prompt}&rdquo;
           </p>
         </div>
 

@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { StreakBadge } from '@/components/dashboard/StreakBadge'
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
-import type { Teacher, User, Session, ErrorLog, ErrorType } from '@/types'
+import type { Teacher, User, ErrorType } from '@/types'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-semibold text-content-light dark:text-content-dark">Planos e assinaturas</p>
             <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
-              {(u as any).plan ? `Plano ${(u as any).plan}` : 'Plano Grátis'}
+              {u.plan_id ? `Plano ${u.plan_id}` : 'Plano Grátis'}
             </p>
           </div>
           <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
@@ -132,7 +132,7 @@ export default async function DashboardPage() {
                   id={s.id}
                   started_at={s.started_at}
                   duration_seconds={s.duration_seconds}
-                  teacher_name={(s.teacher as any)?.name ?? 'Professor'}
+                  teacher_name={(s.teacher as { name?: string } | null)?.name ?? 'Professor'}
                 />
               ))}
             </div>

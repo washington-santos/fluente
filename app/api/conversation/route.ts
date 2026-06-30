@@ -110,12 +110,12 @@ When an error is detected set error_detected to true and fill the correction fie
     max_tokens: 512,
     system: systemPrompt,
     messages: [
-      ...(chronologicalMessages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
+      ...(chronologicalMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
       { role: 'user', content: transcript },
     ],
   })
 
-  const rawText = claudeRes.content[0]?.type === 'text' ? (claudeRes.content[0] as any).text : '{}'
+  const rawText = claudeRes.content[0]?.type === 'text' ? (claudeRes.content[0] as Anthropic.TextBlock).text : '{}'
   let parsed: ClaudeOutput
   try {
     parsed = JSON.parse(rawText) as ClaudeOutput

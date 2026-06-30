@@ -9,7 +9,6 @@ interface TeacherAvatarProps {
   isSpeaking: boolean
 }
 
-const BAR_COUNT = 5
 const BAR_HEIGHTS = [0.4, 0.7, 1, 0.7, 0.4]
 
 export function TeacherAvatar({ name, imageUrl, videoUrl, isSpeaking }: TeacherAvatarProps) {
