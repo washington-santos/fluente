@@ -28,10 +28,10 @@ export async function POST(request: Request) {
   const nowBR = new Date(Date.now() - 3 * 60 * 60 * 1000)
   const firstOfMonth = `${nowBR.getUTCFullYear()}-${String(nowBR.getUTCMonth() + 1).padStart(2, '0')}-01`
 
-  const [{ data: subData }, { data: usageRows }] = await Promise.all([
+  const [{ data: subData, error: quotaSubError }, { data: usageRows, error: quotaUsageError }] = await Promise.all([
     supabase
       .from('subscriptions')
-      .select('plan_id, plans!inner(minutes_per_month)')
+      .select('plans!inner(minutes_per_month)')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .maybeSingle(),
@@ -41,6 +41,11 @@ export async function POST(request: Request) {
       .eq('user_id', user.id)
       .gte('date', firstOfMonth),
   ])
+
+  if (quotaSubError || quotaUsageError) {
+    console.error('Quota check DB error', quotaSubError ?? quotaUsageError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   const minutesLimit: number = subData
     ? (subData.plans as unknown as { minutes_per_month: number }).minutes_per_month
