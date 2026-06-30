@@ -91,7 +91,7 @@ export default async function AdminCustosPage() {
               return (
                 <tr
                   key={date}
-                  className="border-b border-surface-light-card dark:border-surface-dark-card"
+                  className="border-b border-surface-light-card dark:border-surface-dark-card hover:bg-surface-light-card dark:hover:bg-surface-dark-card transition-colors"
                 >
                   <td className="py-2 pr-4 text-content-light dark:text-content-dark">
                     {date}
