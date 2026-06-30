@@ -5,12 +5,13 @@ const mockUser = { id: 'user-1' }
 const mockUserData = { id: 'user-1', name: 'Ana', cefr_level: 'B1', teacher_id: 'teacher-1' }
 const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1', teacher: { id: 'teacher-1', slug: 'mr-jake', name: 'Mr. Jake', system_prompt: 'You are Mr. Jake.', tts_voice: 'echo', avatar_image_url: '/avatars/mr-jake.png' } }
 
-// Hoist so the fn reference is available inside the vi.mock factory below
-const { mockAnthropicCreate } = vi.hoisted(() => ({
+// Hoist so the fn references are available inside the vi.mock factory below
+const { mockAnthropicCreate, mockMessagesInsert } = vi.hoisted(() => ({
   mockAnthropicCreate: vi.fn().mockResolvedValue({
     content: [{ type: 'text', text: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' }],
     usage: { input_tokens: 100, output_tokens: 50 },
   }),
+  mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
 }))
 
 vi.mock('@supabase/ssr', () => ({
@@ -49,7 +50,7 @@ vi.mock('@supabase/ssr', () => ({
       }
       if (table === 'messages') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
-        insert: vi.fn().mockResolvedValue({ error: null }),
+        insert: mockMessagesInsert,
       }
       return {}
     }),
@@ -264,6 +265,45 @@ describe('POST /api/conversation', () => {
 
       const res = await POST(makeFormRequest({ session_id: 'sess-3', panic_text: 'Hello' }))
       expect(res.status).not.toBe(429)
+    })
+  })
+
+  describe('audio storage upload', () => {
+    it('persists storage URL in assistant messages.audio_url after successful upload', async () => {
+      const audio = new Blob(['fake-audio'], { type: 'audio/webm' })
+      await POST(makeFormRequest({ session_id: 'session-1', audio }))
+
+      // insert is called with an array: insert([{ role, ... }])
+      // mock.calls[n] = arguments to the nth call; [0] = first arg = the array; [0] = first element
+      const assistantCall = mockMessagesInsert.mock.calls.find((call: any[]) =>
+        call[0]?.[0]?.role === 'assistant'
+      )
+      expect(assistantCall).toBeDefined()
+      expect(assistantCall![0][0].audio_url).toMatch(/audio-replay/)
+    })
+
+    it('falls back to null audio_url when storage upload fails', async () => {
+      const { createSupabaseAdmin } = await import('@/lib/supabase-admin')
+      vi.mocked(createSupabaseAdmin).mockReturnValueOnce({
+        storage: {
+          from: vi.fn(() => ({
+            upload: vi.fn().mockResolvedValue({ error: { message: 'upload failed' } }),
+            getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: '' } }),
+          })),
+        },
+      } as any)
+
+      const audio = new Blob(['fake-audio'], { type: 'audio/webm' })
+      const res = await POST(makeFormRequest({ session_id: 'session-1', audio }))
+
+      // Route should still return 200 — upload failure is a graceful fallback
+      expect(res.status).toBe(200)
+
+      const assistantCall = mockMessagesInsert.mock.calls.find((call: any[]) =>
+        call[0]?.[0]?.role === 'assistant'
+      )
+      expect(assistantCall).toBeDefined()
+      expect(assistantCall![0][0].audio_url).toBeNull()
     })
   })
 })
