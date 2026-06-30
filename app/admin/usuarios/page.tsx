@@ -13,13 +13,16 @@ export default async function AdminUsuariosPage({
   const supabase = createSupabaseAdmin()
   const q = searchParams.q ?? ''
 
+  // Strip characters that would corrupt the PostgREST filter string
+  const safeQ = q.replace(/[,%()]/g, '')
+
   let query = supabase
     .from('users')
     .select('id, name, email, plan_id, cefr_level, streak_days, created_at, subscriptions(status)')
     .order('created_at', { ascending: false })
 
-  if (q) {
-    query = query.or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+  if (safeQ) {
+    query = query.or(`name.ilike.%${safeQ}%,email.ilike.%${safeQ}%`)
   }
 
   const { data: users } = await query
@@ -50,7 +53,7 @@ export default async function AdminUsuariosPage({
               <th className="pb-2 pr-4 font-medium">Nível</th>
               <th className="pb-2 pr-4 font-medium">Streak</th>
               <th className="pb-2 pr-4 font-medium">Cadastro</th>
-              <th className="pb-2 font-medium">Assinatura</th>
+              <th className="pb-2 font-medium">Status assinatura</th>
             </tr>
           </thead>
           <tbody>
