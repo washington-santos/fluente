@@ -1,7 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED = ['/dashboard', '/aula', '/professores', '/planos', '/perfil', '/admin', '/cadastro']
+const PROTECTED = ['/dashboard', '/aula', '/professores', '/planos', '/perfil', '/admin']
+// /cadastro sub-paths (onboarding steps) require auth; root /cadastro is the signup page (public)
+const PROTECTED_SUBPATHS = ['/cadastro']
 const AUTH_ONLY = ['/login', '/cadastro']
 const NO_NEXT_REDIRECT = new Set(['/cadastro/boas-vindas'])
 
@@ -28,7 +30,9 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname, search } = request.nextUrl
 
-  const isProtected = PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  const isProtected =
+    PROTECTED.some((p) => pathname === p || pathname.startsWith(p + '/')) ||
+    PROTECTED_SUBPATHS.some((p) => pathname.startsWith(p + '/'))
   const isAuthOnly = AUTH_ONLY.includes(pathname)
 
   if (isProtected && !user) {
