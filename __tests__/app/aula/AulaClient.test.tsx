@@ -33,6 +33,7 @@ vi.mock('@/hooks/useAudioRecorder', () => ({
 vi.mock('@/components/ThemeToggle', () => ({ ThemeToggle: () => <button>toggle</button> }))
 vi.mock('@/components/ThemeProvider', () => ({ useTheme: () => ({ theme: 'dark', toggle: vi.fn() }) }))
 
+import { useSession } from '@/hooks/useSession'
 import { AulaClient } from '@/app/aula/AulaClient'
 
 const mockTeacher = { id: 't1', slug: 'mr-jake', name: 'Mr. Jake', system_prompt: 'You are...', tts_voice: 'echo', tts_provider: 'openai' as const, avatar_image_url: '/avatars/mr-jake.png', levels: ['B1' as const, 'B2' as const], correction_style: 'conversational', memory_prefix: 'Mr. Jake notes:' }
@@ -42,12 +43,12 @@ describe('AulaClient', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('renders teacher name', async () => {
-    render(<AulaClient teacher={mockTeacher} user={mockUser} />)
+    render(<AulaClient teacher={mockTeacher} />)
     await waitFor(() => expect(screen.getByText('Mr. Jake')).toBeInTheDocument())
   })
 
   it('renders existing messages', async () => {
-    render(<AulaClient teacher={mockTeacher} user={mockUser} />)
+    render(<AulaClient teacher={mockTeacher} />)
     await waitFor(() => {
       expect(screen.getByText('Hello!')).toBeInTheDocument()
       expect(screen.getByText('Hi there!')).toBeInTheDocument()
@@ -55,9 +56,30 @@ describe('AulaClient', () => {
   })
 
   it('renders a record button', async () => {
-    render(<AulaClient teacher={mockTeacher} user={mockUser} />)
+    render(<AulaClient teacher={mockTeacher} />)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /iniciar gravação/i })).toBeInTheDocument()
     )
+  })
+
+  it('renders quota exceeded banner when quotaExceeded is true', () => {
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      messages: [],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: true,
+      quotaInfo: { minutesUsed: 10.5, minutesLimit: 10 },
+      sendTurn: vi.fn(),
+      endSession: vi.fn(),
+    })
+
+    render(<AulaClient teacher={mockTeacher} />)
+
+    expect(screen.getByText('Limite do plano atingido')).toBeInTheDocument()
+    expect(screen.getByText(/10\.5.*de.*10.*minutos/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver planos' })).toHaveAttribute('href', '/planos')
   })
 })

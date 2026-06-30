@@ -145,7 +145,7 @@ export function AulaClient({ teacher }: AulaClientProps) {
               Limite do plano atingido
             </p>
             <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
-              Você usou {quotaInfo?.minutesUsed.toFixed(1)} de {quotaInfo?.minutesLimit} minutos este mês.
+              Você usou {(quotaInfo?.minutesUsed ?? 0).toFixed(1)} de {quotaInfo?.minutesLimit} minutos este mês.
             </p>
             <a
               href="/planos"
