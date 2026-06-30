@@ -30,6 +30,12 @@ vi.mock('@supabase/ssr', () => ({
       if (table === 'users') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
       }
+      if (table === 'subscriptions') return {
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+      }
+      if (table === 'usage_log') return {
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [], error: null }) })) })),
+      }
       if (table === 'session_memory') return {
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -135,6 +141,12 @@ describe('POST /api/conversation', () => {
         if (table === 'users') return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
         }
+        if (table === 'subscriptions') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+        }
+        if (table === 'usage_log') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [], error: null }) })) })),
+        }
         if (table === 'session_memory') return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -161,5 +173,84 @@ describe('POST /api/conversation', () => {
 
     const callArgs = mockAnthropicCreate.mock.calls[0][0]
     expect(callArgs.system).toContain('Student likes coding.')
+  })
+
+  describe('quota enforcement', () => {
+    it('returns 429 when free user has used 10+ minutes this month', async () => {
+      const { createServerClient } = await import('@supabase/ssr')
+      vi.mocked(createServerClient).mockReturnValueOnce({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
+        from: vi.fn((table: string) => {
+          if (table === 'subscriptions') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+            }
+          }
+          if (table === 'usage_log') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [{ whisper_minutes: 10.5 }], error: null }) })) })),
+            }
+          }
+          return { select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) })) })) })) }
+        }),
+      } as any)
+
+      const res = await POST(makeFormRequest({ session_id: 'sess-1', panic_text: 'test' }))
+      expect(res.status).toBe(429)
+      const body = await res.json()
+      expect(body.error).toBe('quota_exceeded')
+      expect(body.minutesUsed).toBeCloseTo(10.5)
+      expect(body.minutesLimit).toBe(10)
+    })
+
+    it('returns 429 when basic subscriber has used 120+ minutes', async () => {
+      const { createServerClient } = await import('@supabase/ssr')
+      vi.mocked(createServerClient).mockReturnValueOnce({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-2' } } }) },
+        from: vi.fn((table: string) => {
+          if (table === 'subscriptions') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { plan_id: 'basic', plans: { minutes_per_month: 120 } }, error: null }) })) })) })),
+            }
+          }
+          if (table === 'usage_log') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [{ whisper_minutes: 60 }, { whisper_minutes: 61 }], error: null }) })) })),
+            }
+          }
+          return { select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) })) })) })) }
+        }),
+      } as any)
+
+      const res = await POST(makeFormRequest({ session_id: 'sess-2', panic_text: 'test' }))
+      expect(res.status).toBe(429)
+      const body = await res.json()
+      expect(body.error).toBe('quota_exceeded')
+      expect(body.minutesUsed).toBeCloseTo(121)
+      expect(body.minutesLimit).toBe(120)
+    })
+
+    it('proceeds normally when user is within quota', async () => {
+      const { createServerClient } = await import('@supabase/ssr')
+      vi.mocked(createServerClient).mockReturnValueOnce({
+        auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-3' } } }) },
+        from: vi.fn((table: string) => {
+          if (table === 'subscriptions') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { plan_id: 'pro', plans: { minutes_per_month: 300 } }, error: null }) })) })) })),
+            }
+          }
+          if (table === 'usage_log') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [{ whisper_minutes: 5 }], error: null }) })) })),
+            }
+          }
+          return { select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) })) })) })) }
+        }),
+      } as any)
+
+      const res = await POST(makeFormRequest({ session_id: 'sess-3', panic_text: 'Hello' }))
+      expect(res.status).not.toBe(429)
+    })
   })
 })

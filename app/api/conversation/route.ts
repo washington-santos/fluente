@@ -23,6 +23,42 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // ── Quota check ─────────────────────────────────────────────────────────
+  // Brazil UTC-3 — consistent with usage_log date storage
+  const nowBR = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  const firstOfMonth = `${nowBR.getUTCFullYear()}-${String(nowBR.getUTCMonth() + 1).padStart(2, '0')}-01`
+
+  const [{ data: subData }, { data: usageRows }] = await Promise.all([
+    supabase
+      .from('subscriptions')
+      .select('plan_id, plans!inner(minutes_per_month)')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle(),
+    supabase
+      .from('usage_log')
+      .select('whisper_minutes')
+      .eq('user_id', user.id)
+      .gte('date', firstOfMonth),
+  ])
+
+  const minutesLimit: number = subData
+    ? (subData.plans as unknown as { minutes_per_month: number }).minutes_per_month
+    : 10 // free plan default
+
+  const minutesUsed: number = (usageRows ?? []).reduce(
+    (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
+    0,
+  )
+
+  if (minutesUsed >= minutesLimit) {
+    return NextResponse.json(
+      { error: 'quota_exceeded', minutesUsed, minutesLimit },
+      { status: 429 },
+    )
+  }
+  // ── End quota check ──────────────────────────────────────────────────────
+
   const formData = await request.formData()
   const sessionId = formData.get('session_id') as string | null
   const audio = formData.get('audio') as Blob | null
