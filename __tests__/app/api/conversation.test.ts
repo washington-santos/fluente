@@ -83,6 +83,19 @@ vi.mock('@/lib/did', () => ({
   DID_VOICE_IDS: { 'mr-jake': 'en-US-GuyNeural' },
 }))
 
+vi.mock('@/lib/supabase-admin', () => ({
+  createSupabaseAdmin: vi.fn(() => ({
+    storage: {
+      from: vi.fn(() => ({
+        upload: vi.fn().mockResolvedValue({ error: null }),
+        getPublicUrl: vi.fn().mockReturnValue({
+          data: { publicUrl: 'https://example.supabase.co/storage/v1/object/public/audio-replay/user-1/session-1/123.mp3' },
+        }),
+      })),
+    },
+  })),
+}))
+
 function makeFormRequest(fields: Record<string, string | Blob>) {
   const form = new FormData()
   Object.entries(fields).forEach(([k, v]) => form.append(k, v))

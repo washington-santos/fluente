@@ -1,4 +1,5 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { createSupabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -186,8 +187,25 @@ When an error is detected set error_detected to true and fill the correction fie
 
   // Fix 1+2: TTS with graceful fallback — if TTS throws we still insert the assistant message
   let audioUrl: string | null = null
+  let storedAudioUrl: string | null = null
   try {
-    audioUrl = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
+    const { dataUrl, buffer } = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
+    audioUrl = dataUrl
+
+    // Upload to Storage for replay — use admin client to bypass RLS
+    const supabaseAdmin = createSupabaseAdmin()
+    const storagePath = `${user.id}/${sessionId}/${Date.now()}.mp3`
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('audio-replay')
+      .upload(storagePath, buffer, { contentType: 'audio/mpeg', upsert: false })
+
+    if (!uploadError) {
+      storedAudioUrl = supabaseAdmin.storage
+        .from('audio-replay')
+        .getPublicUrl(storagePath).data.publicUrl
+    } else {
+      console.error('Audio upload failed:', uploadError.message)
+    }
   } catch (err) {
     console.error('TTS failed, continuing without audio:', err)
   }
@@ -203,9 +221,9 @@ When an error is detected set error_detected to true and fill the correction fie
     console.error('D-ID failed, continuing without video:', err)
   }
 
-  // Always insert ASSISTANT message; store null in DB (base64 audio is response-only, not persisted)
+  // Always insert ASSISTANT message; store the Supabase Storage URL (or null if upload failed)
   const { error: assistantInsertError } = await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: null, had_correction: errorReport.error_detected },
+    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: storedAudioUrl, had_correction: errorReport.error_detected },
   ])
   if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
 
