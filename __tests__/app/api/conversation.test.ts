@@ -6,10 +6,10 @@ const mockUserData = { id: 'user-1', name: 'Ana', cefr_level: 'B1', teacher_id: 
 const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1', teacher: { id: 'teacher-1', slug: 'mr-jake', name: 'Mr. Jake', system_prompt: 'You are Mr. Jake.', tts_voice: 'echo', avatar_image_url: '/avatars/mr-jake.png' } }
 
 // Hoist so the fn references are available inside the vi.mock factory below
-const { mockAnthropicCreate, mockMessagesInsert } = vi.hoisted(() => ({
-  mockAnthropicCreate: vi.fn().mockResolvedValue({
-    content: [{ type: 'text', text: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' }],
-    usage: { input_tokens: 100, output_tokens: 50 },
+const { mockChatCreate, mockMessagesInsert } = vi.hoisted(() => ({
+  mockChatCreate: vi.fn().mockResolvedValue({
+    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' } }],
+    usage: { prompt_tokens: 100, completion_tokens: 50 },
   }),
   mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
 }))
@@ -61,20 +61,15 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({ getAll: () => [], set: vi.fn() })),
 }))
 
-// Use class-based mocks so `new OpenAI()` / `new Anthropic()` work correctly in vitest v4
+// Use class-based mocks so `new OpenAI()` works correctly in vitest v4
 vi.mock('openai', () => ({
   default: class MockOpenAI {
     audio = {
       transcriptions: { create: vi.fn().mockResolvedValue({ text: 'Hello teacher.' }) },
       speech: { create: vi.fn().mockResolvedValue({ arrayBuffer: async () => Buffer.from('mp3').buffer }) },
     }
-  },
-}))
-
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: class MockAnthropic {
-    messages = {
-      create: mockAnthropicCreate,
+    chat = {
+      completions: { create: mockChatCreate },
     }
   },
 }))
@@ -185,8 +180,9 @@ describe('POST /api/conversation', () => {
 
     await POST(makeFormRequest({ session_id: 'session-1', panic_text: 'Hello.' }))
 
-    const callArgs = mockAnthropicCreate.mock.calls[0][0]
-    expect(callArgs.system).toContain('Student likes coding.')
+    const callArgs = mockChatCreate.mock.calls[0][0]
+    const systemMsg = callArgs.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMsg?.content).toContain('Student likes coding.')
   })
 
   describe('quota enforcement', () => {

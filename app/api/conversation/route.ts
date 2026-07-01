@@ -2,7 +2,6 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { createSupabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import Anthropic from '@anthropic-ai/sdk'
 import { synthesizeTts } from '@/lib/tts'
 import { createTalk, DID_VOICE_IDS } from '@/lib/did'
 import type { ConversationResponse, ErrorReport, ErrorType } from '@/types'
@@ -145,19 +144,18 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 {"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.`
 
-  // Call Claude Sonnet
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const claudeRes = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+  const openaiChat = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const chatRes = await openaiChat.chat.completions.create({
+    model: 'gpt-4o-mini',
     max_tokens: 512,
-    system: systemPrompt,
     messages: [
+      { role: 'system', content: systemPrompt },
       ...(chronologicalMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
       { role: 'user', content: transcript },
     ],
   })
 
-  const rawText = claudeRes.content[0]?.type === 'text' ? (claudeRes.content[0] as Anthropic.TextBlock).text : '{}'
+  const rawText = chatRes.choices[0]?.message?.content ?? '{}'
   let parsed: ClaudeOutput
   try {
     parsed = JSON.parse(rawText) as ClaudeOutput
@@ -239,7 +237,7 @@ When an error is detected set error_detected to true and fill the correction fie
   }
 
   // Atomic usage_log increment via RPC — avoids SELECT-then-UPSERT race
-  const usage = claudeRes.usage
+  const usage = chatRes.usage
   // Brazil local date (UTC-3) so usage_log rows match the streak date from finalize
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { error: usageError } = await supabase.rpc('increment_usage_log', {
@@ -247,7 +245,7 @@ When an error is detected set error_detected to true and fill the correction fie
     p_date: today,
     p_whisper_minutes: audio ? 0.5 : 0,
     p_tts_chars: replyText.length,
-    p_claude_tokens: usage.input_tokens + usage.output_tokens,
+    p_claude_tokens: (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0),
     p_did_credits: videoUrl ? 1 : 0,
   })
   if (usageError) console.error('Usage log increment failed:', usageError.message)
