@@ -34,7 +34,7 @@ export default async function AdminSessionDetailPage({
 
   const { data: messages } = await supabase
     .from('messages')
-    .select('id, role, text, had_correction')
+    .select('id, role, text, audio_url, had_correction')
     .eq('session_id', params.id)
     .order('created_at', { ascending: true })
     .limit(500)
@@ -78,6 +78,14 @@ export default async function AdminSessionDetailPage({
               <p>{m.text}</p>
               {m.had_correction && (
                 <span className="block text-xs opacity-70 mt-1">✓ corrigido</span>
+              )}
+              {m.role === 'assistant' && m.audio_url && (
+                <audio
+                  controls
+                  src={m.audio_url}
+                  className="mt-2 w-full h-8"
+                  aria-label="Reproduzir resposta"
+                />
               )}
             </div>
           </div>
