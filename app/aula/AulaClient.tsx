@@ -51,9 +51,9 @@ export function AulaClient({ teacher }: AulaClientProps) {
     }
   }
 
-  const { isRecording, startRecording, stopRecording, error: micError } = useAudioRecorder({
+  const { isRecording, startRecording, stopRecording, cancelRecording, error: micError } = useAudioRecorder({
     onComplete: (blob) => {
-      const base = blob.type.split(';')[0]   // strip ";codecs=opus"
+      const base = blob.type.split(';')[0]
       const ext = base.split('/')[1] || 'webm'
       handleTurn(new File([blob], `recording.${ext}`, { type: base }))
     },
@@ -165,11 +165,14 @@ export function AulaClient({ teacher }: AulaClientProps) {
             )}
             <RecordButton
               isRecording={isRecording}
-              onPressStart={startRecording}
-              onPressEnd={stopRecording}
+              onStartRecording={startRecording}
+              onSendRecording={stopRecording}
+              onCancelRecording={cancelRecording}
               disabled={sending || loading}
             />
-            <PanicButton onSubmit={(text) => handleTurn(text)} disabled={sending || loading || isRecording} />
+            {!isRecording && (
+              <PanicButton onSubmit={(text) => handleTurn(text)} disabled={sending || loading} />
+            )}
           </>
         )}
       </div>

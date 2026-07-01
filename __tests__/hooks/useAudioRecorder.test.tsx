@@ -77,4 +77,18 @@ describe('useAudioRecorder', () => {
     })
     expect(mockOnComplete).toHaveBeenCalledWith(expect.any(Blob))
   })
+
+  it('does not call onComplete when cancelRecording is invoked', async () => {
+    const { result } = renderHook(() => useAudioRecorder({ onComplete: mockOnComplete }))
+    await act(async () => { await result.current.startRecording() })
+    act(() => {
+      mockRecorderInstance.ondataavailable?.({ data: new Blob(['chunk'], { type: 'audio/webm' }) })
+    })
+    act(() => {
+      result.current.cancelRecording()
+      mockRecorderInstance.onstop?.()
+    })
+    expect(mockOnComplete).not.toHaveBeenCalled()
+    expect(result.current.isRecording).toBe(false)
+  })
 })

@@ -11,6 +11,7 @@ export function useAudioRecorder({ onComplete }: UseAudioRecorderOptions) {
   const [error, setError] = useState<string | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
+  const cancelledRef = useRef(false)
 
   async function startRecording() {
     setError(null)
@@ -22,6 +23,7 @@ export function useAudioRecorder({ onComplete }: UseAudioRecorderOptions) {
         undefined
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunksRef.current = []
+      cancelledRef.current = false
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data)
@@ -29,8 +31,11 @@ export function useAudioRecorder({ onComplete }: UseAudioRecorderOptions) {
 
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
-        onComplete(blob)
+        if (!cancelledRef.current) {
+          const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
+          onComplete(blob)
+        }
+        cancelledRef.current = false
         setIsRecording(false)
       }
 
@@ -46,5 +51,10 @@ export function useAudioRecorder({ onComplete }: UseAudioRecorderOptions) {
     recorderRef.current?.stop()
   }
 
-  return { isRecording, startRecording, stopRecording, error }
+  function cancelRecording() {
+    cancelledRef.current = true
+    recorderRef.current?.stop()
+  }
+
+  return { isRecording, startRecording, stopRecording, cancelRecording, error }
 }
