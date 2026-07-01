@@ -194,7 +194,7 @@ When an error is detected set error_detected to true and fill the correction fie
 
     // Upload to Storage for replay — use admin client to bypass RLS
     const supabaseAdmin = createSupabaseAdmin()
-    const storagePath = `${user.id}/${sessionId}/${Date.now()}.mp3`
+    const storagePath = `${user.id}/${sessionId}/${crypto.randomUUID()}.mp3`
     const { error: uploadError } = await supabaseAdmin.storage
       .from('audio-replay')
       .upload(storagePath, buffer, { contentType: 'audio/mpeg', upsert: false })
@@ -207,7 +207,7 @@ When an error is detected set error_detected to true and fill the correction fie
       console.error('Audio upload failed:', uploadError.message)
     }
   } catch (err) {
-    console.error('TTS failed, continuing without audio:', err)
+    console.error('TTS/storage failed, continuing without audio:', err)
   }
 
   // Fix 1+2: D-ID with graceful fallback

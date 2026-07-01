@@ -78,6 +78,7 @@ export default async function SessionReplayPage({
               {m.role === 'assistant' && m.audio_url && (
                 <audio
                   controls
+                  preload="none"
                   src={m.audio_url}
                   className="mt-2 w-full h-8"
                   aria-label="Reproduzir resposta"
