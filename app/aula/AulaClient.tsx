@@ -52,7 +52,11 @@ export function AulaClient({ teacher }: AulaClientProps) {
   }
 
   const { isRecording, startRecording, stopRecording, error: micError } = useAudioRecorder({
-    onComplete: (blob) => handleTurn(new File([blob], 'recording.webm', { type: blob.type })),
+    onComplete: (blob) => {
+      const base = blob.type.split(';')[0]   // strip ";codecs=opus"
+      const ext = base.split('/')[1] || 'webm'
+      handleTurn(new File([blob], `recording.${ext}`, { type: base }))
+    },
   })
 
   useEffect(() => {

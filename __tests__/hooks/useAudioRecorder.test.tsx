@@ -13,6 +13,7 @@ let mockRecorderInstance: {
 }
 
 class MockMediaRecorder {
+  static isTypeSupported = vi.fn().mockReturnValue(true)
   start = vi.fn()
   stop = vi.fn()
   ondataavailable: ((e: any) => void) | null = null
