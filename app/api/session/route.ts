@@ -1,6 +1,7 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import type { SessionMode } from '@/types'
+import { pickTopic } from '@/lib/topics'
 
 export async function GET(request: Request) {
   const supabase = createSupabaseServer()
@@ -41,9 +42,26 @@ export async function POST(request: Request) {
   const body = await request.json() as { teacher_id: string; mode?: SessionMode }
   if (!body.teacher_id) return NextResponse.json({ error: 'teacher_id required' }, { status: 400 })
 
+  // Fetch user CEFR level and completed session count in parallel
+  const [{ data: userData }, { count: completedCount }] = await Promise.all([
+    supabase.from('users').select('cefr_level').eq('id', user.id).single(),
+    supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .not('ended_at', 'is', null),
+  ])
+
+  const topic = pickTopic(userData?.cefr_level, completedCount ?? 0)
+
   const { data: newSession, error } = await supabase
     .from('sessions')
-    .insert({ user_id: user.id, teacher_id: body.teacher_id, mode: body.mode ?? 'daily' })
+    .insert({
+      user_id: user.id,
+      teacher_id: body.teacher_id,
+      mode: body.mode ?? 'daily',
+      topic: topic?.key ?? null,
+    })
     .select('id')
     .single()
 
@@ -55,5 +73,5 @@ export async function POST(request: Request) {
     .eq('id', body.teacher_id)
     .single()
 
-  return NextResponse.json({ session_id: newSession.id, teacher })
+  return NextResponse.json({ session_id: newSession.id, teacher, topic: topic?.key ?? null })
 }

@@ -14,11 +14,33 @@ vi.mock('@supabase/ssr', () => ({
           single: vi.fn().mockResolvedValue({ data: { id: 'session-1' }, error: null }),
         })),
       })),
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: mockTeacher, error: null }),
-          // Second .eq() chained for teacher_id filter (session GET) or user_id (session end)
+      select: vi.fn((col: string, opts?: { count?: string }) => {
+        if (opts?.count === 'exact') {
+          // count query: .select('id', { count: 'exact', head: true }).eq().not()
+          return {
+            eq: vi.fn(() => ({
+              not: vi.fn(() => Promise.resolve({ count: 3, error: null })),
+            })),
+          }
+        }
+        return {
           eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({ data: mockTeacher, error: null }),
+            // Second .eq() chained for teacher_id filter (session GET) or user_id (session end)
+            eq: vi.fn(() => ({
+              is: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(() => ({
+                    maybeSingle: vi.fn().mockResolvedValue({
+                      data: { ...mockSession, teacher: mockTeacher },
+                      error: null,
+                    }),
+                  })),
+                })),
+              })),
+              // Fix 9: support select('id').eq().eq().maybeSingle() for ownership check
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'session-1' }, error: null }),
+            })),
             is: vi.fn(() => ({
               order: vi.fn(() => ({
                 limit: vi.fn(() => ({
@@ -29,24 +51,13 @@ vi.mock('@supabase/ssr', () => ({
                 })),
               })),
             })),
-            // Fix 9: support select('id').eq().eq().maybeSingle() for ownership check
-            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'session-1' }, error: null }),
-          })),
-          is: vi.fn(() => ({
             order: vi.fn(() => ({
-              limit: vi.fn(() => ({
-                maybeSingle: vi.fn().mockResolvedValue({
-                  data: { ...mockSession, teacher: mockTeacher },
-                  error: null,
-                }),
-              })),
+              limit: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
+            not: vi.fn(() => Promise.resolve({ count: 3, error: null })),
           })),
-          order: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-        })),
-      })),
+        }
+      }),
       // Fix 4: update chains .select('id') — resolves to { data: [...], error: null }
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
@@ -77,6 +88,7 @@ describe('POST /api/session', () => {
     const body = await res.json()
     expect(body.session_id).toBe('session-1')
     expect(body.teacher.id).toBe('teacher-1')
+    expect(body).toHaveProperty('topic')
   })
 
   it('returns 401 when unauthenticated', async () => {

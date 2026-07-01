@@ -55,6 +55,7 @@ export interface Session {
   duration_seconds: number | null
   replay_text: string | null
   main_error: string | null
+  topic: string | null
 }
 
 export interface Message {
