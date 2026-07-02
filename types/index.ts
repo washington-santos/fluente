@@ -146,6 +146,7 @@ export interface ConversationResponse {
   had_correction: boolean
   error_report: ErrorReport
   transcript?: string
+  pronunciation_hint: string | null
 }
 
 export interface McqQuestion {

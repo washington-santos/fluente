@@ -123,7 +123,7 @@ export function useSession(teacherId: string): UseSessionReturn {
       setMessages((prev) => [
         ...prev,
         { role: 'user', text: userText, audio_url: null, had_correction: false, pronunciation_hint: null },
-        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction, pronunciation_hint: null },
+        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction, pronunciation_hint: data.pronunciation_hint ?? null },
       ])
 
       return data

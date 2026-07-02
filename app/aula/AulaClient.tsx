@@ -138,7 +138,7 @@ export function AulaClient({ teacher }: AulaClientProps) {
           </p>
         )}
         {messages.map((m, i) => (
-          <MessageBubble key={i} role={m.role} text={m.text} hadCorrection={m.had_correction} />
+          <MessageBubble key={i} role={m.role} text={m.text} hadCorrection={m.had_correction} pronunciationHint={m.pronunciation_hint} />
         ))}
         {sending && (
           <div className="flex justify-start">

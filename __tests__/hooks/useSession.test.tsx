@@ -10,6 +10,7 @@ const mockConvResponse = {
   video_url: null,
   had_correction: false,
   error_report: { error_detected: false },
+  pronunciation_hint: "Watch your 'th' sound",
 }
 
 global.fetch = vi.fn()
@@ -79,6 +80,7 @@ describe('useSession', () => {
     expect(result.current.messages).toHaveLength(2)
     expect(result.current.messages[0].role).toBe('user')
     expect(result.current.messages[1].role).toBe('assistant')
+    expect(result.current.messages[1].pronunciation_hint).toBe("Watch your 'th' sound")
   })
 
   it('calls finalize after endSession succeeds', async () => {

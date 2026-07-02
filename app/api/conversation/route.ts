@@ -17,6 +17,7 @@ interface ClaudeOutput {
     correct_form: string | null
     error_type: string | null
   }
+  pronunciation_hint: string | null
 }
 
 export async function POST(request: Request) {
@@ -147,8 +148,9 @@ Student profile:
 - CEFR level: ${userData?.cefr_level ?? 'B1'}
 ${memoryBlock}${topicBlock}
 Respond ONLY with valid JSON — no markdown, no extra text:
-{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}
-When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.`
+{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null}
+When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.
+When the student's transcript reveals a common Brazilian pronunciation pattern issue (e.g. "th" pronounced as "d" or "t", dropping final "s", wrong word stress, "ed" pronounced as a full syllable), set pronunciation_hint to a single clear tip under 20 words. Otherwise set pronunciation_hint to null.`
 
   const openaiChat = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const chatRes = await openaiChat.chat.completions.create({
@@ -166,7 +168,7 @@ When an error is detected set error_detected to true and fill the correction fie
   try {
     parsed = JSON.parse(rawText) as ClaudeOutput
   } catch {
-    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null } }
+    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null }
   }
 
   // Fix 3: Only fall back to rawText when parsed.reply is not a string at all.
@@ -175,6 +177,9 @@ When an error is detected set error_detected to true and fill the correction fie
     ? parsed.reply
     : rawText
   const correctionRaw = parsed.correction ?? {}
+  const pronunciationHint: string | null = (typeof parsed.pronunciation_hint === 'string' && parsed.pronunciation_hint.length > 0)
+    ? parsed.pronunciation_hint
+    : null
 
   const errorReport: ErrorReport = {
     error_detected: correctionRaw.error_detected ?? false,
@@ -227,7 +232,7 @@ When an error is detected set error_detected to true and fill the correction fie
 
   // Always insert ASSISTANT message; store the Supabase Storage URL (or null if upload failed)
   const { error: assistantInsertError } = await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: storedAudioUrl, had_correction: errorReport.error_detected },
+    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: storedAudioUrl, had_correction: errorReport.error_detected, pronunciation_hint: pronunciationHint },
   ])
   if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
 
@@ -263,6 +268,7 @@ When an error is detected set error_detected to true and fill the correction fie
     had_correction: errorReport.error_detected,
     error_report: errorReport,
     transcript,
+    pronunciation_hint: pronunciationHint,
   }
 
   return NextResponse.json(response)

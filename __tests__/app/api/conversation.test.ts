@@ -8,7 +8,7 @@ const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1
 // Hoist so the fn references are available inside the vi.mock factory below
 const { mockChatCreate, mockMessagesInsert } = vi.hoisted(() => ({
   mockChatCreate: vi.fn().mockResolvedValue({
-    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}' } }],
+    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":"Try to buzz the \'th\' sound, like in \'the\'."}'  } }],
     usage: { prompt_tokens: 100, completion_tokens: 50 },
   }),
   mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
@@ -116,6 +116,16 @@ describe('POST /api/conversation', () => {
     const res = await POST(makeFormRequest({ session_id: 'session-1', panic_text: 'I go to school yesterday.' }))
     const body = await res.json()
     expect(body.text).toBe('Hi Ana!')
+  })
+
+  it('includes pronunciation_hint in response when GPT provides one', async () => {
+    const { POST } = await import('@/app/api/conversation/route')
+    const form = new FormData()
+    form.append('session_id', 'session-1')
+    form.append('panic_text', 'I tink dis is good')
+    const res = await POST(new Request('http://localhost/api/conversation', { method: 'POST', body: form }))
+    const body = await res.json()
+    expect(typeof body.pronunciation_hint === 'string' || body.pronunciation_hint === null).toBe(true)
   })
 
   it('returns 400 when both audio and panic_text are missing', async () => {

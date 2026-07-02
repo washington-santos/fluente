@@ -22,4 +22,27 @@ describe('MessageBubble', () => {
     render(<MessageBubble role="user" text="Hi!" hadCorrection={false} />)
     expect(screen.queryByTestId('correction-indicator')).not.toBeInTheDocument()
   })
+
+  it('shows pronunciation hint for assistant message when provided', () => {
+    render(
+      <MessageBubble
+        role="assistant"
+        text="Good job!"
+        hadCorrection={false}
+        pronunciationHint="Try to make the 'th' sound by placing your tongue between your teeth."
+      />
+    )
+    expect(screen.getByTestId('pronunciation-hint')).toBeInTheDocument()
+    expect(screen.getByText(/tongue between your teeth/)).toBeInTheDocument()
+  })
+
+  it('does not show pronunciation hint when null', () => {
+    render(<MessageBubble role="assistant" text="Good job!" hadCorrection={false} pronunciationHint={null} />)
+    expect(screen.queryByTestId('pronunciation-hint')).not.toBeInTheDocument()
+  })
+
+  it('does not show pronunciation hint for user messages', () => {
+    render(<MessageBubble role="user" text="Hello!" hadCorrection={false} pronunciationHint="Some hint" />)
+    expect(screen.queryByTestId('pronunciation-hint')).not.toBeInTheDocument()
+  })
 })
