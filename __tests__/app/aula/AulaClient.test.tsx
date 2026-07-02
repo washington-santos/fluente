@@ -6,9 +6,10 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/useSession', () => ({
   useSession: vi.fn(() => ({
     sessionId: 'sess-1',
+    topic: 'travel',
     messages: [
-      { role: 'user', text: 'Hello!', audio_url: null, had_correction: false },
-      { role: 'assistant', text: 'Hi there!', audio_url: null, had_correction: false },
+      { role: 'user', text: 'Hello!', audio_url: null, had_correction: false, pronunciation_hint: null },
+      { role: 'assistant', text: 'Hi there!', audio_url: null, had_correction: false, pronunciation_hint: null },
     ],
     loading: false,
     sending: false,
@@ -26,6 +27,7 @@ vi.mock('@/hooks/useAudioRecorder', () => ({
     isRecording: false,
     startRecording: vi.fn(),
     stopRecording: vi.fn(),
+    cancelRecording: vi.fn(),
     error: null,
   })),
 }))
@@ -62,9 +64,15 @@ describe('AulaClient', () => {
     )
   })
 
+  it('renders topic badge when topic is set', async () => {
+    render(<AulaClient teacher={mockTeacher} />)
+    await waitFor(() => expect(screen.getByText('Viagens')).toBeInTheDocument())
+  })
+
   it('renders quota exceeded banner when quotaExceeded is true', () => {
     vi.mocked(useSession).mockReturnValue({
       sessionId: 'sess-1',
+      topic: null,
       messages: [],
       loading: false,
       sending: false,

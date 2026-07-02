@@ -8,10 +8,12 @@ interface SessionMessage {
   text: string
   audio_url: string | null
   had_correction: boolean
+  pronunciation_hint: string | null  // will be used by Task 4
 }
 
 interface UseSessionReturn {
   sessionId: string | null
+  topic: string | null              // ← NEW
   messages: SessionMessage[]
   loading: boolean
   sending: boolean
@@ -25,6 +27,7 @@ interface UseSessionReturn {
 
 export function useSession(teacherId: string): UseSessionReturn {
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [topic, setTopic] = useState<string | null>(null)
   const [messages, setMessages] = useState<SessionMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -51,12 +54,14 @@ export function useSession(teacherId: string): UseSessionReturn {
         if (session?.id) {
           if (!mounted) return
           setSessionId(session.id)
+          setTopic((session.topic as string | null) ?? null)
           setMessages(
             (session.messages ?? []).map((m: any) => ({
               role: m.role,
               text: m.text,
               audio_url: m.audio_url,
               had_correction: m.had_correction,
+              pronunciation_hint: m.pronunciation_hint ?? null,
             }))
           )
           return
@@ -71,8 +76,11 @@ export function useSession(teacherId: string): UseSessionReturn {
           if (mounted) setInitError('Não foi possível iniciar a sessão. Tente novamente.')
           return
         }
-        const { session_id } = await postRes.json()
-        if (mounted) setSessionId(session_id)
+        const { session_id, topic: newTopic } = await postRes.json()
+        if (mounted) {
+          setSessionId(session_id)
+          setTopic((newTopic as string | null) ?? null)
+        }
       } catch (err) {
         console.error('useSession init error:', err)
         if (mounted) setInitError('Erro de conexão. Tente novamente.')
@@ -114,8 +122,8 @@ export function useSession(teacherId: string): UseSessionReturn {
 
       setMessages((prev) => [
         ...prev,
-        { role: 'user', text: userText, audio_url: null, had_correction: false },
-        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction },
+        { role: 'user', text: userText, audio_url: null, had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction, pronunciation_hint: null },
       ])
 
       return data
@@ -152,5 +160,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }, [sessionId])
 
-  return { sessionId, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, sendTurn, endSession }
+  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, sendTurn, endSession }
 }

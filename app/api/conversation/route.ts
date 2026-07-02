@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { synthesizeTts } from '@/lib/tts'
 import { createTalk, DID_VOICE_IDS } from '@/lib/did'
+import { getTopicByKey } from '@/lib/topics'
 import type { ConversationResponse, ErrorReport, ErrorType } from '@/types'
 
 const VALID_ERROR_TYPES = new Set<string>(['verb_tense', 'vocabulary', 'preposition', 'pronunciation', 'other'])
@@ -134,12 +135,17 @@ export async function POST(request: Request) {
     ? `\nPrevious session context:\n${sessionMemory.summary}\nTopics covered: ${(sessionMemory.key_topics ?? []).join(', ')}\nAbout the student: ${(sessionMemory.personal_details ?? []).join('; ')}`
     : ''
 
+  const topicData = getTopicByKey(session.topic as string | null)
+  const topicBlock = topicData
+    ? `\nToday's lesson topic: "${topicData.labelPt}" — ${topicData.promptEn}. Naturally guide the conversation toward this theme while staying responsive to the student.`
+    : ''
+
   const systemPrompt = `${teacher.system_prompt}
 
 Student profile:
 - Name: ${userData?.name ?? 'Student'}
 - CEFR level: ${userData?.cefr_level ?? 'B1'}
-${memoryBlock}
+${memoryBlock}${topicBlock}
 Respond ONLY with valid JSON — no markdown, no extra text:
 {"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null}}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.`

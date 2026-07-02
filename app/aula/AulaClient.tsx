@@ -8,8 +8,10 @@ import { RecordButton } from '@/components/aula/RecordButton'
 import { MessageBubble } from '@/components/aula/MessageBubble'
 import { TeacherAvatar } from '@/components/aula/TeacherAvatar'
 import { PanicButton } from '@/components/aula/PanicButton'
+import { TopicBadge } from '@/components/aula/TopicBadge'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
+import { getTopicByKey } from '@/lib/topics'
 import type { Teacher, ConversationResponse } from '@/types'
 
 interface AulaClientProps {
@@ -18,7 +20,7 @@ interface AulaClientProps {
 
 export function AulaClient({ teacher }: AulaClientProps) {
   const router = useRouter()
-  const { messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
+  const { sessionId, topic, messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -122,6 +124,12 @@ export function AulaClient({ teacher }: AulaClientProps) {
           isSpeaking={isSpeaking}
         />
       </div>
+
+      {topic && getTopicByKey(topic) && (
+        <div className="flex justify-center pb-2 shrink-0">
+          <TopicBadge topic={getTopicByKey(topic)!.labelPt} />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
         {loading && (

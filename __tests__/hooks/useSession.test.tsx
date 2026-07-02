@@ -31,11 +31,26 @@ describe('useSession', () => {
   it('creates a new session when none exists', async () => {
     mockFetchSequence(
       { session: null },
-      { session_id: 'new-session', teacher: { id: 't1', name: 'Mr. Jake' } }
+      { session_id: 'new-session', teacher: { id: 't1', name: 'Mr. Jake' }, topic: 'travel' }
     )
     const { result } = renderHook(() => useSession('teacher-1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.sessionId).toBe('new-session')
+    expect(result.current.topic).toBe('travel')
+  })
+
+  it('loads topic from existing session', async () => {
+    mockFetchSequence({
+      session: {
+        id: 'existing-session',
+        topic: 'family',
+        teacher: { id: 't1' },
+        messages: [],
+      },
+    })
+    const { result } = renderHook(() => useSession('teacher-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.topic).toBe('family')
   })
 
   it('loads an existing session with messages', async () => {
