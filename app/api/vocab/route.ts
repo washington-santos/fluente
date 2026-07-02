@@ -28,7 +28,7 @@ export async function PATCH(request: Request) {
 
   const body = await request.json() as { vocabId?: unknown; knewIt?: unknown; currentReviewCount?: unknown }
   const { vocabId, knewIt, currentReviewCount } = body
-  if (typeof vocabId !== 'string' || typeof knewIt !== 'boolean' || typeof currentReviewCount !== 'number') {
+  if (typeof vocabId !== 'string' || typeof knewIt !== 'boolean' || typeof currentReviewCount !== 'number' || !Number.isInteger(currentReviewCount) || currentReviewCount < 0 || currentReviewCount >= INTERVAL_DAYS.length) {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
