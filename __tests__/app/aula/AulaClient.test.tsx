@@ -8,8 +8,8 @@ vi.mock('@/hooks/useSession', () => ({
     sessionId: 'sess-1',
     topic: 'travel',
     messages: [
-      { role: 'user', text: 'Hello!', audio_url: null, had_correction: false, pronunciation_hint: null },
-      { role: 'assistant', text: 'Hi there!', audio_url: null, had_correction: false, pronunciation_hint: null },
+      { role: 'user', text: 'Hello!', audio_url: null, had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      { role: 'assistant', text: 'Hi there!', audio_url: null, had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
     ],
     loading: false,
     sending: false,
@@ -17,6 +17,7 @@ vi.mock('@/hooks/useSession', () => ({
     turnError: null,
     quotaExceeded: false,
     quotaInfo: null,
+    lastPromptHint: null,
     sendTurn: vi.fn().mockResolvedValue(null),
     endSession: vi.fn(),
   })),
@@ -81,6 +82,7 @@ describe('AulaClient', () => {
       turnError: null,
       quotaExceeded: false,
       quotaInfo: null,
+      lastPromptHint: null,
       sendTurn: vi.fn(),
       endSession: endSessionMock,
     })
@@ -114,6 +116,7 @@ describe('AulaClient', () => {
       turnError: null,
       quotaExceeded: true,
       quotaInfo: { minutesUsed: 10.5, minutesLimit: 10 },
+      lastPromptHint: null,
       sendTurn: vi.fn(),
       endSession: vi.fn(),
     })

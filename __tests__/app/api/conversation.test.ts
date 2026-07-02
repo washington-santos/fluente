@@ -8,7 +8,7 @@ const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1
 // Hoist so the fn references are available inside the vi.mock factory below
 const { mockChatCreate, mockMessagesInsert } = vi.hoisted(() => ({
   mockChatCreate: vi.fn().mockResolvedValue({
-    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":"Try to buzz the \'th\' sound, like in \'the\'.","new_words":[{"word":"negotiate","definition":"to discuss terms to reach agreement"}]}'  } }],
+    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":"Try to buzz the \'th\' sound, like in \'the\'.","new_words":[{"word":"negotiate","definition":"to discuss terms to reach agreement"}],"suggested_replies":["I\'m doing well, thanks!","I\'m fine."],"reply_pt":"Olá Ana!","prompt_hint":"Tente dizer: I\'m doing well."}' } }],
     usage: { prompt_tokens: 100, completion_tokens: 50 },
   }),
   mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
@@ -130,6 +130,11 @@ describe('POST /api/conversation', () => {
     expect(body.had_correction).toBe(false)
     expect(body).toHaveProperty('new_words')
     expect(Array.isArray(body.new_words) || body.new_words === null).toBe(true)
+    expect(body).toHaveProperty('suggested_replies')
+    expect(body).toHaveProperty('reply_pt')
+    expect(body).toHaveProperty('prompt_hint')
+    expect(Array.isArray(body.suggested_replies) || body.suggested_replies === null).toBe(true)
+    expect(typeof body.reply_pt === 'string' || body.reply_pt === null).toBe(true)
   })
 
   it('handles panic_text instead of audio', async () => {

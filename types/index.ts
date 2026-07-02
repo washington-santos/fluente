@@ -149,6 +149,9 @@ export interface ConversationResponse {
   transcript?: string
   pronunciation_hint: string | null
   new_words: string[] | null
+  suggested_replies: string[] | null
+  reply_pt: string | null
+  prompt_hint: string | null
 }
 
 export interface McqQuestion {

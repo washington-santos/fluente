@@ -19,6 +19,9 @@ interface ClaudeOutput {
   }
   pronunciation_hint: string | null
   new_words: Array<{ word: string; definition: string }> | null
+  suggested_replies: string[] | null
+  reply_pt: string | null
+  prompt_hint: string | null
 }
 
 export async function POST(request: Request) {
@@ -177,10 +180,13 @@ Student profile:
 - CEFR level: ${cefrLevel}
 ${memoryBlock}${topicBlock}${errorContextBlock}${anatomyBlock}${interventionBlock}
 Respond ONLY with valid JSON — no markdown, no extra text:
-{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null,"new_words":null}
+{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null,"new_words":null,"suggested_replies":null,"reply_pt":null,"prompt_hint":null}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.
 When the student's transcript reveals a common Brazilian pronunciation pattern issue (e.g. "th" pronounced as "d" or "t", dropping final "s", wrong word stress, "ed" pronounced as a full syllable), set pronunciation_hint to a single clear tip under 20 words. Otherwise set pronunciation_hint to null.
-For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are above A2 level and worth memorizing. For each provide a definition in English under 10 words. If no noteworthy vocabulary appeared, set new_words to null.`
+For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are above A2 level and worth memorizing. For each provide a definition in English under 10 words. If no noteworthy vocabulary appeared, set new_words to null.
+For suggested_replies: provide 2-3 very short English phrases (under 8 words each) the student could realistically say next, appropriate for ${cefrLevel} level. If no student response is needed, set to null.
+For reply_pt: always provide a Brazilian Portuguese translation of your "reply" field.
+For prompt_hint: if the student might not know how to start responding, provide a short tip in Portuguese starting with "Tente dizer:" (e.g., "Tente dizer: My name is ___"). Set to null if the expected response is obvious.`
 
   const openaiChat = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const chatRes = await openaiChat.chat.completions.create({
@@ -198,7 +204,7 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
   try {
     parsed = JSON.parse(rawText) as ClaudeOutput
   } catch {
-    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null, new_words: null }
+    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null, new_words: null, suggested_replies: null, reply_pt: null, prompt_hint: null }
   }
 
   // Fix 3: Only fall back to rawText when parsed.reply is not a string at all.
@@ -219,6 +225,20 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
           typeof (w as { definition?: unknown }).definition === 'string'
       )
     : []
+
+  const suggestedRepliesRaw: string[] | null = Array.isArray(parsed.suggested_replies)
+    ? (parsed.suggested_replies as unknown[])
+        .filter((s): s is string => typeof s === 'string' && s.length > 0)
+        .slice(0, 3)
+    : null
+
+  const replyPt: string | null = (typeof parsed.reply_pt === 'string' && parsed.reply_pt.length > 0)
+    ? parsed.reply_pt
+    : null
+
+  const promptHint: string | null = (typeof parsed.prompt_hint === 'string' && parsed.prompt_hint.length > 0)
+    ? parsed.prompt_hint
+    : null
 
   const errorReport: ErrorReport = {
     error_detected: correctionRaw.error_detected ?? false,
@@ -324,6 +344,9 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
     transcript,
     pronunciation_hint: pronunciationHint,
     new_words: newWordsRaw.length > 0 ? newWordsRaw.map((w) => w.word) : null,
+    suggested_replies: suggestedRepliesRaw,
+    reply_pt: replyPt,
+    prompt_hint: promptHint,
   }
 
   return NextResponse.json(response)

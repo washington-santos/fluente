@@ -9,6 +9,8 @@ interface SessionMessage {
   audio_url: string | null
   had_correction: boolean
   pronunciation_hint: string | null  // will be used by Task 4
+  suggested_replies: string[] | null
+  reply_pt: string | null
 }
 
 interface UseSessionReturn {
@@ -21,6 +23,7 @@ interface UseSessionReturn {
   turnError: string | null
   quotaExceeded: boolean
   quotaInfo: { minutesUsed: number; minutesLimit: number } | null
+  lastPromptHint: string | null
   sendTurn: (input: File | string) => Promise<ConversationResponse | null>
   endSession: () => Promise<void>
 }
@@ -35,6 +38,7 @@ export function useSession(teacherId: string): UseSessionReturn {
   const [turnError, setTurnError] = useState<string | null>(null)
   const [quotaExceeded, setQuotaExceeded] = useState(false)
   const [quotaInfo, setQuotaInfo] = useState<{ minutesUsed: number; minutesLimit: number } | null>(null)
+  const [lastPromptHint, setLastPromptHint] = useState<string | null>(null)
   const startedAt = useRef(Date.now())
 
   useEffect(() => {
@@ -62,6 +66,8 @@ export function useSession(teacherId: string): UseSessionReturn {
               audio_url: m.audio_url,
               had_correction: m.had_correction,
               pronunciation_hint: m.pronunciation_hint ?? null,
+              suggested_replies: m.suggested_replies ?? null,
+              reply_pt: m.reply_pt ?? null,
             }))
           )
           return
@@ -95,6 +101,7 @@ export function useSession(teacherId: string): UseSessionReturn {
     if (!sessionId) return null
     setSending(true)
     setTurnError(null)
+    setLastPromptHint(null)
 
     try {
       const form = new FormData()
@@ -122,9 +129,11 @@ export function useSession(teacherId: string): UseSessionReturn {
 
       setMessages((prev) => [
         ...prev,
-        { role: 'user', text: userText, audio_url: null, had_correction: false, pronunciation_hint: null },
-        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction, pronunciation_hint: data.pronunciation_hint ?? null },
+        { role: 'user', text: userText, audio_url: null, had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { role: 'assistant', text: data.text, audio_url: data.audio_url, had_correction: data.had_correction, pronunciation_hint: data.pronunciation_hint ?? null, suggested_replies: data.suggested_replies ?? null, reply_pt: data.reply_pt ?? null },
       ])
+
+      setLastPromptHint(data.prompt_hint ?? null)
 
       return data
     } catch (err) {
@@ -160,5 +169,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }, [sessionId])
 
-  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, sendTurn, endSession }
+  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession }
 }
