@@ -43,6 +43,7 @@ export default async function DashboardPage() {
     .select('id, error_type, error_text, correct_form, seen_count')
     .eq('user_id', authUser.id)
     .is('resolved_at', null)
+    .lte('next_review_at', new Date().toISOString())
     .order('seen_count', { ascending: false })
     .limit(5)
 

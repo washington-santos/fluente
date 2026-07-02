@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { FlashcardDeck } from '@/components/dashboard/FlashcardDeck'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -16,6 +17,7 @@ interface FlashCard {
 }
 
 export default function RevisaoPage() {
+  const router = useRouter()
   const [cards, setCards] = useState<FlashCard[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -58,7 +60,7 @@ export default function RevisaoPage() {
           <FlashcardDeck
             cards={cards}
             onReview={handleReview}
-            onComplete={() => {}}
+            onComplete={() => router.push('/dashboard')}
           />
         )}
       </div>
