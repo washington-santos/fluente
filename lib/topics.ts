@@ -48,6 +48,26 @@ const TOPICS_BY_LEVEL: Partial<Record<CefrLevel, Topic[]>> = {
     { key: 'leadership',   labelPt: 'Liderança',        promptEn: 'leadership and teamwork: qualities, challenges, and different styles' },
     { key: 'ethics',       labelPt: 'Ética',            promptEn: 'ethics and moral dilemmas: discussing complex right-versus-wrong scenarios' },
   ],
+  C1: [
+    { key: 'job-interview',       labelPt: 'Entrevista de emprego',    promptEn: 'role-play a professional job interview for a position in your field, using structured answers and formal register' },
+    { key: 'negotiation',         labelPt: 'Negociação',               promptEn: 'simulate a business negotiation: setting terms, making concessions, and reaching agreement professionally' },
+    { key: 'ted-talk',            labelPt: 'Análise crítica',          promptEn: 'summarize and critically analyze the arguments from a talk, documentary, or article you have engaged with recently' },
+    { key: 'abstract-concepts',   labelPt: 'Conceitos abstratos',      promptEn: 'discuss abstract concepts like justice, identity, or success with nuance, counterarguments, and concrete examples' },
+    { key: 'idioms',              labelPt: 'Expressões idiomáticas',   promptEn: 'use and explain English idioms, fixed phrases, and collocations naturally in the flow of conversation' },
+    { key: 'meeting-simulation',  labelPt: 'Reunião de trabalho',      promptEn: 'conduct a full work meeting simulation covering agenda, project updates, problem-solving, and action items' },
+    { key: 'persuasion',          labelPt: 'Argumento persuasivo',     promptEn: 'construct and defend a persuasive argument on a controversial topic using evidence, concessions, and rhetoric' },
+    { key: 'storytelling',        labelPt: 'Narrativa avançada',       promptEn: 'tell a personal story with full narrative structure: setup, tension, climax, resolution, and reflective closing' },
+  ],
+  C2: [
+    { key: 'native-humor',         labelPt: 'Humor e ironia',           promptEn: 'discuss jokes, sarcasm, wordplay, and irony in American and British culture and why they resonate or fail across cultures' },
+    { key: 'literature',           labelPt: 'Literatura em inglês',     promptEn: 'analyze a passage, theme, or character from an English-language novel, poem, or film with literary vocabulary' },
+    { key: 'cultural-reference',   labelPt: 'Referências culturais',    promptEn: 'explore the pop culture references, historical allusions, and in-jokes that native speakers use without explanation' },
+    { key: 'register-shift',       labelPt: 'Registro formal vs casual',promptEn: 'fluidly switch between formal prose, casual conversation, and colloquial slang within a single exchange' },
+    { key: 'accents-dialects',     labelPt: 'Sotaques e dialetos',      promptEn: 'discuss regional accents, dialects, and sociolects in English and what they reveal about identity and class' },
+    { key: 'philosophy',           labelPt: 'Filosofia e pensamento',   promptEn: 'engage in a Socratic dialogue on a philosophical question without simplifying — push definitions, explore contradictions' },
+    { key: 'spontaneous-debate',   labelPt: 'Debate espontâneo',        promptEn: 'defend an assigned position (agree or disagree) without preparation, pivoting dynamically as arguments evolve' },
+    { key: 'advanced-vocabulary',  labelPt: 'Vocabulário sofisticado',  promptEn: 'use advanced vocabulary precisely: choose the mot juste, distinguish near-synonyms, explain connotations and register' },
+  ],
 }
 
 export function pickTopic(cefrLevel: CefrLevel | null | undefined, completedSessionCount: number): Topic | null {

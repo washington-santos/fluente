@@ -28,6 +28,16 @@ const MISSIONS_BY_LEVEL: Partial<Record<CefrLevel, Mission[]>> = {
     { key: 'b2-environment',  titlePt: 'Meio ambiente',          descriptionPt: 'Discuta os impactos das mudanças climáticas e possíveis soluções práticas.', minUserTurns: 6 },
     { key: 'b2-tech',         titlePt: 'Tecnologia e trabalho',  descriptionPt: 'Explique como a IA está mudando o mundo do trabalho e suas implicações.', minUserTurns: 6 },
   ],
+  C1: [
+    { key: 'c1-interview', titlePt: 'Entrevista simulada',    descriptionPt: 'Conduza uma simulação de entrevista de emprego em inglês com naturalidade e linguagem formal.', minUserTurns: 8 },
+    { key: 'c1-meeting',   titlePt: 'Reunião de trabalho',    descriptionPt: 'Conduza uma reunião simulada com agenda, atualizações e encerramento com ação definida.', minUserTurns: 8 },
+    { key: 'c1-persuade',  titlePt: 'Argumento persuasivo',   descriptionPt: 'Defenda uma posição sobre um tema polêmico com argumentos estruturados e exemplos concretos.', minUserTurns: 7 },
+  ],
+  C2: [
+    { key: 'c2-story',   titlePt: 'Narrativa nativa',    descriptionPt: 'Conte uma história com estrutura narrativa completa usando expressões idiomáticas naturalmente.', minUserTurns: 8 },
+    { key: 'c2-debate',  titlePt: 'Debate de alto nível', descriptionPt: 'Debata um tema filosófico ou cultural com profundidade e nuance por pelo menos 10 falas.', minUserTurns: 10 },
+    { key: 'c2-register',titlePt: 'Mudança de registro',  descriptionPt: 'Demonstre fluência em pelo menos 3 registros diferentes (formal, casual, humor) numa única conversa.', minUserTurns: 8 },
+  ],
 }
 
 export function getMissionForDate(cefrLevel: CefrLevel | null | undefined, dateStr: string): Mission {

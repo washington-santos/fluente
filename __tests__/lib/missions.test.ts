@@ -29,4 +29,14 @@ describe('getMissionForDate', () => {
     const b1 = getMissionForDate('B1', '2026-07-01')
     expect(a1.key).not.toBe(b1.key)
   })
+
+  it('getMissionForDate returns a C1 mission', () => {
+    const m = getMissionForDate('C1', '2026-07-01')
+    expect(m.key).toBe('c1-interview')
+  })
+
+  it('getMissionForDate returns a C2 mission', () => {
+    const m = getMissionForDate('C2', '2026-07-02')
+    expect(m.key).toBe('c2-debate')
+  })
 })

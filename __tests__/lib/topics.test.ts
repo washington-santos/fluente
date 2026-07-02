@@ -39,3 +39,15 @@ describe('getTopicByKey', () => {
     expect(getTopicByKey(null)).toBeNull()
   })
 })
+
+describe('pickTopic for C1/C2', () => {
+  it('pickTopic returns a C1 topic', () => {
+    const topic = pickTopic('C1', 0)
+    expect(topic?.key).toBe('job-interview')
+  })
+
+  it('pickTopic returns a C2 topic', () => {
+    const topic = pickTopic('C2', 0)
+    expect(topic?.key).toBe('native-humor')
+  })
+})
