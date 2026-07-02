@@ -8,7 +8,7 @@ const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1
 // Hoist so the fn references are available inside the vi.mock factory below
 const { mockChatCreate, mockMessagesInsert } = vi.hoisted(() => ({
   mockChatCreate: vi.fn().mockResolvedValue({
-    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":"Try to buzz the \'th\' sound, like in \'the\'."}'  } }],
+    choices: [{ message: { content: '{"reply":"Hi Ana!","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":"Try to buzz the \'th\' sound, like in \'the\'.","new_words":[{"word":"negotiate","definition":"to discuss terms to reach agreement"}]}'  } }],
     usage: { prompt_tokens: 100, completion_tokens: 50 },
   }),
   mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
@@ -64,6 +64,11 @@ vi.mock('@supabase/ssr', () => ({
       if (table === 'messages') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
         insert: mockMessagesInsert,
+      }
+      if (table === 'vocab_log') {
+        return {
+          upsert: vi.fn().mockResolvedValue({ error: null }),
+        }
       }
       return {}
     }),
@@ -123,6 +128,8 @@ describe('POST /api/conversation', () => {
     expect(body.text).toBe('Hi Ana!')
     expect(body.audio_url).toMatch(/^data:audio\/mp3;base64,/)
     expect(body.had_correction).toBe(false)
+    expect(body).toHaveProperty('new_words')
+    expect(Array.isArray(body.new_words) || body.new_words === null).toBe(true)
   })
 
   it('handles panic_text instead of audio', async () => {
@@ -220,6 +227,11 @@ describe('POST /api/conversation', () => {
         if (table === 'messages') return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
           insert: vi.fn().mockResolvedValue({ error: null }),
+        }
+        if (table === 'vocab_log') {
+          return {
+            upsert: vi.fn().mockResolvedValue({ error: null }),
+          }
         }
         return {}
       }),

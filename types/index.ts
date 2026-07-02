@@ -93,9 +93,10 @@ export interface VocabularyItem {
   user_id: string
   word: string
   definition: string
+  review_count: number
+  last_reviewed_at: string | null
   next_review_at: string
-  ease_factor: number
-  repetition_count: number
+  created_at: string
 }
 
 export interface Plan {
@@ -147,6 +148,7 @@ export interface ConversationResponse {
   error_report: ErrorReport
   transcript?: string
   pronunciation_hint: string | null
+  new_words: string[] | null
 }
 
 export interface McqQuestion {

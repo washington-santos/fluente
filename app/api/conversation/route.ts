@@ -18,6 +18,7 @@ interface ClaudeOutput {
     error_type: string | null
   }
   pronunciation_hint: string | null
+  new_words: Array<{ word: string; definition: string }> | null
 }
 
 export async function POST(request: Request) {
@@ -197,7 +198,7 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
   try {
     parsed = JSON.parse(rawText) as ClaudeOutput
   } catch {
-    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null }
+    parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null, new_words: null }
   }
 
   // Fix 3: Only fall back to rawText when parsed.reply is not a string at all.
@@ -209,6 +210,15 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
   const pronunciationHint: string | null = (typeof parsed.pronunciation_hint === 'string' && parsed.pronunciation_hint.length > 0)
     ? parsed.pronunciation_hint
     : null
+
+  // Parse new_words from GPT response
+  const newWordsRaw: Array<{ word: string; definition: string }> = Array.isArray(parsed.new_words)
+    ? (parsed.new_words as unknown[]).filter(
+        (w): w is { word: string; definition: string } =>
+          typeof (w as { word?: unknown }).word === 'string' &&
+          typeof (w as { definition?: unknown }).definition === 'string'
+      )
+    : []
 
   const errorReport: ErrorReport = {
     error_detected: correctionRaw.error_detected ?? false,
@@ -276,6 +286,21 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
     if (errLogError) console.error('Error log upsert failed:', errLogError.message)
   }
 
+  // Upsert vocabulary words — ignoreDuplicates keeps existing spaced rep state
+  if (newWordsRaw.length > 0) {
+    const { error: vocabError } = await supabase
+      .from('vocab_log')
+      .upsert(
+        newWordsRaw.map((w) => ({
+          user_id: user.id,
+          word: w.word.toLowerCase().trim(),
+          definition: w.definition.trim(),
+        })),
+        { onConflict: 'user_id,word', ignoreDuplicates: true }
+      )
+    if (vocabError) console.error('Vocab log upsert failed:', vocabError.message)
+  }
+
   // Atomic usage_log increment via RPC — avoids SELECT-then-UPSERT race
   const usage = chatRes.usage
   // Brazil local date (UTC-3) so usage_log rows match the streak date from finalize
@@ -298,6 +323,7 @@ For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are 
     error_report: errorReport,
     transcript,
     pronunciation_hint: pronunciationHint,
+    new_words: newWordsRaw.length > 0 ? newWordsRaw.map((w) => w.word) : null,
   }
 
   return NextResponse.json(response)
