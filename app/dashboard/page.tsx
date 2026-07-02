@@ -5,6 +5,8 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { StreakBadge } from '@/components/dashboard/StreakBadge'
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
+import { MissionCard } from '@/components/dashboard/MissionCard'
+import { getMissionForDate } from '@/lib/missions'
 import type { Teacher, User, ErrorType } from '@/types'
 
 export default async function DashboardPage() {
@@ -44,8 +46,19 @@ export default async function DashboardPage() {
     .order('seen_count', { ascending: false })
     .limit(5)
 
+  // Load today's mission status
+  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const { data: missionLog } = await supabase
+    .from('daily_missions_log')
+    .select('completed_at')
+    .eq('user_id', authUser.id)
+    .eq('date', today)
+    .maybeSingle()
+
   const u = userData as User
   const t = teacher as Teacher | null
+  const mission = getMissionForDate(u.cefr_level, today)
+  const missionCompleted = !!missionLog?.completed_at
 
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col">
@@ -77,6 +90,13 @@ export default async function DashboardPage() {
 
         {/* Streak */}
         <StreakBadge streakDays={u.streak_days ?? 0} />
+
+        {/* Daily Mission */}
+        <MissionCard
+          titlePt={mission.titlePt}
+          descriptionPt={mission.descriptionPt}
+          completed={missionCompleted}
+        />
 
         {/* CTA */}
         <Link
@@ -118,6 +138,22 @@ export default async function DashboardPage() {
           </div>
           <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
         </Link>
+
+        {/* Flashcard review */}
+        {(errors ?? []).length > 0 && (
+          <Link
+            href="/dashboard/revisao"
+            className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
+          >
+            <div>
+              <p className="text-sm font-semibold text-content-light dark:text-content-dark">Revisar erros</p>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+                {(errors ?? []).length} {(errors ?? []).length === 1 ? 'erro para revisar' : 'erros para revisar'}
+              </p>
+            </div>
+            <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+          </Link>
+        )}
 
         {/* Recent sessions */}
         {(recentSessions ?? []).length > 0 && (
