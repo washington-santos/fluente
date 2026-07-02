@@ -6,6 +6,7 @@ import { StreakBadge } from '@/components/dashboard/StreakBadge'
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
 import { MissionCard } from '@/components/dashboard/MissionCard'
+import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
 import { getMissionForDate } from '@/lib/missions'
 import type { Teacher, User, ErrorType } from '@/types'
 
@@ -55,6 +56,23 @@ export default async function DashboardPage() {
     .lte('next_review_at', new Date().toISOString())
     .limit(1)
 
+  // Progress memory — last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [{ count: resolvedErrorCount }, { count: newVocabCount }] = await Promise.all([
+    supabase
+      .from('errors_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', authUser.id)
+      .not('resolved_at', 'is', null)
+      .gte('resolved_at', thirtyDaysAgo),
+    supabase
+      .from('vocab_log')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', authUser.id)
+      .gte('created_at', thirtyDaysAgo),
+  ])
+
   // Load today's mission status
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { data: missionLog } = await supabase
@@ -99,6 +117,12 @@ export default async function DashboardPage() {
 
         {/* Streak */}
         <StreakBadge streakDays={u.streak_days ?? 0} />
+
+        {/* Progress memory */}
+        <ProgressMemoryCard
+          resolvedErrors={resolvedErrorCount ?? 0}
+          newVocab={newVocabCount ?? 0}
+        />
 
         {/* Daily Mission */}
         <MissionCard
