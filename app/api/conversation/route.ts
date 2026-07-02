@@ -107,6 +107,16 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle()
 
+  // Load top recurring error for error-review block
+  const { data: topError } = await supabase
+    .from('errors_log')
+    .select('error_text, correct_form, error_type')
+    .eq('user_id', user.id)
+    .is('resolved_at', null)
+    .order('seen_count', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   // Transcribe audio or use panic text
   let transcript: string
   if (audio) {
@@ -141,16 +151,35 @@ export async function POST(request: Request) {
     ? `\nToday's lesson topic: "${topicData.labelPt}" — ${topicData.promptEn}. Naturally guide the conversation toward this theme while staying responsive to the student.`
     : ''
 
+  const errorContextBlock = topError
+    ? `\nRecurring error to revisit: The student frequently makes this mistake — "${topError.error_text}" (correct: "${topError.correct_form}"). Early in the session, naturally reference this and give a brief practice moment.`
+    : ''
+
+  const cefrLevel = userData?.cefr_level ?? 'B1'
+  const interventionBlock = (cefrLevel === 'A1' || cefrLevel === 'A2')
+    ? `\nIntervention timing: Help quickly — if the student hesitates more than a moment, gently supply the missing word or rephrase your question to keep confidence high.`
+    : (cefrLevel === 'B1' || cefrLevel === 'B2')
+    ? `\nIntervention timing: Let the student work through difficulties before helping. Pause and allow them to self-correct. Only step in if they seem genuinely stuck.`
+    : `\nIntervention timing: Only intervene when explicitly asked. Push the student to self-correct and rephrase. Expect near-native fluency and challenge them accordingly.`
+
+  const studentName = userData?.name ?? 'the student'
+  const anatomyBlock = `\nSession anatomy — follow this structure:
+1. WARM-UP (your first message): Greet ${studentName} by name. Ask one casual question about their day or week.
+2. ERROR REVIEW (next 1-2 exchanges): If a recurring error is listed above, naturally revisit it with a short practice moment.
+3. NEW CONTENT + PRACTICE (main body): Introduce or reinforce a grammar structure or vocabulary area appropriate for ${cefrLevel} level through natural questions — not explicit drills.
+4. FREE CONVERSATION (closing): Converse freely on today's topic. Correct errors naturally within the flow without interrupting the conversation.`
+
   const systemPrompt = `${teacher.system_prompt}
 
 Student profile:
-- Name: ${userData?.name ?? 'Student'}
-- CEFR level: ${userData?.cefr_level ?? 'B1'}
-${memoryBlock}${topicBlock}
+- Name: ${studentName}
+- CEFR level: ${cefrLevel}
+${memoryBlock}${topicBlock}${errorContextBlock}${anatomyBlock}${interventionBlock}
 Respond ONLY with valid JSON — no markdown, no extra text:
-{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null}
+{"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null,"new_words":null}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.
-When the student's transcript reveals a common Brazilian pronunciation pattern issue (e.g. "th" pronounced as "d" or "t", dropping final "s", wrong word stress, "ed" pronounced as a full syllable), set pronunciation_hint to a single clear tip under 20 words. Otherwise set pronunciation_hint to null.`
+When the student's transcript reveals a common Brazilian pronunciation pattern issue (e.g. "th" pronounced as "d" or "t", dropping final "s", wrong word stress, "ed" pronounced as a full syllable), set pronunciation_hint to a single clear tip under 20 words. Otherwise set pronunciation_hint to null.
+For new_words: pick 1-3 vocabulary words or phrases from THIS exchange that are above A2 level and worth memorizing. For each provide a definition in English under 10 words. If no noteworthy vocabulary appeared, set new_words to null.`
 
   const openaiChat = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const chatRes = await openaiChat.chat.completions.create({

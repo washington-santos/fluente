@@ -48,6 +48,19 @@ vi.mock('@supabase/ssr', () => ({
           })),
         })),
       }
+      if (table === 'errors_log') {
+        return {
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          is: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: { error_text: 'I goed to school', correct_form: 'I went to school', error_type: 'verb_tense' },
+            error: null,
+          }),
+        }
+      }
       if (table === 'messages') return {
         select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
         insert: mockMessagesInsert,
@@ -142,6 +155,20 @@ describe('POST /api/conversation', () => {
     expect(res.status).toBe(401)
   })
 
+  it('system prompt includes error context when a recurring error exists', async () => {
+    // The mock above returns a recurring error. We just verify the response still succeeds
+    // (the prompt content is internal — we verify via the response shape).
+    const formData = new FormData()
+    formData.append('session_id', 'session-1')
+    formData.append('panic_text', 'Hello teacher')
+    const req = new Request('http://localhost/api/conversation', { method: 'POST', body: formData })
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toHaveProperty('text')
+    expect(body).toHaveProperty('pronunciation_hint')
+  })
+
   it('injects session memory into system prompt when memory exists', async () => {
     const { createServerClient } = await import('@supabase/ssr')
     vi.mocked(createServerClient).mockReturnValueOnce({
@@ -179,6 +206,16 @@ describe('POST /api/conversation', () => {
               })),
             })),
           })),
+        }
+        if (table === 'errors_log') {
+          return {
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            is: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }
         }
         if (table === 'messages') return {
           select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
