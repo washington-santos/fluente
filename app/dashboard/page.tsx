@@ -47,6 +47,14 @@ export default async function DashboardPage() {
     .order('seen_count', { ascending: false })
     .limit(5)
 
+  // Load due vocabulary cards count
+  const { data: dueVocab } = await supabase
+    .from('vocab_log')
+    .select('id')
+    .eq('user_id', authUser.id)
+    .lte('next_review_at', new Date().toISOString())
+    .limit(1)
+
   // Load today's mission status
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { data: missionLog } = await supabase
@@ -150,6 +158,22 @@ export default async function DashboardPage() {
               <p className="text-sm font-semibold text-content-light dark:text-content-dark">Revisar erros</p>
               <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
                 {(errors ?? []).length} {(errors ?? []).length === 1 ? 'erro para revisar' : 'erros para revisar'}
+              </p>
+            </div>
+            <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+          </Link>
+        )}
+
+        {/* Vocabulary review */}
+        {(dueVocab ?? []).length > 0 && (
+          <Link
+            href="/dashboard/vocabulario"
+            className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
+          >
+            <div>
+              <p className="text-sm font-semibold text-content-light dark:text-content-dark">Revisar vocabulário</p>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+                Palavras novas das últimas aulas
               </p>
             </div>
             <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
