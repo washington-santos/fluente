@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -67,6 +67,40 @@ describe('AulaClient', () => {
   it('renders topic badge when topic is set', async () => {
     render(<AulaClient teacher={mockTeacher} />)
     await waitFor(() => expect(screen.getByText('Viagens')).toBeInTheDocument())
+  })
+
+  it('shows session report modal after ending session', async () => {
+    const endSessionMock = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: null,
+      messages: [],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      sendTurn: vi.fn(),
+      endSession: endSessionMock,
+    })
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        userMessages: 3,
+        corrections: 1,
+        pronunciationHints: 0,
+        durationSeconds: 120,
+        missionCompleted: false,
+        missionTitle: 'Apresentação completa',
+      }),
+    })
+
+    render(<AulaClient teacher={mockTeacher} />)
+    const endButton = screen.getByText(/encerrar aula/i)
+    await act(async () => { fireEvent.click(endButton) })
+    await waitFor(() => expect(screen.getByText('Resumo da aula')).toBeInTheDocument())
   })
 
   it('renders quota exceeded banner when quotaExceeded is true', () => {

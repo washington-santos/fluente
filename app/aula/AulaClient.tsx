@@ -9,6 +9,7 @@ import { MessageBubble } from '@/components/aula/MessageBubble'
 import { TeacherAvatar } from '@/components/aula/TeacherAvatar'
 import { PanicButton } from '@/components/aula/PanicButton'
 import { TopicBadge } from '@/components/aula/TopicBadge'
+import { SessionReport } from '@/components/aula/SessionReport'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
 import { getTopicByKey } from '@/lib/topics'
@@ -23,6 +24,15 @@ export function AulaClient({ teacher }: AulaClientProps) {
   const { sessionId, topic, messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [showReport, setShowReport] = useState(false)
+  const [reportData, setReportData] = useState<{
+    userMessages: number
+    corrections: number
+    pronunciationHints: number
+    durationSeconds: number
+    missionCompleted: boolean
+    missionTitle: string
+  } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -85,6 +95,24 @@ export function AulaClient({ teacher }: AulaClientProps) {
 
   async function handleEnd() {
     await endSession()
+    if (sessionId) {
+      try {
+        const res = await fetch(`/api/session/${sessionId}/report`)
+        if (res.ok) {
+          const data = await res.json()
+          setReportData(data)
+          setShowReport(true)
+          return
+        }
+      } catch {
+        // fallthrough to navigate
+      }
+    }
+    router.push('/dashboard')
+  }
+
+  function handleReportClose() {
+    setShowReport(false)
     router.push('/dashboard')
   }
 
@@ -184,6 +212,18 @@ export function AulaClient({ teacher }: AulaClientProps) {
           </>
         )}
       </div>
+
+      {showReport && reportData && (
+        <SessionReport
+          userMessages={reportData.userMessages}
+          corrections={reportData.corrections}
+          pronunciationHints={reportData.pronunciationHints}
+          durationSeconds={reportData.durationSeconds}
+          missionCompleted={reportData.missionCompleted}
+          missionTitle={reportData.missionTitle}
+          onClose={handleReportClose}
+        />
+      )}
     </main>
   )
 }
