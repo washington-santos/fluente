@@ -1,0 +1,169 @@
+{
+  "slug": "a1-lesson-03-colors",
+  "level": "A1",
+  "order": 3,
+  "title_en": "Colors",
+  "title_pt": "Cores",
+  "emoji": "🎨",
+  "estimated_minutes": 10,
+  "unlock_after": "a1-lesson-02-numbers",
+  "xp_reward": 50,
+  "vocabulary": [
+    { "word": "Red", "translation_pt": "Vermelho", "emoji": "🔴", "pronunciation_hint": "RED" },
+    { "word": "Blue", "translation_pt": "Azul", "emoji": "🔵", "pronunciation_hint": "BLOO" },
+    { "word": "Green", "translation_pt": "Verde", "emoji": "🟢", "pronunciation_hint": "GREEN" },
+    { "word": "Yellow", "translation_pt": "Amarelo", "emoji": "🟡", "pronunciation_hint": "YEH-loh" },
+    { "word": "White", "translation_pt": "Branco", "emoji": "⬜", "pronunciation_hint": "WYT" },
+    { "word": "Black", "translation_pt": "Preto", "emoji": "⬛", "pronunciation_hint": "BLAK" },
+    { "word": "Orange", "translation_pt": "Laranja", "emoji": "🟠", "pronunciation_hint": "OR-inj" },
+    { "word": "Purple", "translation_pt": "Roxo", "emoji": "🟣", "pronunciation_hint": "PUR-puhl" }
+  ],
+  "steps": [
+    {
+      "id": "intro",
+      "type": "intro",
+      "title_pt": "Hoje você aprenderá",
+      "description_pt": "8 cores em inglês para descrever o mundo ao seu redor!"
+    },
+    {
+      "id": "vp-red",
+      "type": "vocab_present",
+      "vocab_index": 0,
+      "teacher_script": "Red! Red! This means 'Vermelho' in Portuguese. Think of a red apple or a stop sign!"
+    },
+    {
+      "id": "vr-red",
+      "type": "vocab_repeat",
+      "vocab_index": 0,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-blue",
+      "type": "vocab_present",
+      "vocab_index": 1,
+      "teacher_script": "Blue! Blue! This means 'Azul' in Portuguese. Think of the sky or the ocean!"
+    },
+    {
+      "id": "vr-blue",
+      "type": "vocab_repeat",
+      "vocab_index": 1,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-green",
+      "type": "vocab_present",
+      "vocab_index": 2,
+      "teacher_script": "Green! Green! This means 'Verde' in Portuguese. Think of trees and grass!"
+    },
+    {
+      "id": "vr-green",
+      "type": "vocab_repeat",
+      "vocab_index": 2,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-yellow",
+      "type": "vocab_present",
+      "vocab_index": 3,
+      "teacher_script": "Yellow! Yellow! This means 'Amarelo' in Portuguese. Think of the sun or a banana!"
+    },
+    {
+      "id": "vr-yellow",
+      "type": "vocab_repeat",
+      "vocab_index": 3,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-white",
+      "type": "vocab_present",
+      "vocab_index": 4,
+      "teacher_script": "White! White! This means 'Branco' in Portuguese. Think of snow or clouds!"
+    },
+    {
+      "id": "vr-white",
+      "type": "vocab_repeat",
+      "vocab_index": 4,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-black",
+      "type": "vocab_present",
+      "vocab_index": 5,
+      "teacher_script": "Black! Black! This means 'Preto' in Portuguese. Think of the night sky!"
+    },
+    {
+      "id": "vr-black",
+      "type": "vocab_repeat",
+      "vocab_index": 5,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-orange",
+      "type": "vocab_present",
+      "vocab_index": 6,
+      "teacher_script": "Orange! Orange! This means 'Laranja' in Portuguese. It's named after the fruit!"
+    },
+    {
+      "id": "vr-orange",
+      "type": "vocab_repeat",
+      "vocab_index": 6,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "vp-purple",
+      "type": "vocab_present",
+      "vocab_index": 7,
+      "teacher_script": "Purple! Purple! This means 'Roxo' in Portuguese. Think of grapes or lavender!"
+    },
+    {
+      "id": "vr-purple",
+      "type": "vocab_repeat",
+      "vocab_index": 7,
+      "instruction_pt": "Agora repita em voz alta:"
+    },
+    {
+      "id": "ex-1",
+      "type": "exercise_choice",
+      "question_pt": "Qual é a cor deste 🍎?",
+      "image_emoji": "🍎",
+      "correct_answer": "Red",
+      "choices": ["Red", "Blue", "Green", "Orange"],
+      "explanation_pt": "A maçã é vermelha. 'Red' = vermelho."
+    },
+    {
+      "id": "ex-2",
+      "type": "exercise_choice",
+      "question_pt": "Qual é a cor do 🌊?",
+      "image_emoji": "🌊",
+      "correct_answer": "Blue",
+      "choices": ["Green", "Blue", "Purple", "Black"],
+      "explanation_pt": "O mar é azul. 'Blue' = azul."
+    },
+    {
+      "id": "ex-3",
+      "type": "exercise_choice",
+      "question_pt": "Como se diz 'preto' em inglês?",
+      "image_emoji": "⬛",
+      "correct_answer": "Black",
+      "choices": ["White", "Blue", "Black", "Red"],
+      "explanation_pt": "'Black' = preto em inglês."
+    },
+    {
+      "id": "guided-convo",
+      "type": "guided_convo",
+      "instruction_pt": "Vamos praticar as cores! Responda às perguntas da professora.",
+      "teacher_opens_with": "What color is this? 🔴 Say the color!",
+      "allowed_vocabulary": ["Red", "Blue", "Green", "Yellow", "White", "Black", "Orange", "Purple"],
+      "min_exchanges": 3
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "instruction_pt": "Vamos revisar todas as cores!"
+    },
+    {
+      "id": "summary",
+      "type": "summary"
+    }
+  ]
+}
