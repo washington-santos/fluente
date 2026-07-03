@@ -9,6 +9,7 @@ import { MessageBubble } from '@/components/aula/MessageBubble'
 import { TeacherAvatar } from '@/components/aula/TeacherAvatar'
 import { TextInput } from '@/components/aula/TextInput'
 import { TopicBadge } from '@/components/aula/TopicBadge'
+import { PhaseIndicator } from '@/components/aula/PhaseIndicator'
 import { SessionReport } from '@/components/aula/SessionReport'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
@@ -21,7 +22,7 @@ interface AulaClientProps {
 
 export function AulaClient({ teacher }: AulaClientProps) {
   const router = useRouter()
-  const { sessionId, topic, messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
+  const { sessionId, topic, messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [textValue, setTextValue] = useState('')
@@ -36,6 +37,8 @@ export function AulaClient({ teacher }: AulaClientProps) {
   } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const assistantMessageCount = messages.filter((m) => m.role === 'assistant').length
 
   const handleTurn = useCallback(async (input: File | string) => {
     setTextValue('')
@@ -169,6 +172,10 @@ export function AulaClient({ teacher }: AulaClientProps) {
         </div>
       )}
 
+      <div className="pb-1 shrink-0">
+        <PhaseIndicator assistantMessageCount={assistantMessageCount} />
+      </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
         {loading && (
           <p className="text-center text-sm text-content-light-secondary dark:text-content-dark-secondary">
@@ -220,6 +227,11 @@ export function AulaClient({ teacher }: AulaClientProps) {
           <>
             {(micError || turnError) && (
               <p role="alert" className="text-xs text-red-500 text-center">{micError || turnError}</p>
+            )}
+            {lastPromptHint && !isRecording && !sending && (
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary text-center px-4" data-testid="prompt-hint">
+                💡 {lastPromptHint}
+              </p>
             )}
             <RecordButton
               isRecording={isRecording}
