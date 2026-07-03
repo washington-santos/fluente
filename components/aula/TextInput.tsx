@@ -1,5 +1,7 @@
 'use client'
 
+import type { FormEvent } from 'react'
+
 interface TextInputProps {
   value: string
   onChange: (v: string) => void
@@ -9,7 +11,7 @@ interface TextInputProps {
 }
 
 export function TextInput({ value, onChange, onSubmit, onNaoEntendi, disabled }: TextInputProps) {
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmed = value.trim()
     if (!trimmed) return
