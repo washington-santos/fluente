@@ -7,7 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { RecordButton } from '@/components/aula/RecordButton'
 import { MessageBubble } from '@/components/aula/MessageBubble'
 import { TeacherAvatar } from '@/components/aula/TeacherAvatar'
-import { PanicButton } from '@/components/aula/PanicButton'
+import { TextInput } from '@/components/aula/TextInput'
 import { TopicBadge } from '@/components/aula/TopicBadge'
 import { SessionReport } from '@/components/aula/SessionReport'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
@@ -24,6 +24,7 @@ export function AulaClient({ teacher }: AulaClientProps) {
   const { sessionId, topic, messages, loading, sending, turnError, initError, quotaExceeded, quotaInfo, sendTurn, endSession } = useSession(teacher.id)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [textValue, setTextValue] = useState('')
   const [showReport, setShowReport] = useState(false)
   const [reportData, setReportData] = useState<{
     userMessages: number
@@ -37,6 +38,7 @@ export function AulaClient({ teacher }: AulaClientProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const handleTurn = useCallback(async (input: File | string) => {
+    setTextValue('')
     const response = await sendTurn(input)
     if (!response) return
     playAudio(response)
@@ -116,6 +118,14 @@ export function AulaClient({ teacher }: AulaClientProps) {
     router.push('/dashboard')
   }
 
+  const handleChipClick = useCallback((text: string) => {
+    setTextValue(text)
+  }, [])
+
+  function handleNaoEntendi() {
+    handleTurn("Could you please say that again more simply? I didn't understand.")
+  }
+
   // Fix 5: Surface session init errors so the UI is not silently non-functional
   if (initError) {
     return (
@@ -165,9 +175,21 @@ export function AulaClient({ teacher }: AulaClientProps) {
             Conectando...
           </p>
         )}
-        {messages.map((m, i) => (
-          <MessageBubble key={i} role={m.role} text={m.text} hadCorrection={m.had_correction} pronunciationHint={m.pronunciation_hint} />
-        ))}
+        {messages.map((m, i) => {
+          const isLastAssistant = m.role === 'assistant' && i === messages.length - 1 && !sending
+          return (
+            <MessageBubble
+              key={i}
+              role={m.role}
+              text={m.text}
+              hadCorrection={m.had_correction}
+              pronunciationHint={m.pronunciation_hint}
+              replyPt={m.role === 'assistant' ? m.reply_pt : undefined}
+              suggestedReplies={isLastAssistant ? m.suggested_replies : undefined}
+              onChipClick={isLastAssistant ? handleChipClick : undefined}
+            />
+          )
+        })}
         {sending && (
           <div className="flex justify-start">
             <div className="px-4 py-3 rounded-2xl bg-surface-light-card dark:bg-surface-dark-card text-content-light-secondary dark:text-content-dark-secondary text-sm animate-pulse">
@@ -207,7 +229,13 @@ export function AulaClient({ teacher }: AulaClientProps) {
               disabled={sending || loading}
             />
             {!isRecording && (
-              <PanicButton onSubmit={(text) => handleTurn(text)} disabled={sending || loading} />
+              <TextInput
+                value={textValue}
+                onChange={setTextValue}
+                onSubmit={(text) => handleTurn(text)}
+                onNaoEntendi={handleNaoEntendi}
+                disabled={sending || loading}
+              />
             )}
           </>
         )}
