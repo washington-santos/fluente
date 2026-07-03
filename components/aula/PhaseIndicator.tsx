@@ -22,7 +22,7 @@ export function PhaseIndicator({ assistantMessageCount }: PhaseIndicatorProps) {
           <span
             className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
               i === currentIndex
-                ? 'bg-brand-interactive text-white'
+                ? 'bg-brand-interactive text-content-dark'
                 : i < currentIndex
                 ? 'text-brand-interactive'
                 : 'text-content-light-secondary dark:text-content-dark-secondary'
