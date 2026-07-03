@@ -46,12 +46,12 @@ describe('AulaClient', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('renders teacher name', async () => {
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     await waitFor(() => expect(screen.getByText('Mr. Jake')).toBeInTheDocument())
   })
 
   it('renders existing messages', async () => {
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     await waitFor(() => {
       expect(screen.getByText('Hello!')).toBeInTheDocument()
       expect(screen.getByText('Hi there!')).toBeInTheDocument()
@@ -59,14 +59,14 @@ describe('AulaClient', () => {
   })
 
   it('renders a record button', async () => {
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /iniciar gravação/i })).toBeInTheDocument()
     )
   })
 
   it('renders topic badge when topic is set', async () => {
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     await waitFor(() => expect(screen.getByText('Viagens')).toBeInTheDocument())
   })
 
@@ -99,7 +99,7 @@ describe('AulaClient', () => {
       }),
     })
 
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     const endButton = screen.getByText(/encerrar aula/i)
     await act(async () => { fireEvent.click(endButton) })
     await waitFor(() => expect(screen.getByText('Resumo da aula')).toBeInTheDocument())
@@ -121,7 +121,7 @@ describe('AulaClient', () => {
       endSession: vi.fn(),
     })
 
-    render(<AulaClient teacher={mockTeacher} />)
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
 
     expect(screen.getByText('Limite do plano atingido')).toBeInTheDocument()
     expect(screen.getByText(/10\.5.*de.*10.*minutos/)).toBeInTheDocument()

@@ -24,5 +24,5 @@ export default async function AulaPage() {
 
   if (!teacher) redirect('/dashboard')
 
-  return <AulaClient teacher={teacher as Teacher} />
+  return <AulaClient teacher={teacher as Teacher} cefrLevel={userData.cefr_level ?? null} />
 }
