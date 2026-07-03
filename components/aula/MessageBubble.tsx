@@ -65,7 +65,7 @@ export function MessageBubble({ role, text, hadCorrection, pronunciationHint, re
             <button
               key={i}
               onClick={() => onChipClick?.(reply)}
-              className="px-3 py-1.5 rounded-full text-xs border border-brand-interactive text-brand-interactive hover:bg-brand-interactive hover:text-white transition-colors"
+              className="px-3 py-1.5 rounded-full text-xs border border-brand-interactive text-brand-interactive hover:bg-brand-interactive hover:text-content-dark transition-colors"
               data-testid={`chip-${i}`}
             >
               {reply}
