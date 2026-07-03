@@ -31,7 +31,7 @@ export function TextInput({ value, onChange, onSubmit, onNaoEntendi, disabled }:
         <button
           type="submit"
           disabled={disabled || !value.trim()}
-          className="px-4 py-2 rounded-xl bg-brand-cta text-white text-sm font-semibold disabled:opacity-50"
+          className="px-4 py-2 rounded-xl bg-brand-cta text-content-dark text-sm font-semibold disabled:opacity-50"
           data-testid="btn-send-text"
         >
           Enviar
