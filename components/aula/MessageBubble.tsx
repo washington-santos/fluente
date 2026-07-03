@@ -1,19 +1,24 @@
 'use client'
 
-import { Mic } from 'lucide-react'
+import { useState } from 'react'
+import { Mic, Eye, EyeOff } from 'lucide-react'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
   text: string
   hadCorrection: boolean
   pronunciationHint?: string | null
+  replyPt?: string | null
+  suggestedReplies?: string[] | null
+  onChipClick?: (text: string) => void
 }
 
-export function MessageBubble({ role, text, hadCorrection, pronunciationHint }: MessageBubbleProps) {
+export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick }: MessageBubbleProps) {
   const isUser = role === 'user'
+  const [showTranslation, setShowTranslation] = useState(false)
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
       <div
         className={`relative max-w-[80%] px-4 py-3 rounded-2xl text-sm ${
           isUser
@@ -35,7 +40,39 @@ export function MessageBubble({ role, text, hadCorrection, pronunciationHint }: 
             <span>{pronunciationHint}</span>
           </div>
         )}
+        {!isUser && replyPt && (
+          <div className="mt-2">
+            <button
+              onClick={() => setShowTranslation((v) => !v)}
+              className="flex items-center gap-1 text-xs text-content-light-secondary dark:text-content-dark-secondary hover:text-brand-interactive transition-colors"
+              aria-label={showTranslation ? 'Ocultar tradução' : 'Ver tradução'}
+              data-testid="btn-toggle-translation"
+            >
+              {showTranslation ? <EyeOff size={12} /> : <Eye size={12} />}
+              {showTranslation ? 'Ocultar tradução' : 'Ver tradução'}
+            </button>
+            {showTranslation && (
+              <p className="mt-1 text-xs text-content-light-secondary dark:text-content-dark-secondary italic" data-testid="reply-translation">
+                {replyPt}
+              </p>
+            )}
+          </div>
+        )}
       </div>
+      {!isUser && suggestedReplies && suggestedReplies.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2 max-w-[80%]" data-testid="suggestion-chips">
+          {suggestedReplies.map((reply, i) => (
+            <button
+              key={i}
+              onClick={() => onChipClick?.(reply)}
+              className="px-3 py-1.5 rounded-full text-xs border border-brand-interactive text-brand-interactive hover:bg-brand-interactive hover:text-white transition-colors"
+              data-testid={`chip-${i}`}
+            >
+              {reply}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
