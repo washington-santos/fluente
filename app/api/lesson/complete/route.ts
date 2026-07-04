@@ -12,7 +12,12 @@ export async function POST(request: Request) {
     vocab_scores: Record<string, number>
   }
 
-  const lesson = getLessonBySlug(lesson_slug)
+  let lesson
+  try {
+    lesson = getLessonBySlug(lesson_slug)
+  } catch {
+    return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
+  }
   const scores = Object.values(vocab_scores)
   const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
   const xp = avg >= 0.8 ? lesson.xp_reward + 10 : lesson.xp_reward

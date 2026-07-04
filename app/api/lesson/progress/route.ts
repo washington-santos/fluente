@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   // Upsert word mastery
   if (word !== undefined && score !== undefined) {
-    await supabase
+    const { error: masteryError } = await supabase
       .from('user_word_mastery')
       .upsert({
         user_id: user.id,
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
         pronunciation_avg: score,
         last_reviewed_at: new Date().toISOString(),
       }, { onConflict: 'user_id,word' })
+    if (masteryError) console.error('word_mastery upsert error:', masteryError.message)
   }
 
   return NextResponse.json({ ok: true })

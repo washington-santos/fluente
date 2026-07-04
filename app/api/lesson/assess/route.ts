@@ -10,23 +10,31 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const formData = await request.formData()
-  const type = formData.get('type') as 'pronunciation' | 'conversation'
+  const type = formData.get('type') as string | null
   const target = formData.get('target') as string
   const audio = formData.get('audio') as Blob | null
   const panicText = formData.get('text') as string | null
   const allowedVocabRaw = formData.get('allowed_vocab') as string | null
   const historyRaw = formData.get('history') as string | null
 
+  if (type !== 'pronunciation' && type !== 'conversation') {
+    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+  }
+
   // Transcribe audio or use panic text
   let transcript = panicText?.trim() ?? null
   if (audio && !transcript) {
-    const audioFile = new File([audio], 'recording.webm', { type: audio.type || 'audio/webm' })
-    const transcription = await openai.audio.transcriptions.create({
-      model: 'whisper-1',
-      file: audioFile,
-      language: 'en',
-    })
-    transcript = transcription.text
+    try {
+      const audioFile = new File([audio], 'recording.webm', { type: audio.type || 'audio/webm' })
+      const transcription = await openai.audio.transcriptions.create({
+        model: 'whisper-1',
+        file: audioFile,
+        language: 'en',
+      })
+      transcript = transcription.text
+    } catch {
+      return NextResponse.json({ error: 'Transcription failed' }, { status: 500 })
+    }
   }
   if (!transcript) return NextResponse.json({ error: 'No audio or text' }, { status: 400 })
 
@@ -44,32 +52,37 @@ Respond ONLY with valid JSON (no markdown):
       max_tokens: 120,
       response_format: { type: 'json_object' },
     })
-    const result = JSON.parse(completion.choices[0].message.content ?? '{}')
-    return NextResponse.json(result)
+    try {
+      const result = JSON.parse(completion.choices[0].message.content ?? '{}')
+      return NextResponse.json(result)
+    } catch {
+      return NextResponse.json({ error: 'Assessment parse error' }, { status: 500 })
+    }
   }
 
-  if (type === 'conversation') {
-    const vocab: string[] = allowedVocabRaw ? JSON.parse(allowedVocabRaw) : []
-    const history: Array<{ role: string; content: string }> = historyRaw ? JSON.parse(historyRaw) : []
+  // type === 'conversation'
+  const vocab: string[] = allowedVocabRaw ? JSON.parse(allowedVocabRaw) : []
+  const history: Array<{ role: string; content: string }> = historyRaw ? JSON.parse(historyRaw) : []
 
-    const system = `You are Mrs. Carol, teaching English to an A1 learner.
+  const system = `You are Mrs. Carol, teaching English to an A1 learner.
 ALLOWED WORDS ONLY: ${vocab.join(', ')}.
 Rules: ask only YES/NO questions or ask student to say a word. Max 1 sentence. Give feedback in Portuguese when needed.
 Respond ONLY with valid JSON: {"reply":"...","reply_pt":"...","feedback_pt":"..."}`
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: system },
-        ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-        { role: 'user', content: transcript },
-      ],
-      max_tokens: 150,
-      response_format: { type: 'json_object' },
-    })
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: system },
+      ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      { role: 'user', content: transcript },
+    ],
+    max_tokens: 150,
+    response_format: { type: 'json_object' },
+  })
+  try {
     const result = JSON.parse(completion.choices[0].message.content ?? '{}')
     return NextResponse.json({ ...result, transcript })
+  } catch {
+    return NextResponse.json({ error: 'Response parse error' }, { status: 500 })
   }
-
-  return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
 }
