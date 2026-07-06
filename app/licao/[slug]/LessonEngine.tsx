@@ -95,10 +95,11 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
       {/* Step content */}
       <div className="flex-1 overflow-y-auto">
         {step.type === 'intro' && (
-          <IntroStep step={step} vocabulary={lesson.vocabulary} onContinue={() => advance()} />
+          <IntroStep key={step.id} step={step} vocabulary={lesson.vocabulary} onContinue={() => advance()} />
         )}
         {step.type === 'vocab_present' && (
           <VocabPresentStep
+            key={step.id}
             step={step}
             vocab={lesson.vocabulary[step.vocab_index]}
             ttsVoice={ttsVoice}
@@ -107,16 +108,18 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
         )}
         {step.type === 'vocab_repeat' && (
           <VocabRepeatStep
+            key={step.id}
             step={step}
             vocab={lesson.vocabulary[step.vocab_index]}
             onSuccess={(score: number) => advance(lesson.vocabulary[step.vocab_index].word, score)}
           />
         )}
         {step.type === 'exercise_choice' && (
-          <ExerciseChoiceStep step={step} onSuccess={() => advance()} />
+          <ExerciseChoiceStep key={step.id} step={step} onSuccess={() => advance()} />
         )}
         {step.type === 'guided_convo' && (
           <GuidedConvoStep
+            key={step.id}
             step={step}
             teacherName={teacherName}
             teacherImageUrl={teacherImageUrl}
@@ -125,10 +128,11 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
           />
         )}
         {step.type === 'review' && (
-          <ReviewStep step={step} vocabulary={lesson.vocabulary} onComplete={() => advance()} />
+          <ReviewStep key={step.id} step={step} vocabulary={lesson.vocabulary} onComplete={() => advance()} />
         )}
         {step.type === 'summary' && (
           <SummaryStep
+            key={step.id}
             vocabulary={lesson.vocabulary}
             vocabScores={vocabScores}
             xpEarned={xpEarned}

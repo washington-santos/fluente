@@ -86,20 +86,31 @@ export function VocabRepeatStep({ step, vocab, onSuccess }: VocabRepeatStepProps
         <p className="text-sm text-red-400">{error}</p>
       )}
 
-      <button
-        onClick={handleMic}
-        disabled={isAssessing}
-        aria-label={isRecording ? 'Parar gravação' : 'Gravar pronúncia'}
-        className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all shadow-lg ${
-          isRecording
-            ? 'bg-red-500 scale-110 shadow-red-500/30'
-            : isAssessing
-            ? 'bg-surface-light-card dark:bg-surface-dark-card opacity-50 cursor-not-allowed'
-            : 'bg-brand-cta hover:scale-105'
-        }`}
-      >
-        {isAssessing ? '⏳' : isRecording ? '⏹' : '🎤'}
-      </button>
+      <div className="flex flex-col items-center gap-2">
+        {isRecording && (
+          <p className="text-sm font-semibold text-red-400 animate-pulse">● Gravando... toque para parar</p>
+        )}
+        {!isRecording && !isAssessing && !result && (
+          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary">Toque para falar</p>
+        )}
+        {isAssessing && (
+          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary">Avaliando...</p>
+        )}
+        <button
+          onClick={handleMic}
+          disabled={isAssessing}
+          aria-label={isRecording ? 'Parar gravação' : 'Gravar pronúncia'}
+          className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all shadow-lg ${
+            isRecording
+              ? 'bg-red-500 scale-110 shadow-red-500/30 animate-pulse'
+              : isAssessing
+              ? 'bg-surface-light-card dark:bg-surface-dark-card opacity-50 cursor-not-allowed'
+              : 'bg-brand-cta hover:scale-105'
+          }`}
+        >
+          {isAssessing ? '⏳' : isRecording ? '⏹' : '🎤'}
+        </button>
+      </div>
 
       {attempts > 0 && !isRecording && !isAssessing && (
         <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
