@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('@/hooks/useAudioRecorder', () => ({
@@ -78,7 +78,8 @@ describe('PlacementPhaseCard', () => {
         onAnswer={onAnswer}
       />
     )
+    await act(async () => {})  // flush TTS useEffect → sets ttsLoading to false
     fireEvent.click(screen.getByRole('button', { name: /gravar/i }))
-    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('hospital', 0.8))
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('hospital', 0.8), { timeout: 2000 })
   })
 })

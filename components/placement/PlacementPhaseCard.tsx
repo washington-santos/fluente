@@ -56,7 +56,7 @@ export function PlacementPhaseCard({ question, teacherVoice, questionNumber, tot
       const res = await fetch('/api/placement/assess', { method: 'POST', body: fd })
       const data = await res.json()
       setFeedback(data.feedback_pt)
-      onAnswer(data.transcript ?? '', data.score ?? 0)
+      setTimeout(() => onAnswer(data.transcript ?? '', data.score ?? 0), 1500)
     } catch {
       onAnswer('', 0)
     } finally {
@@ -113,7 +113,7 @@ export function PlacementPhaseCard({ question, teacherVoice, questionNumber, tot
         )}
         <button
           onClick={handleMic}
-          disabled={isSubmitting || !!feedback}
+          disabled={isSubmitting || ttsLoading || !!feedback}
           aria-label={isRecording ? 'Parar gravação' : 'Gravar resposta'}
           className={`w-20 h-20 rounded-full flex items-center justify-center text-3xl transition-all shadow-lg ${
             isRecording
