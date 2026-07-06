@@ -49,4 +49,9 @@ describe('PlacementDiagnosticReport', () => {
     fireEvent.click(screen.getByRole('button', { name: /começar/i }))
     expect(onContinue).toHaveBeenCalled()
   })
+
+  it('shows plan summary', () => {
+    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={vi.fn()} />)
+    expect(screen.getByText('Em 30 dias, focamos em pronúncia e conversação para viagem.')).toBeInTheDocument()
+  })
 })
