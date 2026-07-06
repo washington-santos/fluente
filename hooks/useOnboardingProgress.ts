@@ -16,7 +16,7 @@ export function useOnboardingProgress(pageStep: number) {
       .then(({ progress: p }: { progress: OnboardingProgress | null }) => {
         setProgress(p)
         if (!p) return
-        if (p.completed_at) { router.push('/dashboard'); return }
+        if (p.completed_at) { router.push('/nivelamento'); return }
         if (p.current_step >= pageStep + 1) {
           router.push(stepToRoute(p.current_step))
         }

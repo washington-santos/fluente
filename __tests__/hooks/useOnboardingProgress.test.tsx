@@ -29,10 +29,10 @@ describe('useOnboardingProgress', () => {
     expect(result.current.progress?.current_step).toBe(1)
   })
 
-  it('redirects to /dashboard when completed_at is set', async () => {
+  it('redirects to /nivelamento when completed_at is set', async () => {
     mockFetch({ current_step: 6, completed_at: '2026-01-01T00:00:00Z' })
     renderHook(() => useOnboardingProgress(1))
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/dashboard'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/nivelamento'))
   })
 
   it('forward-redirects when DB step is ahead of page step', async () => {

@@ -23,6 +23,14 @@ export default async function DashboardPage() {
 
   if (!userData?.teacher_id) redirect('/cadastro/boas-vindas')
 
+  const { data: placementResult } = await supabase
+    .from('placement_results')
+    .select('id')
+    .eq('user_id', authUser.id)
+    .maybeSingle()
+
+  if (!placementResult) redirect('/nivelamento')
+
   const { data: teacher } = await supabase
     .from('teachers')
     .select('*')
