@@ -56,6 +56,7 @@ export function PlacementTestEngine({ teacherName, teacherVoice, userGoal }: Pla
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ answers: newAnswers, goal: userGoal }),
         })
+        if (!res.ok) throw new Error('placement complete API error')
         const data = await res.json()
         setResult(data.result)
         setPlan(data.plan)
