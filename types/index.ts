@@ -165,3 +165,49 @@ export interface OnboardingLevelResponse {
   level: CefrLevel
   transcript: string
 }
+
+export type PlacementPhase = 'listening' | 'speaking' | 'vocabulary' | 'grammar' | 'pronunciation'
+
+export interface PlacementQuestion {
+  id: string
+  phase: PlacementPhase
+  phase_label: string
+  phase_emoji: string
+  prompt_tts: string
+  prompt_display: string
+  expected_topic: string
+  difficulty: 'easy' | 'medium' | 'hard'
+}
+
+export interface PlacementAnswer {
+  question_id: string
+  phase: PlacementPhase
+  transcript: string
+  score: number
+}
+
+export interface PlacementResult {
+  id: string
+  user_id: string
+  cefr_level: CefrLevel
+  speaking_pct: number
+  listening_pct: number
+  grammar_pct: number
+  vocabulary_pct: number
+  pronunciation_pct: number
+  confidence_pct: number
+  biggest_difficulty: string
+  biggest_strength: string
+  next_objective: string
+  completed_at: string
+}
+
+export interface LearningPlan {
+  id: string
+  user_id: string
+  goal: string
+  focus_areas: string[]
+  plan_summary_pt: string
+  cefr_at_creation: CefrLevel
+  created_at: string
+}
