@@ -54,6 +54,7 @@ export function PlacementPhaseCard({ question, teacherVoice, questionNumber, tot
       fd.append('expected_topic', question.expected_topic)
       fd.append('prompt_tts', question.prompt_tts)
       const res = await fetch('/api/placement/assess', { method: 'POST', body: fd })
+      if (!res.ok) { onAnswer('', 0); return }
       const data = await res.json()
       setFeedback(data.feedback_pt)
       setTimeout(() => onAnswer(data.transcript ?? '', data.score ?? 0), 1500)

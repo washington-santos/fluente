@@ -57,6 +57,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
+  if (!SCORING_PROMPT[phase]) {
+    return NextResponse.json({ error: 'Invalid phase' }, { status: 400 })
+  }
+
   let transcript = ''
   try {
     const file = new File([audio], 'recording.webm', { type: audio.type || 'audio/webm' })
