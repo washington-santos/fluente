@@ -46,7 +46,7 @@ Respond ONLY with JSON (no markdown):
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 400,
+      max_tokens: 800,
       response_format: { type: 'json_object' },
     })
     diagnostic = JSON.parse(completion.choices[0].message.content ?? '{}')
@@ -90,7 +90,8 @@ Respond ONLY with JSON (no markdown):
     return NextResponse.json({ error: 'Failed to save results' }, { status: 500 })
   }
 
-  await supabase.from('users').update({ cefr_level: cefr }).eq('id', user.id)
+  const { error: userErr } = await supabase.from('users').update({ cefr_level: cefr }).eq('id', user.id)
+  if (userErr) console.error('[placement/complete] Failed to update users.cefr_level:', userErr.message)
 
   return NextResponse.json({ result: { ...resultRow, id: '' }, plan: { ...planRow, id: '' } })
 }
