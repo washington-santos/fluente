@@ -4,7 +4,7 @@ export async function synthesizeTts(text: string, voice: string): Promise<{ data
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const response = await openai.audio.speech.create({
-    model: 'tts-1',
+    model: 'tts-1-hd',
     voice: voice as 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer',
     input: text,
     response_format: 'mp3',
