@@ -61,8 +61,14 @@ Respond ONLY with valid JSON (no markdown):
   }
 
   // type === 'conversation'
-  const vocab: string[] = allowedVocabRaw ? JSON.parse(allowedVocabRaw) : []
-  const history: Array<{ role: string; content: string }> = historyRaw ? JSON.parse(historyRaw) : []
+  const vocab: string[] = (() => {
+    try { return allowedVocabRaw ? JSON.parse(allowedVocabRaw) : [] }
+    catch { return [] }
+  })()
+  const history: Array<{ role: string; content: string }> = (() => {
+    try { return historyRaw ? JSON.parse(historyRaw) : [] }
+    catch { return [] }
+  })()
 
   const system = `You are Mrs. Carol, teaching English to an A1 learner.
 ALLOWED WORDS ONLY: ${vocab.join(', ')}.

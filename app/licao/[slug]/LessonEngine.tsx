@@ -133,7 +133,7 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
             vocabScores={vocabScores}
             xpEarned={xpEarned}
             lessonTitle={lesson.title_pt}
-            onFinish={() => router.push('/licoes')}
+            onFinish={() => advance()}
           />
         )}
       </div>

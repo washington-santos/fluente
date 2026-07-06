@@ -18,7 +18,28 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
   }
-  const scores = Object.values(vocab_scores)
+  if (lesson.unlock_after) {
+    const { data: prereq } = await supabase
+      .from('user_lesson_progress')
+      .select('status')
+      .eq('user_id', user.id)
+      .eq('lesson_slug', lesson.unlock_after)
+      .maybeSingle()
+    if (!prereq || prereq.status !== 'completed') {
+      return NextResponse.json({ error: 'Lesson locked' }, { status: 403 })
+    }
+  }
+
+  // Use server-stored scores, not client-supplied ones
+  const { data: existingProg } = await supabase
+    .from('user_lesson_progress')
+    .select('vocab_scores')
+    .eq('user_id', user.id)
+    .eq('lesson_slug', lesson_slug)
+    .maybeSingle()
+  const serverVocabScores = (existingProg?.vocab_scores as Record<string, number>) ?? {}
+
+  const scores = Object.values(serverVocabScores)
   const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
   const xp = avg >= 0.8 ? lesson.xp_reward + 10 : lesson.xp_reward
 
@@ -28,7 +49,7 @@ export async function POST(request: Request) {
       user_id: user.id,
       lesson_slug,
       status: 'completed',
-      vocab_scores,
+      vocab_scores: serverVocabScores,
       completed_at: new Date().toISOString(),
       xp_earned: xp,
     }, { onConflict: 'user_id,lesson_slug' })

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { getLessonBySlug } from '@/lib/curriculum'
 
 export async function POST(request: Request) {
   const supabase = createSupabaseServer()
@@ -14,10 +15,29 @@ export async function POST(request: Request) {
   }
   const { lesson_slug, step_index, word, score } = body
 
-  // Get existing vocab_scores to merge
+  // Check lesson is accessible
+  let lessonContent: import('@/types/lesson').LessonContent
+  try {
+    lessonContent = getLessonBySlug(lesson_slug)
+  } catch {
+    return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
+  }
+  if (lessonContent.unlock_after) {
+    const { data: prereq } = await supabase
+      .from('user_lesson_progress')
+      .select('status')
+      .eq('user_id', user.id)
+      .eq('lesson_slug', lessonContent.unlock_after)
+      .maybeSingle()
+    if (!prereq || prereq.status !== 'completed') {
+      return NextResponse.json({ error: 'Lesson locked' }, { status: 403 })
+    }
+  }
+
+  // Get existing vocab_scores and status to merge / preserve
   const { data: existing } = await supabase
     .from('user_lesson_progress')
-    .select('vocab_scores')
+    .select('vocab_scores, status')
     .eq('user_id', user.id)
     .eq('lesson_slug', lesson_slug)
     .maybeSingle()
@@ -32,7 +52,7 @@ export async function POST(request: Request) {
     .upsert({
       user_id: user.id,
       lesson_slug,
-      status: 'in_progress',
+      status: existing?.status === 'completed' ? 'completed' : 'in_progress',
       current_step_index: step_index,
       vocab_scores: vocabScores,
     }, { onConflict: 'user_id,lesson_slug' })
