@@ -20,6 +20,10 @@
     { "word": "Nine", "translation_pt": "Nove", "emoji": "9️⃣", "pronunciation_hint": "NYN" },
     { "word": "Ten", "translation_pt": "Dez", "emoji": "🔟", "pronunciation_hint": "TEN" }
   ],
+  "learning_objectives": [
+    { "id": "obj-numbers-1-5", "description_pt": "Contar de 1 a 5 em inglês", "vocab_words": ["One", "Two", "Three", "Four", "Five"] },
+    { "id": "obj-numbers-6-10", "description_pt": "Contar de 6 a 10 em inglês", "vocab_words": ["Six", "Seven", "Eight", "Nine", "Ten"] }
+  ],
   "steps": [
     {
       "id": "intro",

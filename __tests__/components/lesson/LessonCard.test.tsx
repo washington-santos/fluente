@@ -20,6 +20,7 @@ const base: LessonWithProgress = {
   unlock_after: null,
   xp_reward: 50,
   vocabulary: [],
+  learning_objectives: [],
   steps: [],
   progress: null,
 }

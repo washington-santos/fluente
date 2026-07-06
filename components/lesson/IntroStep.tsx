@@ -1,12 +1,13 @@
-import type { IntroStep as IntroStepType, VocabItem } from '@/types/lesson'
+import type { IntroStep as IntroStepType, VocabItem, LearningObjective } from '@/types/lesson'
 
 interface IntroStepProps {
   step: IntroStepType
   vocabulary: VocabItem[]
+  learningObjectives: LearningObjective[]
   onContinue: () => void
 }
 
-export function IntroStep({ step, vocabulary, onContinue }: IntroStepProps) {
+export function IntroStep({ step, vocabulary, learningObjectives, onContinue }: IntroStepProps) {
   return (
     <div className="flex flex-col gap-5 p-4">
       <div>
@@ -20,6 +21,23 @@ export function IntroStep({ step, vocabulary, onContinue }: IntroStepProps) {
           {step.description_pt}
         </p>
       </div>
+
+      {learningObjectives.length > 0 && (
+        <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card">
+          <p className="text-xs font-semibold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wide mb-3">
+            Ao final desta aula você será capaz de:
+          </p>
+          <ul className="flex flex-col gap-2">
+            {learningObjectives.map(obj => (
+              <li key={obj.id} className="flex items-center gap-2">
+                <span className="text-base" aria-hidden>⬜</span>
+                <span className="text-sm text-content-light dark:text-content-dark">{obj.description_pt}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         {vocabulary.map(v => (
           <div

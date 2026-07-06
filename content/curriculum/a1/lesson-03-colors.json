@@ -18,6 +18,10 @@
     { "word": "Orange", "translation_pt": "Laranja", "emoji": "🟠", "pronunciation_hint": "OR-inj" },
     { "word": "Purple", "translation_pt": "Roxo", "emoji": "🟣", "pronunciation_hint": "PUR-puhl" }
   ],
+  "learning_objectives": [
+    { "id": "obj-primary-colors", "description_pt": "Nomear cores primárias em inglês", "vocab_words": ["Red", "Blue", "Yellow"] },
+    { "id": "obj-common-colors", "description_pt": "Usar cores do dia a dia em inglês", "vocab_words": ["Green", "White", "Black", "Orange", "Purple"] }
+  ],
   "steps": [
     {
       "id": "intro",

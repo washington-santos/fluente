@@ -25,6 +25,9 @@ const mockLesson: LessonContent = {
   vocabulary: [
     { word: 'Hello', translation_pt: 'Olá', emoji: '👋', pronunciation_hint: 'HEH-loh' },
   ],
+  learning_objectives: [
+    { id: 'obj-greet', description_pt: 'Cumprimentar alguém em inglês', vocab_words: ['Hello'] },
+  ],
   steps: [
     { id: 'intro', type: 'intro', title_pt: 'Hoje você aprenderá', description_pt: 'Palavras essenciais.' },
     { id: 'summary', type: 'summary' },

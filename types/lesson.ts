@@ -67,6 +67,12 @@ export type LessonStep =
   | ReviewStep
   | SummaryStep
 
+export interface LearningObjective {
+  id: string
+  description_pt: string
+  vocab_words: string[]
+}
+
 export interface LessonContent {
   slug: string
   level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
@@ -78,6 +84,7 @@ export interface LessonContent {
   unlock_after: string | null
   xp_reward: number
   vocabulary: VocabItem[]
+  learning_objectives: LearningObjective[]
   steps: LessonStep[]
 }
 

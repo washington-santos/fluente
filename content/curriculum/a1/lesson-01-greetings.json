@@ -18,6 +18,11 @@
     { "word": "Yes", "translation_pt": "Sim", "emoji": "✅", "pronunciation_hint": "YES" },
     { "word": "No", "translation_pt": "Não", "emoji": "❌", "pronunciation_hint": "NOH" }
   ],
+  "learning_objectives": [
+    { "id": "obj-greet", "description_pt": "Cumprimentar alguém em inglês", "vocab_words": ["Hello", "Hi", "Good morning"] },
+    { "id": "obj-farewell", "description_pt": "Se despedir em inglês", "vocab_words": ["Bye"] },
+    { "id": "obj-polite", "description_pt": "Usar expressões de educação", "vocab_words": ["Thank you", "Please", "Yes", "No"] }
+  ],
   "steps": [
     {
       "id": "intro",

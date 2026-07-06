@@ -63,6 +63,7 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
         <SummaryStep
           vocabulary={lesson.vocabulary}
           vocabScores={vocabScores}
+          learningObjectives={lesson.learning_objectives}
           xpEarned={xpEarned}
           lessonTitle={lesson.title_pt}
           onFinish={() => router.push('/licoes')}
@@ -95,7 +96,7 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
       {/* Step content */}
       <div className="flex-1 overflow-y-auto">
         {step.type === 'intro' && (
-          <IntroStep key={step.id} step={step} vocabulary={lesson.vocabulary} onContinue={() => advance()} />
+          <IntroStep key={step.id} step={step} vocabulary={lesson.vocabulary} learningObjectives={lesson.learning_objectives} onContinue={() => advance()} />
         )}
         {step.type === 'vocab_present' && (
           <VocabPresentStep
@@ -135,6 +136,7 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
             key={step.id}
             vocabulary={lesson.vocabulary}
             vocabScores={vocabScores}
+            learningObjectives={lesson.learning_objectives}
             xpEarned={xpEarned}
             lessonTitle={lesson.title_pt}
             onFinish={() => advance()}
