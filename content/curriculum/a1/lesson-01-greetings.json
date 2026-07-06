@@ -29,49 +29,49 @@
       "id": "vp-hello",
       "type": "vocab_present",
       "vocab_index": 0,
-      "teacher_script": "Hello! Hello! This means 'Olá' in Portuguese. We say 'Hello' to greet someone."
+      "teacher_script": "Hello! In Portuguese, we say 'Olá'. Use it to greet anyone, at any time of day."
     },
     {
       "id": "vp-hi",
       "type": "vocab_present",
       "vocab_index": 1,
-      "teacher_script": "Hi! Hi! This means 'Oi' in Portuguese. 'Hi' is a friendly, informal greeting."
+      "teacher_script": "Hi! In Portuguese, that's 'Oi'. It's casual and friendly, perfect for people you know."
     },
     {
       "id": "vp-good-morning",
       "type": "vocab_present",
       "vocab_index": 2,
-      "teacher_script": "Good morning! Good morning! This means 'Bom dia' in Portuguese. We say this in the morning."
+      "teacher_script": "Good morning! In Portuguese, we say 'Bom dia'. Use it to greet people in the morning hours."
     },
     {
       "id": "vp-bye",
       "type": "vocab_present",
       "vocab_index": 3,
-      "teacher_script": "Bye! Bye! This means 'Tchau' in Portuguese. We say 'Bye' when we are leaving."
+      "teacher_script": "Bye! In Portuguese, we say 'Tchau'. Use it when you are leaving or saying goodbye."
     },
     {
       "id": "vp-thank-you",
       "type": "vocab_present",
       "vocab_index": 4,
-      "teacher_script": "Thank you! Thank you! This means 'Obrigado' or 'Obrigada' in Portuguese. We use it to show gratitude."
+      "teacher_script": "Thank you! In Portuguese, men say 'Obrigado' and women say 'Obrigada'. Always be grateful!"
     },
     {
       "id": "vp-please",
       "type": "vocab_present",
       "vocab_index": 5,
-      "teacher_script": "Please! Please! This means 'Por favor' in Portuguese. We use 'Please' to make polite requests."
+      "teacher_script": "Please! In Portuguese, that's 'Por favor'. Always add it to make your requests polite."
     },
     {
       "id": "vp-yes",
       "type": "vocab_present",
       "vocab_index": 6,
-      "teacher_script": "Yes! Yes! This means 'Sim' in Portuguese. 'Yes' is the word for affirmation."
+      "teacher_script": "Yes! In Portuguese, that's 'Sim'. Use it when you agree or want to say affirmative."
     },
     {
       "id": "vp-no",
       "type": "vocab_present",
       "vocab_index": 7,
-      "teacher_script": "No! No! This means 'Não' in Portuguese. 'No' is the word for negation."
+      "teacher_script": "No! In Portuguese, that's 'Não'. A simple and clear word to express negation."
     },
     {
       "id": "vr-hello",

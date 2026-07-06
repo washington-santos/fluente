@@ -29,7 +29,7 @@
       "id": "vp-red",
       "type": "vocab_present",
       "vocab_index": 0,
-      "teacher_script": "Red! Red! This means 'Vermelho' in Portuguese. Think of a red apple or a stop sign!"
+      "teacher_script": "Red! In Portuguese, we say 'Vermelho'. Think of a red apple or a stop sign!"
     },
     {
       "id": "vr-red",
@@ -41,7 +41,7 @@
       "id": "vp-blue",
       "type": "vocab_present",
       "vocab_index": 1,
-      "teacher_script": "Blue! Blue! This means 'Azul' in Portuguese. Think of the sky or the ocean!"
+      "teacher_script": "Blue! In Portuguese, that's 'Azul'. Think of the sky or the ocean!"
     },
     {
       "id": "vr-blue",
@@ -53,7 +53,7 @@
       "id": "vp-green",
       "type": "vocab_present",
       "vocab_index": 2,
-      "teacher_script": "Green! Green! This means 'Verde' in Portuguese. Think of trees and grass!"
+      "teacher_script": "Green! In Portuguese, we say 'Verde'. Think of trees, leaves, and grass!"
     },
     {
       "id": "vr-green",
@@ -65,7 +65,7 @@
       "id": "vp-yellow",
       "type": "vocab_present",
       "vocab_index": 3,
-      "teacher_script": "Yellow! Yellow! This means 'Amarelo' in Portuguese. Think of the sun or a banana!"
+      "teacher_script": "Yellow! In Portuguese, that's 'Amarelo'. Think of the bright sun or a banana!"
     },
     {
       "id": "vr-yellow",
@@ -77,7 +77,7 @@
       "id": "vp-white",
       "type": "vocab_present",
       "vocab_index": 4,
-      "teacher_script": "White! White! This means 'Branco' in Portuguese. Think of snow or clouds!"
+      "teacher_script": "White! In Portuguese, we say 'Branco'. Think of fresh snow or white clouds!"
     },
     {
       "id": "vr-white",
@@ -89,7 +89,7 @@
       "id": "vp-black",
       "type": "vocab_present",
       "vocab_index": 5,
-      "teacher_script": "Black! Black! This means 'Preto' in Portuguese. Think of the night sky!"
+      "teacher_script": "Black! In Portuguese, that's 'Preto'. Think of the night sky or black coffee!"
     },
     {
       "id": "vr-black",
@@ -101,7 +101,7 @@
       "id": "vp-orange",
       "type": "vocab_present",
       "vocab_index": 6,
-      "teacher_script": "Orange! Orange! This means 'Laranja' in Portuguese. It's named after the fruit!"
+      "teacher_script": "Orange! In Portuguese, we say 'Laranja'. The color is named after the fruit!"
     },
     {
       "id": "vr-orange",
@@ -113,7 +113,7 @@
       "id": "vp-purple",
       "type": "vocab_present",
       "vocab_index": 7,
-      "teacher_script": "Purple! Purple! This means 'Roxo' in Portuguese. Think of grapes or lavender!"
+      "teacher_script": "Purple! In Portuguese, that's 'Roxo'. Think of grapes or beautiful lavender flowers!"
     },
     {
       "id": "vr-purple",
