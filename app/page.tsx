@@ -151,7 +151,7 @@ export default async function LandingPage() {
           </Link>
         </div>
         <p className="mt-4 text-xs text-content-light-secondary dark:text-content-dark-secondary">
-          Grátis para sempre · Sem cartão de crédito
+          7 dias grátis · Sem cartão de crédito
         </p>
       </section>
 
