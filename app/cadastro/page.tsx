@@ -55,7 +55,7 @@ export default function CadastroPage() {
         } else if (code === 'weak_password' || msg.toLowerCase().includes('password')) {
           setError('A senha não atende aos critérios de segurança. Tente com letras e números.')
         } else {
-          setError(`Não foi possível criar a conta: ${msg || code || 'erro desconhecido'}`)
+          setError('Não foi possível criar a conta. Tente novamente.')
         }
         return
       }
