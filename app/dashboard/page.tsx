@@ -10,6 +10,8 @@ import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
 import { getMissionForDate } from '@/lib/missions'
 import type { Teacher, User, ErrorType } from '@/types'
 import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
+import { isUserVip } from '@/lib/vip'
+import { VipBadge } from '@/components/dashboard/VipBadge'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -94,9 +96,11 @@ export default async function DashboardPage() {
   const u = userData as User
   const t = teacher as Teacher | null
 
+  const vipUser = await isUserVip(authUser.email ?? '')
+
   // Auto-start demo for first-time users (no existing plan or old free plan)
   let effectiveUser = u
-  if (!u.demo_status && (u.plan_id === null || u.plan_id === 'free')) {
+  if (!vipUser && !u.demo_status && (u.plan_id === null || u.plan_id === 'free')) {
     const demoStart = new Date()
     const demoExpiry = new Date(demoStart.getTime() + 7 * 24 * 60 * 60 * 1000)
     await supabase.from('users').update({
@@ -176,13 +180,17 @@ export default async function DashboardPage() {
         {/* Streak */}
         <StreakBadge streakDays={u.streak_days ?? 0} />
 
+        {vipUser && <VipBadge plan={vipUser.plan} />}
+
         {/* Demo status */}
-        <DemoStatusCard
-          demoStatus={effectiveUser.demo_status}
-          demoExpiresAt={effectiveUser.demo_expires_at}
-          demoMinutesUsed={demoMinutesUsed}
-          demoMinutesLimit={DEMO_MINUTES_LIMIT}
-        />
+        {!vipUser && (
+          <DemoStatusCard
+            demoStatus={effectiveUser.demo_status}
+            demoExpiresAt={effectiveUser.demo_expires_at}
+            demoMinutesUsed={demoMinutesUsed}
+            demoMinutesLimit={DEMO_MINUTES_LIMIT}
+          />
+        )}
 
         {/* Progress memory */}
         <ProgressMemoryCard
@@ -258,7 +266,9 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-semibold text-content-light dark:text-content-dark">Planos e assinaturas</p>
             <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
-              {effectiveUser.plan_id === 'demo'
+              {vipUser
+                ? `Plano VIP · ${vipUser.plan}`
+                : effectiveUser.plan_id === 'demo'
                 ? 'Demonstração Premium'
                 : effectiveUser.plan_id
                 ? `Plano ${effectiveUser.plan_id}`
