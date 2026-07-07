@@ -13,8 +13,11 @@ export default function CadastroPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [safeNext, setSafeNext] = useState('')
+  const [linkExpired, setLinkExpired] = useState(false)
   useEffect(() => {
-    const raw = new URLSearchParams(window.location.search).get('next') ?? ''
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error') === 'link_expired') setLinkExpired(true)
+    const raw = params.get('next') ?? ''
     if (raw.startsWith('/') && !raw.startsWith('//')) {
       const rawPath = raw.split('?')[0].split('#')[0]
       let dp = rawPath
@@ -35,7 +38,14 @@ export default function CadastroPage() {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const dest = safeNext || '/cadastro/boas-vindas'
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(dest)}`,
+        },
+      })
 
       if (error) {
         const msg = error.message ?? ''
@@ -78,6 +88,15 @@ export default function CadastroPage() {
           <p className="text-center text-content-light-secondary dark:text-content-dark-secondary mb-8 text-sm">
             Comece a falar inglês hoje. Grátis.
           </p>
+
+          {linkExpired && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-center">
+              <p className="text-sm font-semibold text-red-400">Link de confirmação expirado.</p>
+              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">
+                Cadastre-se novamente com o mesmo e-mail para receber um novo link.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <input

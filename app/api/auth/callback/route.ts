@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
     }
   } catch { /* malformed URL — keep default */ }
 
+  // Supabase sends error params when OTP/link is expired or invalid
+  const errorCode = searchParams.get('error_code')
+  if (errorCode === 'otp_expired' || searchParams.get('error') === 'access_denied') {
+    return NextResponse.redirect(`${origin}/cadastro?error=link_expired`)
+  }
+
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`)
   }
