@@ -32,6 +32,12 @@ export default async function AdminUsuariosPage({
   const { data: users, count } = await query
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
 
+  const emails = (users ?? []).map((u) => u.email).filter(Boolean)
+  const { data: vipRows } = emails.length
+    ? await supabase.from('vip_users').select('email').eq('active', true).in('email', emails)
+    : { data: [] }
+  const vipSet = new Set((vipRows ?? []).map((v) => v.email))
+
   const pageUrl = (p: number) =>
     `?page=${p}${safeQ ? `&q=${encodeURIComponent(safeQ)}` : ''}`
 
@@ -81,7 +87,11 @@ export default async function AdminUsuariosPage({
                 <td className="py-2 pr-4 text-content-light-secondary dark:text-content-dark-secondary">
                   {u.email}
                 </td>
-                <td className="py-2 pr-4">{u.plan_id ?? 'free'}</td>
+                <td className="py-2 pr-4">
+                  {vipSet.has(u.email) ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-cta text-white">VIP</span>
+                  ) : (u.plan_id ?? 'free')}
+                </td>
                 <td className="py-2 pr-4">{u.cefr_level ?? '—'}</td>
                 <td className="py-2 pr-4">{u.streak_days ?? 0}</td>
                 <td className="py-2 pr-4 text-content-light-secondary dark:text-content-dark-secondary">
