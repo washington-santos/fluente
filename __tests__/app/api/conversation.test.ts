@@ -2,7 +2,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 const mockUser = { id: 'user-1' }
-const mockUserData = { id: 'user-1', name: 'Ana', cefr_level: 'B1', teacher_id: 'teacher-1' }
+const mockUserData = { id: 'user-1', name: 'Ana', cefr_level: 'B1', teacher_id: 'teacher-1', demo_status: 'active', demo_started_at: '2026-07-01T00:00:00Z', demo_expires_at: '2099-12-31T00:00:00Z' }
 const mockSession = { id: 'session-1', user_id: 'user-1', teacher_id: 'teacher-1', teacher: { id: 'teacher-1', slug: 'mr-jake', name: 'Mr. Jake', system_prompt: 'You are Mr. Jake.', tts_voice: 'echo', avatar_image_url: '/avatars/mr-jake.png' } }
 
 // Hoist so the fn references are available inside the vi.mock factory below
@@ -250,7 +250,7 @@ describe('POST /api/conversation', () => {
   })
 
   describe('quota enforcement', () => {
-    it('returns 429 when free user has used 10+ minutes this month', async () => {
+    it('returns 429 when demo user has exhausted 30 demo minutes', async () => {
       const { createServerClient } = await import('@supabase/ssr')
       vi.mocked(createServerClient).mockReturnValueOnce({
         auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
@@ -260,9 +260,15 @@ describe('POST /api/conversation', () => {
               select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
             }
           }
+          if (table === 'users') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { demo_status: 'active', demo_started_at: '2026-07-01T00:00:00Z', demo_expires_at: '2099-12-31T00:00:00Z' }, error: null }) })) })),
+              update: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) })),
+            }
+          }
           if (table === 'usage_log') {
             return {
-              select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [{ whisper_minutes: 10.5 }], error: null }) })) })),
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [{ whisper_minutes: 30.5 }], error: null }) })) })),
             }
           }
           return { select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) })) })) })) }
@@ -272,9 +278,9 @@ describe('POST /api/conversation', () => {
       const res = await POST(makeFormRequest({ session_id: 'sess-1', panic_text: 'test' }))
       expect(res.status).toBe(429)
       const body = await res.json()
-      expect(body.error).toBe('quota_exceeded')
-      expect(body.minutesUsed).toBeCloseTo(10.5)
-      expect(body.minutesLimit).toBe(10)
+      expect(body.error).toBe('demo_exhausted')
+      expect(body.minutesUsed).toBeCloseTo(30.5)
+      expect(body.minutesLimit).toBe(30)
     })
 
     it('returns 429 when basic subscriber has used 120+ minutes', async () => {
@@ -285,6 +291,11 @@ describe('POST /api/conversation', () => {
           if (table === 'subscriptions') {
             return {
               select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { plan_id: 'basic', plans: { minutes_per_month: 120 } }, error: null }) })) })) })),
+            }
+          }
+          if (table === 'users') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
             }
           }
           if (table === 'usage_log') {
@@ -312,6 +323,11 @@ describe('POST /api/conversation', () => {
           if (table === 'subscriptions') {
             return {
               select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { plan_id: 'pro', plans: { minutes_per_month: 300 } }, error: null }) })) })) })),
+            }
+          }
+          if (table === 'users') {
+            return {
+              select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
             }
           }
           if (table === 'usage_log') {
