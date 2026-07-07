@@ -41,7 +41,6 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     turnError,
     initError,
     quotaExceeded,
-    quotaInfo,
     lastPromptHint,
     sendTurn,
     endSession,

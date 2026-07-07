@@ -2,7 +2,7 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { getMissionForDate } from '@/lib/missions'
 
-export async function GET(_request: Request) {
+export async function GET() {
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

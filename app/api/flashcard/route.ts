@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 const INTERVAL_DAYS = [1, 3, 7, 14, 30]
 
-export async function GET(_request: Request) {
+export async function GET() {
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

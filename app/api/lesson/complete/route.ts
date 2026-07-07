@@ -7,9 +7,9 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { lesson_slug, vocab_scores } = await request.json() as {
+  const { lesson_slug } = await request.json() as {
     lesson_slug: string
-    vocab_scores: Record<string, number>
+    vocab_scores?: Record<string, number>
   }
 
   let lesson

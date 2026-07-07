@@ -17,7 +17,8 @@ export default async function LicoesPage() {
     .eq('user_id', user.id)
 
   const lessons = getAllLessons()
-  let merged = mergeWithProgress(lessons, (progressRows ?? []) as UserLessonProgress[])
+  const mergedBase = mergeWithProgress(lessons, (progressRows ?? []) as UserLessonProgress[])
+  const merged = [...mergedBase]
 
   if (merged[0] && !merged[0].progress) {
     merged[0] = {

@@ -10,7 +10,7 @@ interface StarterPhraseProps {
   disabled: boolean
 }
 
-export function StarterPhrase({ teacherFirstName, phrase, onUse, onOther, disabled }: StarterPhraseProps) {
+export function StarterPhrase({ phrase, onUse, onOther, disabled }: StarterPhraseProps) {
   return (
     <div className="w-full rounded-2xl bg-surface-light-card dark:bg-surface-dark-card p-4 flex flex-col gap-3">
       <p className="text-xs font-semibold text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wide">
