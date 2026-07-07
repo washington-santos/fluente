@@ -55,7 +55,7 @@ export function DemoStartButton({ demoStatus }: Props) {
       >
         {isLoading ? 'Aguarde...' : 'Começar demonstração'}
       </button>
-      {error && <p className="text-xs text-center text-red-500">{error}</p>}
+      {error && <p className="text-xs text-center text-red-400">{error}</p>}
     </div>
   )
 }

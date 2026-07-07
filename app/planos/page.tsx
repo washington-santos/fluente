@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { PlansGrid } from './PlansGrid'
+import { SuccessBanner } from './SuccessBanner'
 import type { DemoStatus } from '@/types'
 
 interface Props {
@@ -44,6 +46,10 @@ export default async function PlanosPage({ searchParams }: Props) {
       </header>
 
       <div className="flex-1 px-4 py-8 max-w-2xl mx-auto w-full">
+        <Suspense fallback={null}>
+          <SuccessBanner />
+        </Suspense>
+
         <div className="text-center mb-10">
           <h2 className="text-3xl font-extrabold text-content-light dark:text-content-dark leading-tight">
             Escolha como você quer evoluir
