@@ -1,15 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-
-interface VipUser {
-  id: string
-  email: string
-  plan: string
-  active: boolean
-  notes: string | null
-  created_at: string
-}
+import type { VipUser } from '@/types'
 
 export default function AdminVipPage() {
   const [users, setUsers] = useState<VipUser[]>([])

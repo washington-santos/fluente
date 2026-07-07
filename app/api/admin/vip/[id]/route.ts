@@ -21,16 +21,16 @@ export async function PATCH(
   if (!(await verifyAdmin()))
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = (await request.json()) as {
-    plan?: string
-    active?: boolean
-    notes?: string
-  }
+  const body = await request.json() as { plan?: string; active?: boolean; notes?: string | null }
+  const allowedFields: { plan?: string; active?: boolean; notes?: string | null } = {}
+  if (body.plan     !== undefined) allowedFields.plan   = body.plan
+  if (body.active   !== undefined) allowedFields.active  = body.active
+  if (body.notes    !== undefined) allowedFields.notes   = body.notes
 
   const supabase = createSupabaseAdmin()
   const { data, error } = await supabase
     .from('vip_users')
-    .update(body)
+    .update(allowedFields)
     .eq('id', params.id)
     .select()
     .single()

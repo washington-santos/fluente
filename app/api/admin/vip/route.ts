@@ -54,6 +54,9 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 409 })
+  if (error) {
+    const status = (error as { code?: string }).code === '23505' ? 409 : 500
+    return NextResponse.json({ error: error.message }, { status })
+  }
   return NextResponse.json({ data }, { status: 201 })
 }
