@@ -4,6 +4,8 @@ import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import type { CefrLevel, OnboardingLevelResponse } from '@/types'
 
+export const maxDuration = 60
+
 const VALID_LEVELS = new Set<string>(['A1', 'A2', 'B1', 'B2', 'C1', 'C2'])
 
 export async function POST(request: Request) {
@@ -19,21 +21,33 @@ export async function POST(request: Request) {
   const file = new File([arrayBuffer], 'recording.webm', { type: audio.type || 'audio/webm' })
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const transcription = await openai.audio.transcriptions.create({
-    file,
-    model: 'whisper-1',
-    language: 'en',
-  })
+  let transcription
+  try {
+    transcription = await openai.audio.transcriptions.create({
+      file,
+      model: 'whisper-1',
+      language: 'en',
+    })
+  } catch (e) {
+    console.error('[onboarding/level] Whisper error:', e)
+    return NextResponse.json({ error: 'whisper_failed' }, { status: 502 })
+  }
   const transcript = transcription.text.trim()
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 10,
-    system:
-      'You are an English level assessor. Given a speech transcript, output ONLY one CEFR code: A1, A2, B1, B2, C1, or C2. Nothing else.',
-    messages: [{ role: 'user', content: `Transcript: "${transcript}"` }],
-  })
+  let message
+  try {
+    message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 10,
+      system:
+        'You are an English level assessor. Given a speech transcript, output ONLY one CEFR code: A1, A2, B1, B2, C1, or C2. Nothing else.',
+      messages: [{ role: 'user', content: `Transcript: "${transcript}"` }],
+    })
+  } catch (e) {
+    console.error('[onboarding/level] Claude error:', e)
+    return NextResponse.json({ error: 'claude_failed' }, { status: 502 })
+  }
 
   const firstBlock = message.content[0]
   const raw = firstBlock?.type === 'text'
