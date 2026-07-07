@@ -16,6 +16,25 @@ export default async function AulaPage() {
 
   if (!userData?.teacher_id) redirect('/cadastro/boas-vindas')
 
+  // Guard: require active subscription or active demo with time remaining
+  const { data: activeSub } = await supabase
+    .from('subscriptions')
+    .select('id')
+    .eq('user_id', authUser.id)
+    .eq('status', 'active')
+    .maybeSingle()
+
+  if (!activeSub) {
+    const demoStatus = userData.demo_status as string | null
+    const isExpired = demoStatus === 'expired' || demoStatus === 'exhausted'
+    const isTimeExpired =
+      userData.demo_expires_at && new Date(userData.demo_expires_at) <= new Date()
+
+    if (!demoStatus || isExpired || isTimeExpired) {
+      redirect('/planos?demo_ended=1')
+    }
+  }
+
   const { data: teacher } = await supabase
     .from('teachers')
     .select('*')
