@@ -64,17 +64,6 @@ export default function CadastroPage() {
     }
   }
 
-  async function handleGoogle() {
-    const dest = safeNext || '/cadastro/boas-vindas'
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(dest)}`,
-      },
-    })
-    if (error) setError('Não foi possível conectar com o Google. Tente novamente.')
-  }
-
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col">
       <header className="flex justify-end p-4">
@@ -117,24 +106,6 @@ export default function CadastroPage() {
               {loading ? 'Criando conta...' : 'Criar conta'}
             </button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200 dark:border-slate-700" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-surface-light dark:bg-surface-dark text-content-light-secondary dark:text-content-dark-secondary">
-                ou
-              </span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleGoogle}
-            className="w-full py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-content-light dark:text-content-dark font-medium hover:bg-surface-light-card dark:hover:bg-surface-dark-card transition-colors"
-          >
-            Entrar com Google
-          </button>
 
           <p className="mt-6 text-center text-sm text-content-light-secondary dark:text-content-dark-secondary">
             Já tem conta?{' '}
