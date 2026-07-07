@@ -72,7 +72,12 @@ export default function ConversaPage() {
 
   async function processRecording(mimeType: string) {
     if (!mountedRef.current) return  // component unmounted mid-recording — abort silently
-    const blob = new Blob(chunksRef.current, { type: mimeType })
+    const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' })
+    if (blob.size < 1000) {
+      setError('Gravação muito curta. Fale por pelo menos 3 segundos e tente novamente.')
+      setState('idle')
+      return
+    }
     const form = new FormData()
     form.append('audio', blob, 'recording.webm')
 
