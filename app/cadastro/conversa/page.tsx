@@ -78,7 +78,14 @@ export default function ConversaPage() {
 
     try {
       const res = await fetch('/api/onboarding/level', { method: 'POST', body: form })
-      if (!res.ok) throw new Error('API error')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        const detail = (body as { error?: string }).error ?? `HTTP ${res.status}`
+        console.error('[conversa] API error:', detail)
+        setError(`Erro ao processar o áudio (${detail}). Tente novamente.`)
+        setState('idle')
+        return
+      }
       const { transcript, level } = (await res.json()) as OnboardingLevelResponse
       if (!mountedRef.current) return
       const prevAnswers = progress?.written_answers ?? []
@@ -86,9 +93,11 @@ export default function ConversaPage() {
         conversation_transcript: transcript,
         written_answers: [...prevAnswers, level],
       })
-    } catch {
+    } catch (e) {
       if (!mountedRef.current) return
-      setError('Erro ao processar o áudio. Tente novamente.')
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[conversa] fetch error:', msg)
+      setError(`Erro ao processar o áudio (${msg}). Tente novamente.`)
       setState('idle')
     }
   }
