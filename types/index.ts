@@ -215,3 +215,13 @@ export interface LearningPlan {
   cefr_at_creation: CefrLevel
   created_at: string
 }
+
+export interface VipUser {
+  id: string
+  email: string
+  plan: string
+  active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
