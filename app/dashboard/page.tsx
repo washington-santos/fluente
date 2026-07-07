@@ -9,7 +9,7 @@ import { MissionCard } from '@/components/dashboard/MissionCard'
 import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
 import { getMissionForDate } from '@/lib/missions'
 import type { Teacher, User, ErrorType } from '@/types'
-import { DemoStatusCard } from '@/components/dashboard/DemoStatusCard'
+import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -181,7 +181,7 @@ export default async function DashboardPage() {
           demoStatus={effectiveUser.demo_status}
           demoExpiresAt={effectiveUser.demo_expires_at}
           demoMinutesUsed={demoMinutesUsed}
-          demoMinutesLimit={30}
+          demoMinutesLimit={DEMO_MINUTES_LIMIT}
         />
 
         {/* Progress memory */}

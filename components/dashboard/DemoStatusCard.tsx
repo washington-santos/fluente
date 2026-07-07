@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import type { DemoStatus } from '@/types'
 
+export const DEMO_MINUTES_LIMIT = 30
+
 interface Props {
   demoStatus: DemoStatus | null
   demoExpiresAt: string | null
