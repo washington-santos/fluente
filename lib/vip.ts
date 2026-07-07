@@ -16,6 +16,6 @@ export async function isUserVip(email: string): Promise<VipUser | null> {
     .eq('active', true)
     .maybeSingle()
 
-  if (error || !data || !data.active) return null
+  if (error || !data) return null
   return data as VipUser
 }

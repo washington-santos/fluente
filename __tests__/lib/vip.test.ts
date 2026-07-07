@@ -40,8 +40,8 @@ describe('isUserVip', () => {
   })
 
   it('returns null when vip record exists but active = false', async () => {
-    const vipRecord = { id: 'abc', email: 'inactive@test.com', plan: 'pro', active: false, notes: null, created_at: '2026-01-01', updated_at: '2026-01-01' }
-    const sb = makeSupabase({ data: vipRecord, error: null })
+    // DB returns null from the query because it filters .eq('active', true)
+    const sb = makeSupabase({ data: null, error: null })
     vi.mocked(createSupabaseAdmin).mockReturnValue(sb as ReturnType<typeof createSupabaseAdmin>)
 
     const result = await isUserVip('inactive@test.com')
