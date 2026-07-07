@@ -9,6 +9,7 @@ import { MissionCard } from '@/components/dashboard/MissionCard'
 import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
 import { getMissionForDate } from '@/lib/missions'
 import type { Teacher, User, ErrorType } from '@/types'
+import { DemoStatusCard } from '@/components/dashboard/DemoStatusCard'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -92,6 +93,42 @@ export default async function DashboardPage() {
 
   const u = userData as User
   const t = teacher as Teacher | null
+
+  // Auto-start demo for first-time users (no existing plan or old free plan)
+  let effectiveUser = u
+  if (!u.demo_status && (u.plan_id === null || u.plan_id === 'free')) {
+    const demoStart = new Date()
+    const demoExpiry = new Date(demoStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+    await supabase.from('users').update({
+      demo_started_at: demoStart.toISOString(),
+      demo_expires_at: demoExpiry.toISOString(),
+      demo_status: 'active',
+      plan_id: 'demo',
+    }).eq('id', authUser.id)
+    effectiveUser = {
+      ...u,
+      demo_started_at: demoStart.toISOString(),
+      demo_expires_at: demoExpiry.toISOString(),
+      demo_status: 'active' as const,
+      plan_id: 'demo',
+    }
+  }
+
+  // Compute demo minutes used (rendered in DemoStatusCard)
+  let demoMinutesUsed = 0
+  if (effectiveUser.demo_status === 'active' && effectiveUser.demo_started_at) {
+    const demoStartDate = effectiveUser.demo_started_at.slice(0, 10)
+    const { data: demoUsage } = await supabase
+      .from('usage_log')
+      .select('whisper_minutes')
+      .eq('user_id', authUser.id)
+      .gte('date', demoStartDate)
+    demoMinutesUsed = (demoUsage ?? []).reduce(
+      (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
+      0,
+    )
+  }
+
   const mission = getMissionForDate(u.cefr_level, today)
   const missionCompleted = !!missionLog?.completed_at
 
@@ -138,6 +175,14 @@ export default async function DashboardPage() {
 
         {/* Streak */}
         <StreakBadge streakDays={u.streak_days ?? 0} />
+
+        {/* Demo status */}
+        <DemoStatusCard
+          demoStatus={effectiveUser.demo_status}
+          demoExpiresAt={effectiveUser.demo_expires_at}
+          demoMinutesUsed={demoMinutesUsed}
+          demoMinutesLimit={30}
+        />
 
         {/* Progress memory */}
         <ProgressMemoryCard
@@ -213,7 +258,11 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-semibold text-content-light dark:text-content-dark">Planos e assinaturas</p>
             <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
-              {u.plan_id ? `Plano ${u.plan_id}` : 'Plano Grátis'}
+              {effectiveUser.plan_id === 'demo'
+                ? 'Demonstração Premium'
+                : effectiveUser.plan_id
+                ? `Plano ${effectiveUser.plan_id}`
+                : 'Sem plano'}
             </p>
           </div>
           <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
