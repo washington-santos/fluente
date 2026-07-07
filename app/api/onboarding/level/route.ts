@@ -1,7 +1,6 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import Anthropic from '@anthropic-ai/sdk'
 import type { CefrLevel, OnboardingLevelResponse } from '@/types'
 
 export const maxDuration = 60
@@ -34,26 +33,26 @@ export async function POST(request: Request) {
   }
   const transcript = transcription.text.trim()
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-  let message
+  let levelRaw = 'A2'
   try {
-    message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 10,
-      system:
-        'You are an English level assessor. Given a speech transcript, output ONLY one CEFR code: A1, A2, B1, B2, C1, or C2. Nothing else.',
-      messages: [{ role: 'user', content: `Transcript: "${transcript}"` }],
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 5,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an English level assessor. Given a speech transcript, output ONLY one CEFR code: A1, A2, B1, B2, C1, or C2. Nothing else.',
+        },
+        { role: 'user', content: `Transcript: "${transcript}"` },
+      ],
     })
+    levelRaw = completion.choices[0]?.message?.content?.trim().toUpperCase() ?? 'A2'
   } catch (e) {
-    console.error('[onboarding/level] Claude error:', e)
-    return NextResponse.json({ error: 'claude_failed' }, { status: 502 })
+    console.error('[onboarding/level] GPT level error:', e)
+    // fallback to A2 instead of failing entirely
   }
 
-  const firstBlock = message.content[0]
-  const raw = firstBlock?.type === 'text'
-    ? (firstBlock as { type: 'text'; text: string }).text.trim().toUpperCase()
-    : ''
-  const level: CefrLevel = VALID_LEVELS.has(raw) ? (raw as CefrLevel) : 'A2'
+  const level: CefrLevel = VALID_LEVELS.has(levelRaw) ? (levelRaw as CefrLevel) : 'A2'
 
   const body: OnboardingLevelResponse = { level, transcript }
   return NextResponse.json(body)
