@@ -107,6 +107,17 @@ describe('conversation quota — demo path', () => {
     expect((await res.json()).error).toBe('demo_expired')
   })
 
+  it('returns 429 demo_exhausted when demo_status is already exhausted in DB', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    setupSupabase({
+      sub: null,
+      demoUser: { demo_status: 'exhausted', demo_started_at: '2026-07-01T00:00:00Z', demo_expires_at: '2099-07-08T00:00:00Z' },
+    })
+    const res = await POST(makeRequest())
+    expect(res.status).toBe(429)
+    expect((await res.json()).error).toBe('demo_exhausted')
+  })
+
   it('returns 429 demo_exhausted when demo minutes used >= 30', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     setupSupabase({

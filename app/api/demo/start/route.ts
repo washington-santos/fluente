@@ -20,12 +20,17 @@ export async function POST() {
   }
 
   const now = new Date()
-  await supabase.from('users').update({
+  const { error: updateError } = await supabase.from('users').update({
     demo_started_at: now.toISOString(),
     demo_expires_at: new Date(now.getTime() + DEMO_DURATION_MS).toISOString(),
     demo_status: 'active',
     plan_id: 'demo',
   }).eq('id', user.id)
+
+  if (updateError) {
+    console.error('Demo start DB update failed:', updateError.message)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   return NextResponse.json({ started: true })
 }

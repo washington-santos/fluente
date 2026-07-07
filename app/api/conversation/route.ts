@@ -80,8 +80,11 @@ export async function POST(request: Request) {
     if (!demo?.demo_status) {
       return NextResponse.json({ error: 'demo_required' }, { status: 403 })
     }
-    if (demo.demo_status === 'expired' || demo.demo_status === 'exhausted') {
+    if (demo.demo_status === 'expired') {
       return NextResponse.json({ error: 'demo_expired' }, { status: 429 })
+    }
+    if (demo.demo_status === 'exhausted') {
+      return NextResponse.json({ error: 'demo_exhausted' }, { status: 429 })
     }
     // Check time expiry even if status is still 'active'
     if (demo.demo_expires_at && new Date(demo.demo_expires_at) <= new Date()) {
