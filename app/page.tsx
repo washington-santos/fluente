@@ -57,12 +57,13 @@ const STEPS = [
 
 const PLANS = [
   {
-    name: 'Grátis',
+    name: 'Demo',
     price: 'R$ 0',
-    period: '/mês',
-    detail: '10 min por mês',
+    period: '',
+    detail: '7 dias grátis · 30 min',
     cta: 'Começar grátis',
     highlight: false,
+    badge: null,
   },
   {
     name: 'Básico',
@@ -71,6 +72,7 @@ const PLANS = [
     detail: '120 min por mês',
     cta: 'Assinar Básico',
     highlight: false,
+    badge: null,
   },
   {
     name: 'Pro',
@@ -79,6 +81,7 @@ const PLANS = [
     detail: '300 min por mês',
     cta: 'Assinar Pro',
     highlight: true,
+    badge: 'Mais Popular',
   },
   {
     name: 'Anual',
@@ -87,6 +90,7 @@ const PLANS = [
     detail: '300 min/mês · 2 meses grátis',
     cta: 'Assinar Anual',
     highlight: false,
+    badge: 'Melhor Valor',
   },
 ]
 
@@ -216,21 +220,30 @@ export default async function LandingPage() {
       <section id="planos" className="px-6 py-16 bg-surface-light-card dark:bg-surface-dark-card">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl font-bold text-content-light dark:text-content-dark text-center mb-2">
-            Planos
+            Escolha como você quer evoluir
           </h2>
           <p className="text-center text-sm text-content-light-secondary dark:text-content-dark-secondary mb-10">
-            Comece grátis. Assine quando quiser evoluir mais rápido.
+            Comece com 7 dias grátis. Cancele quando quiser.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {PLANS.map((p) => (
               <div
                 key={p.name}
-                className={`p-5 rounded-xl flex flex-col gap-4 ${
+                className={`p-5 rounded-xl flex flex-col gap-4 relative ${
                   p.highlight
                     ? 'bg-brand-cta ring-2 ring-brand-cta'
+                    : p.badge
+                    ? 'bg-surface-light dark:bg-surface-dark border border-brand-interactive/40'
                     : 'bg-surface-light dark:bg-surface-dark'
                 }`}
               >
+                {p.badge && (
+                  <span className={`absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-0.5 rounded-full ${
+                    p.highlight ? 'bg-white text-brand-cta' : 'bg-brand-interactive text-content-dark'
+                  }`}>
+                    {p.badge}
+                  </span>
+                )}
                 <div>
                   <p
                     className={`font-bold text-lg ${
