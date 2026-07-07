@@ -14,17 +14,18 @@ interface PlansGridProps {
 }
 
 const DEMO_FEATURES = [
+  'Todos os professores liberados',
   'Teste de nivelamento por IA',
   'Plano de estudos personalizado',
-  'Todos os professores',
-  'Correções em tempo real',
+  'Memória entre sessões',
+  'Replay das aulas',
   'Dashboard completo',
-  'Memória entre aulas',
   'Relatórios de evolução',
+  'Avaliação de pronúncia',
+  'Correções em tempo real',
 ]
 
 const BASIC_FEATURES = [
-  '300 minutos por mês',
   'Plano de estudos personalizado',
   '4 professores especializados',
   'Correções em tempo real',
@@ -35,7 +36,6 @@ const BASIC_FEATURES = [
 ]
 
 const PRO_FEATURES = [
-  '300 minutos por mês',
   'Tudo do Básico',
   'Relatórios completos',
   'Avaliação de pronúncia',
@@ -143,13 +143,13 @@ export function PlansGrid({
             Experimente gratuitamente
           </p>
           <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-1">
-            Ideal para conhecer toda a plataforma antes de assinar.
+            7 dias com acesso completo à experiência Premium. Recomendamos ~20 min por dia.
           </p>
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-4xl font-extrabold text-content-light dark:text-content-dark">R$ 0</span>
           <span className="text-sm text-content-light-secondary dark:text-content-dark-secondary">
-            / 7 dias · 30 min
+            / 7 dias
           </span>
         </div>
         <div className="border-t border-surface-light dark:border-surface-dark" />
@@ -178,8 +178,11 @@ export function PlansGrid({
               </span>
             )}
           </div>
-          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary">
-            Ideal para criar uma rotina consistente de aprendizado
+          <p className="text-sm font-semibold text-content-light dark:text-content-dark">
+            Crie uma rotina consistente.
+          </p>
+          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+            Ideal para quem deseja estudar aproximadamente 10 minutos por dia.
           </p>
         </div>
         <div className="flex items-baseline gap-1.5">
@@ -219,7 +222,10 @@ export function PlansGrid({
               </span>
             )}
           </div>
-          <p className="text-sm text-white/80">Nosso plano mais completo</p>
+          <p className="text-sm font-semibold text-white">Acelere sua fluência.</p>
+          <p className="text-sm text-white/80 mt-0.5">
+            Ideal para quem deseja estudar aproximadamente 20 a 30 minutos por dia e evoluir mais rapidamente.
+          </p>
         </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-4xl font-extrabold text-white">R$ 79,90</span>
@@ -258,8 +264,11 @@ export function PlansGrid({
               </span>
             )}
           </div>
-          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary">
-            Melhor custo-benefício
+          <p className="text-sm font-semibold text-content-light dark:text-content-dark">
+            Sua jornada completa rumo à fluência.
+          </p>
+          <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+            A melhor opção para quem deseja manter uma rotina consistente durante todo o ano com todos os recursos Premium.
           </p>
         </div>
         <div>
