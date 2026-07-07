@@ -78,18 +78,18 @@ export async function POST(request: Request) {
     const demo = demoUserData
 
     if (!demo?.demo_status) {
-      return NextResponse.json({ error: 'demo_required' }, { status: 403 })
+      return NextResponse.json({ error: 'demo_required', minutesUsed: 0, minutesLimit: 30 }, { status: 403 })
     }
     if (demo.demo_status === 'expired') {
-      return NextResponse.json({ error: 'demo_expired' }, { status: 429 })
+      return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
     }
     if (demo.demo_status === 'exhausted') {
-      return NextResponse.json({ error: 'demo_exhausted' }, { status: 429 })
+      return NextResponse.json({ error: 'demo_exhausted', minutesUsed: 30, minutesLimit: 30 }, { status: 429 })
     }
     // Check time expiry even if status is still 'active'
     if (demo.demo_expires_at && new Date(demo.demo_expires_at) <= new Date()) {
       await supabase.from('users').update({ demo_status: 'expired' }).eq('id', user.id)
-      return NextResponse.json({ error: 'demo_expired' }, { status: 429 })
+      return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
     }
 
     const demoStartDate = demo.demo_started_at!.slice(0, 10)

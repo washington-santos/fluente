@@ -114,10 +114,10 @@ export function useSession(teacherId: string): UseSessionReturn {
 
       const res = await fetch('/api/conversation', { method: 'POST', body: form })
       if (!res.ok) {
-        if (res.status === 429) {
-          const body = await res.json() as { minutesUsed: number; minutesLimit: number }
+        if (res.status === 429 || res.status === 403) {
+          const body = await res.json() as { error: string; minutesUsed?: number; minutesLimit?: number }
           setQuotaExceeded(true)
-          setQuotaInfo({ minutesUsed: body.minutesUsed, minutesLimit: body.minutesLimit })
+          setQuotaInfo({ minutesUsed: body.minutesUsed ?? 0, minutesLimit: body.minutesLimit ?? 30 })
         } else {
           setTurnError('Erro ao enviar. Tente novamente.')
         }

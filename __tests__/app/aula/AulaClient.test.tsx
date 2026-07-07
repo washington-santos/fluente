@@ -123,8 +123,8 @@ describe('AulaClient', () => {
 
     render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
 
-    expect(screen.getByText('Limite do plano atingido')).toBeInTheDocument()
-    expect(screen.getByText(/10\.5.*de.*10.*minutos/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver planos' })).toHaveAttribute('href', '/planos')
+    expect(screen.getByText('Sua Demonstração Premium chegou ao fim.')).toBeInTheDocument()
+    expect(screen.getByText(/Esperamos que você tenha conhecido/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ver planos e assinar' })).toHaveAttribute('href', '/planos')
   })
 })

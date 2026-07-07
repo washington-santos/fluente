@@ -447,18 +447,19 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       {/* Bottom controls */}
       <div className="shrink-0 px-4 pt-2 pb-5 flex flex-col items-center gap-3 border-t border-surface-light-card dark:border-surface-dark-card">
         {quotaExceeded ? (
-          <div className="w-full rounded-2xl bg-surface-light-card dark:bg-surface-dark-card p-5 flex flex-col items-center gap-2 text-center">
-            <p className="text-sm font-semibold text-content-light dark:text-content-dark">
-              Limite do plano atingido
+          <div className="w-full rounded-2xl bg-surface-light-card dark:bg-surface-dark-card p-5 flex flex-col items-center gap-3 text-center">
+            <p className="text-base font-bold text-content-light dark:text-content-dark">
+              Sua Demonstração Premium chegou ao fim.
             </p>
-            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
-              Você usou {(quotaInfo?.minutesUsed ?? 0).toFixed(1)} de {quotaInfo?.minutesLimit} minutos este mês.
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary leading-relaxed">
+              Esperamos que você tenha conhecido todo o potencial da plataforma.
+              Continue aprendendo inglês com aulas personalizadas por IA assinando um dos planos abaixo.
             </p>
             <a
               href="/planos"
-              className="mt-1 px-4 py-2 rounded-lg bg-brand-cta text-content-dark text-sm hover:opacity-90 transition-opacity"
+              className="mt-1 w-full py-3 rounded-xl bg-brand-cta text-content-dark text-sm font-semibold hover:opacity-90 transition-opacity text-center"
             >
-              Ver planos
+              Ver planos e assinar
             </a>
           </div>
         ) : (
