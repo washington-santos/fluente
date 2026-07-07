@@ -19,6 +19,7 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS vip_users_updated_at ON public.vip_users;
 CREATE TRIGGER vip_users_updated_at
   BEFORE UPDATE ON public.vip_users
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
