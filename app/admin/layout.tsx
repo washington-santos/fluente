@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/usuarios', label: 'Usuários' },
   { href: '/admin/sessoes', label: 'Sessões' },
   { href: '/admin/custos', label: 'Custos de AI' },
+  { href: '/admin/vip', label: 'VIP' },
 ]
 
 export default async function AdminLayout({
