@@ -64,6 +64,7 @@ const PLANS = [
     cta: 'Começar grátis',
     highlight: false,
     badge: null,
+    features: ['Teste de nivelamento por IA', 'Todos os professores', 'Correções em tempo real', 'Dashboard completo'],
   },
   {
     name: 'Básico',
@@ -73,6 +74,7 @@ const PLANS = [
     cta: 'Assinar Básico',
     highlight: false,
     badge: null,
+    features: ['120 min de conversação/mês', 'Plano de estudos personalizado', 'Histórico completo', 'Memória entre sessões'],
   },
   {
     name: 'Pro',
@@ -82,6 +84,7 @@ const PLANS = [
     cta: 'Assinar Pro',
     highlight: true,
     badge: 'Mais Popular',
+    features: ['300 min de conversação/mês', 'Tudo do Básico', 'Avaliação de pronúncia', 'Missões diárias personalizadas', 'Plano adaptado pela IA'],
   },
   {
     name: 'Anual',
@@ -91,6 +94,7 @@ const PLANS = [
     cta: 'Assinar Anual',
     highlight: false,
     badge: 'Melhor Valor',
+    features: ['Tudo do Pro', '2 meses grátis', 'Maior economia', 'Prioridade no suporte'],
   },
 ]
 
@@ -280,6 +284,16 @@ export default async function LandingPage() {
                     {p.period}
                   </span>
                 </div>
+                <ul className="flex flex-col gap-1.5">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <span className={`mt-0.5 text-xs ${p.highlight ? 'text-white' : 'text-brand-cta'}`}>✓</span>
+                      <span className={`text-xs leading-snug ${p.highlight ? 'text-white/85' : 'text-content-light-secondary dark:text-content-dark-secondary'}`}>
+                        {f}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
                 <Link
                   href="/login"
                   className={`mt-auto text-center text-sm font-semibold py-2.5 px-4 rounded-lg transition-opacity hover:opacity-90 ${
