@@ -5,6 +5,7 @@ export type SessionMode = 'guided' | 'scenario' | 'free' | 'daily'
 export type MessageRole = 'user' | 'assistant'
 export type ErrorType = 'verb_tense' | 'vocabulary' | 'preposition' | 'pronunciation' | 'other'
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing'
+export type DemoStatus = 'active' | 'expired' | 'exhausted'
 export type TtsProvider = 'openai' | 'elevenlabs'
 
 // ── Database row types (column names match Supabase schema exactly) ────
@@ -21,6 +22,9 @@ export interface User {
   last_session_at: string | null
   preferred_session_time: string | null
   theme: Theme
+  demo_started_at: string | null
+  demo_expires_at: string | null
+  demo_status: DemoStatus | null
 }
 
 export interface OnboardingProgress {
