@@ -3,6 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createSupabaseServer: vi.fn() }))
 vi.mock('@/lib/supabase-admin', () => ({ createSupabaseAdmin: vi.fn() }))
+vi.mock('@/lib/vip', () => ({ isUserVip: vi.fn().mockResolvedValue(null) }))
 vi.mock('@/lib/tts', () => ({ synthesizeTts: vi.fn() }))
 vi.mock('@/lib/did', () => ({ createTalk: vi.fn(), DID_VOICE_IDS: {} }))
 vi.mock('@/lib/topics', () => ({ getTopicByKey: vi.fn().mockReturnValue({ key: 'daily', label: 'Daily' }) }))

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { isUserVip } from '@/lib/vip'
 import { AulaClient } from './AulaClient'
 import type { Teacher } from '@/types'
 
@@ -24,7 +25,9 @@ export default async function AulaPage() {
     .eq('status', 'active')
     .maybeSingle()
 
-  if (!activeSub) {
+  const vipUser = await isUserVip(authUser.email ?? '')
+
+  if (!activeSub && !vipUser) {
     const demoStatus = userData.demo_status as string | null
     const isExpired = demoStatus === 'expired' || demoStatus === 'exhausted'
     const isTimeExpired =

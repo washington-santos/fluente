@@ -6,6 +6,7 @@ import { synthesizeTts } from '@/lib/tts'
 import { createTalk, DID_VOICE_IDS } from '@/lib/did'
 import { getTopicByKey } from '@/lib/topics'
 import type { ConversationResponse, ErrorReport, ErrorType } from '@/types'
+import { isUserVip } from '@/lib/vip'
 
 const VALID_ERROR_TYPES = new Set<string>(['verb_tense', 'vocabulary', 'preposition', 'pronunciation', 'other'])
 
@@ -51,6 +52,11 @@ export async function POST(request: Request) {
     console.error('Quota check DB error', quotaSubError ?? quotaDemoError)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+
+  // ── VIP bypass ──────────────────────────────────────────────────────────
+  const vipUser = await isUserVip(user.email ?? '')
+  if (!vipUser) {
+  // ── End VIP bypass (existing quota logic becomes the else body) ─────────
 
   if (subData) {
     // ── Active subscription path ─────────────────────────────────────────
@@ -117,6 +123,7 @@ export async function POST(request: Request) {
       )
     }
   }
+  } // end if (!vipUser) — VIP users skip quota enforcement
   // ── End quota check ──────────────────────────────────────────────────────
 
   const formData = await request.formData()

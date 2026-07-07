@@ -2,6 +2,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('@/lib/supabase-server', () => ({ createSupabaseServer: vi.fn() }))
+vi.mock('@/lib/vip', () => ({ isUserVip: vi.fn().mockResolvedValue(null) }))
 vi.mock('next/navigation', () => ({ redirect: vi.fn() }))
 vi.mock('./AulaClient', () => ({ AulaClient: () => null }))
 

@@ -14,6 +14,8 @@ const { mockChatCreate, mockMessagesInsert } = vi.hoisted(() => ({
   mockMessagesInsert: vi.fn().mockResolvedValue({ error: null }),
 }))
 
+vi.mock('@/lib/vip', () => ({ isUserVip: vi.fn().mockResolvedValue(null) }))
+
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
