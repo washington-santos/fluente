@@ -21,14 +21,51 @@ interface GuidedConvoStepProps {
 
 export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, onComplete }: GuidedConvoStepProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [isSpeaking, setIsSpeaking] = useState(false)
+  // Start as true so mic stays disabled while initial TTS loads
+  const [isSpeaking, setIsSpeaking] = useState(true)
   const [isAssessing, setIsAssessing] = useState(false)
   const [exchangeCount, setExchangeCount] = useState(0)
   const [assessError, setAssessError] = useState<string | null>(null)
+  // true = teacher question not yet heard (autoplay blocked or still loading)
+  const [awaitingListen, setAwaitingListen] = useState(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Pre-fetched audio URL ready to play immediately on user tap (iOS-safe)
+  const pendingUrlRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const playTts = async (text: string) => {
+  // Plays teacher's CURRENT question. Tracks whether autoplay succeeded.
+  // If autoplay is blocked (iOS), pendingUrlRef holds the URL for mic-tap triggered play.
+  const playCurrentTts = async (text: string) => {
+    setIsSpeaking(true)
+    setAwaitingListen(true)
+    try {
+      const fd = new FormData()
+      fd.append('text', text)
+      fd.append('voice', ttsVoice)
+      const res = await fetch('/api/lesson/tts', { method: 'POST', body: fd })
+      const { audio_url } = await res.json()
+      pendingUrlRef.current = audio_url
+      return new Promise<void>(resolve => {
+        const audio = new Audio(audio_url)
+        audioRef.current = audio
+        audio.onplaying = () => {
+          // Autoplay succeeded — mic will go straight to record after TTS ends
+          pendingUrlRef.current = null
+          setAwaitingListen(false)
+        }
+        const done = () => { setIsSpeaking(false); resolve() }
+        audio.onended = done
+        audio.onerror = () => { setIsSpeaking(false); resolve() }
+        audio.play().catch(() => { setIsSpeaking(false); resolve() })
+      })
+    } catch {
+      setIsSpeaking(false)
+    }
+  }
+
+  // Replays any message on demand (🔊 button). Does not affect awaitingListen state.
+  const replayTts = async (text: string) => {
+    if (isSpeaking) { audioRef.current?.pause(); setIsSpeaking(false); return }
     setIsSpeaking(true)
     try {
       const fd = new FormData()
@@ -36,14 +73,12 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       fd.append('voice', ttsVoice)
       const res = await fetch('/api/lesson/tts', { method: 'POST', body: fd })
       const { audio_url } = await res.json()
-      return new Promise<void>(resolve => {
-        const audio = new Audio(audio_url)
-        audioRef.current = audio
-        const done = () => { setIsSpeaking(false); resolve() }
-        audio.onended = done
-        audio.onerror = done
-        audio.play().catch(done)
-      })
+      const audio = new Audio(audio_url)
+      audioRef.current = audio
+      const done = () => setIsSpeaking(false)
+      audio.onended = done
+      audio.onerror = done
+      audio.play().catch(done)
     } catch {
       setIsSpeaking(false)
     }
@@ -52,7 +87,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
   useEffect(() => {
     const initial: Message = { role: 'teacher', text: step.teacher_opens_with, text_pt: step.teacher_opens_with_pt }
     setMessages([initial])
-    playTts(step.teacher_opens_with)
+    playCurrentTts(step.teacher_opens_with)
     return () => { audioRef.current?.pause() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -60,15 +95,6 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  const handleReplay = (text: string) => {
-    if (isSpeaking) {
-      audioRef.current?.pause()
-      setIsSpeaking(false)
-      return
-    }
-    playTts(text)
-  }
 
   const handleAssessment = async (blob: Blob) => {
     setIsAssessing(true)
@@ -87,7 +113,6 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
 
       const res = await fetch('/api/lesson/assess', { method: 'POST', body: fd })
 
-      // API error (e.g. empty audio / transcription failed)
       if (!res.ok) {
         setAssessError('Não entendi. Fale mais devagar e tente novamente. 🎙️')
         return
@@ -95,7 +120,6 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
 
       const data = await res.json()
 
-      // Whisper returned blank — student didn't speak or audio was too quiet
       if (!data.transcript?.trim()) {
         setAssessError('Não detectei sua voz. Fale mais alto e tente novamente. 🎙️')
         return
@@ -105,10 +129,9 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       const teacherMsg: Message = { role: 'teacher', text: data.reply ?? '', text_pt: data.reply_pt }
 
       setMessages(prev => [...prev, studentMsg, teacherMsg])
-      // Only count the exchange when the student got it right
       if (data.correct !== false) setExchangeCount(c => c + 1)
       setIsAssessing(false)
-      if (data.reply) await playTts(data.reply)
+      if (data.reply) await playCurrentTts(data.reply)
     } catch {
       setAssessError('Erro ao processar. Tente novamente.')
     } finally {
@@ -119,16 +142,42 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
   const { isRecording, startRecording, stopRecording, error: recorderError } = useAudioRecorder({ onComplete: handleAssessment })
 
   const handleMic = () => {
-    if (isRecording) {
-      stopRecording()
+    if (isRecording) { stopRecording(); return }
+    if (isSpeaking || isAssessing) return
+    setAssessError(null)
+
+    const url = pendingUrlRef.current
+    if (url) {
+      // Autoplay was blocked — play TTS now directly from user gesture (no await → iOS-safe)
+      pendingUrlRef.current = null
+      setAwaitingListen(false)
+      setIsSpeaking(true)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      // After teacher speaks, start recording automatically
+      audio.onended = () => { setIsSpeaking(false); startRecording() }
+      audio.onerror = () => { setIsSpeaking(false); startRecording() }
+      audio.play().catch(() => { setIsSpeaking(false); startRecording() })
     } else {
-      setAssessError(null)
       startRecording()
     }
   }
 
   const canComplete = exchangeCount >= step.min_exchanges
   const displayError = assessError ?? recorderError
+
+  const micIcon = isAssessing ? '⏳' : isSpeaking ? '🔊' : isRecording ? '⏹' : awaitingListen ? '🔊' : '🎤'
+  const micHint = isRecording
+    ? 'Gravando... toque para parar'
+    : isSpeaking
+    ? 'Professora falando...'
+    : isAssessing
+    ? 'Avaliando...'
+    : awaitingListen
+    ? 'Toque para ouvir a pergunta e depois falar'
+    : canComplete
+    ? 'Pronto para continuar!'
+    : `${exchangeCount} / ${step.min_exchanges} trocas`
 
   return (
     <div className="flex flex-col h-full">
@@ -155,7 +204,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
               )}
               {msg.role === 'teacher' && msg.text && (
                 <button
-                  onClick={() => handleReplay(msg.text)}
+                  onClick={() => replayTts(msg.text)}
                   disabled={isAssessing || isRecording}
                   className="mt-2 text-xs opacity-50 hover:opacity-100 transition-opacity disabled:opacity-20"
                   aria-label="Ouvir novamente"
@@ -176,7 +225,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
         <button
           onClick={handleMic}
           disabled={isAssessing || isSpeaking}
-          aria-label={isRecording ? 'Parar' : 'Falar'}
+          aria-label={isRecording ? 'Parar' : awaitingListen ? 'Ouvir pergunta' : 'Falar'}
           className={`w-16 h-16 rounded-full text-2xl transition-all shadow-lg ${
             isRecording
               ? 'bg-red-500 scale-110'
@@ -185,10 +234,10 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
               : 'bg-brand-cta hover:scale-105'
           }`}
         >
-          {isAssessing ? '⏳' : isSpeaking ? '🔊' : isRecording ? '⏹' : '🎤'}
+          {micIcon}
         </button>
-        <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
-          {canComplete ? 'Pronto para continuar!' : `${exchangeCount} / ${step.min_exchanges} trocas`}
+        <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary text-center">
+          {micHint}
         </p>
         {canComplete && (
           <button
