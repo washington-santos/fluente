@@ -37,8 +37,10 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       return new Promise<void>(resolve => {
         const audio = new Audio(audio_url)
         audioRef.current = audio
-        audio.onended = () => { setIsSpeaking(false); resolve() }
-        audio.play()
+        const done = () => { setIsSpeaking(false); resolve() }
+        audio.onended = done
+        audio.onerror = done
+        audio.play().catch(done)
       })
     } catch {
       setIsSpeaking(false)

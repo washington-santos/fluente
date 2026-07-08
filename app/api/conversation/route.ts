@@ -394,7 +394,7 @@ For prompt_hint: if the student might not know how to start responding, provide 
 
   const response: ConversationResponse = {
     text: replyText,
-    audio_url: audioUrl,
+    audio_url: storedAudioUrl ?? audioUrl,
     video_url: videoUrl,
     had_correction: errorReport.error_detected,
     error_report: errorReport,

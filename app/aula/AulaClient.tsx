@@ -139,6 +139,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.onended = null
+      audioRef.current.onerror = null
       audioRef.current = null
     }
     setVideoUrl(response.video_url)
@@ -146,11 +147,13 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     const audio = new Audio(response.audio_url)
     audioRef.current = audio
     setIsSpeaking(true)
-    audio.play().catch(() => setIsSpeaking(false))
-    audio.onended = () => {
+    const cleanup = () => {
       setIsSpeaking(false)
       audioRef.current = null
     }
+    audio.onended = cleanup
+    audio.onerror = cleanup
+    audio.play().catch(cleanup)
   }
 
   const { isRecording, startRecording, stopRecording, cancelRecording, error: micError } =
