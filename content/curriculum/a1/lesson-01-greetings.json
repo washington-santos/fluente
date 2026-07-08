@@ -158,6 +158,7 @@
       "type": "guided_convo",
       "instruction_pt": "Agora vamos praticar! Responda às perguntas da professora usando as palavras que você aprendeu.",
       "teacher_opens_with": "Hello! Say hello to me!",
+      "teacher_opens_with_pt": "Olá! Me cumprimente!",
       "allowed_vocabulary": ["Hello", "Hi", "Good morning", "Bye", "Thank you", "Please", "Yes", "No"],
       "min_exchanges": 3
     },

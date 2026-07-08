@@ -48,7 +48,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
   }
 
   useEffect(() => {
-    const initial: Message = { role: 'teacher', text: step.teacher_opens_with }
+    const initial: Message = { role: 'teacher', text: step.teacher_opens_with, text_pt: step.teacher_opens_with_pt }
     setMessages([initial])
     playTts(step.teacher_opens_with)
     return () => { audioRef.current?.pause() }

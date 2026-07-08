@@ -157,6 +157,7 @@
       "type": "guided_convo",
       "instruction_pt": "Vamos praticar as cores! Responda às perguntas da professora.",
       "teacher_opens_with": "What color is this? 🔴 Say the color!",
+      "teacher_opens_with_pt": "Que cor é essa? 🔴 Diga a cor!",
       "allowed_vocabulary": ["Red", "Blue", "Green", "Yellow", "White", "Black", "Orange", "Purple"],
       "min_exchanges": 3
     },

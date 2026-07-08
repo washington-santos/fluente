@@ -183,6 +183,7 @@
       "type": "guided_convo",
       "instruction_pt": "Vamos praticar os números! Responda às perguntas da professora.",
       "teacher_opens_with": "How many fingers am I holding up? One, two, three — say the number!",
+      "teacher_opens_with_pt": "Quantos dedos estou levantando? Um, dois, três — diga o número!",
       "allowed_vocabulary": ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"],
       "min_exchanges": 3
     },

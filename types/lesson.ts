@@ -43,6 +43,7 @@ export interface GuidedConvoStep {
   type: 'guided_convo'
   instruction_pt: string
   teacher_opens_with: string
+  teacher_opens_with_pt?: string
   allowed_vocabulary: string[]
   min_exchanges: number
 }
