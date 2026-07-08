@@ -3,15 +3,54 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import OpenAI from 'openai'
 import { getStudentContext } from '@/lib/student-context'
 import { getTopicsForLevel } from '@/lib/topics'
+import { METHODOLOGY_INSTRUCTIONS, METHODOLOGY_NAMES_PT } from '@/lib/mastery'
 import type { Topic } from '@/lib/topics'
+import type { Methodology } from '@/lib/mastery'
 
-function selectNextTopic(cefrLevel: string, taughtIds: Set<string>, reviewIds: Set<string>): Topic | null {
+interface TopicProgress {
+  topic_id: string
+  mastery_status: string | null
+  last_methodology: string | null
+  next_review_at: string | null
+}
+
+function selectNextTopic(
+  cefrLevel: string,
+  allProgress: TopicProgress[],
+): { topic: Topic; isRetry: boolean; isReview: boolean; methodology: Methodology } | null {
   const topics = getTopicsForLevel(cefrLevel)
-  const reviewTopic = topics.find(t => reviewIds.has(t.key))
-  if (reviewTopic) return reviewTopic
-  const newTopic = topics.find(t => !taughtIds.has(t.key))
-  if (newTopic) return newTopic
-  return topics[0] ?? null
+  const progressMap = new Map(allProgress.map(p => [p.topic_id, p]))
+  const now = new Date()
+
+  // 1. Topics still in "learning" (failed before) — retry with different methodology
+  for (const t of topics) {
+    const p = progressMap.get(t.key)
+    if (p?.mastery_status === 'learning') {
+      const nextMethod = (p.last_methodology ?? 'conversation') as Methodology
+      return { topic: t, isRetry: true, isReview: false, methodology: nextMethod }
+    }
+  }
+
+  // 2. Topics due for spaced review
+  for (const t of topics) {
+    const p = progressMap.get(t.key)
+    if (p?.mastery_status === 'mastered' && p.next_review_at && new Date(p.next_review_at) <= now) {
+      return { topic: t, isRetry: false, isReview: true, methodology: 'conversation' }
+    }
+  }
+
+  // 3. Next unlearned topic
+  for (const t of topics) {
+    if (!progressMap.has(t.key)) {
+      return { topic: t, isRetry: false, isReview: false, methodology: 'conversation' }
+    }
+  }
+
+  // 4. All mastered, no reviews due — restart from first topic
+  const first = topics[0]
+  return first
+    ? { topic: first, isRetry: false, isReview: true, methodology: 'conversation' }
+    : null
 }
 
 export async function POST() {
@@ -27,17 +66,21 @@ export async function POST() {
 
   if (!userData?.teacher_id) return NextResponse.json({ error: 'No teacher assigned' }, { status: 400 })
 
-  const context = await getStudentContext(user.id, supabase)
+  const [context, { data: allProgressRows }] = await Promise.all([
+    getStudentContext(user.id, supabase),
+    supabase
+      .from('user_topic_progress')
+      .select('topic_id, mastery_status, last_methodology, next_review_at')
+      .eq('user_id', user.id),
+  ])
 
-  const topic = selectNextTopic(
-    context.cefrLevel,
-    new Set(context.taughtTopicIds),
-    new Set(context.topicsNeedingReview),
-  )
+  const allProgress = (allProgressRows ?? []) as TopicProgress[]
+  const selection = selectNextTopic(context.cefrLevel, allProgress)
 
-  if (!topic) return NextResponse.json({ error: 'No topic available' }, { status: 500 })
+  if (!selection) return NextResponse.json({ error: 'No topic available' }, { status: 500 })
 
-  // Generate personalized lesson plan
+  const { topic, isRetry, isReview, methodology } = selection
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const contextLines: string[] = []
@@ -45,6 +88,12 @@ export async function POST() {
   if (context.goal) contextLines.push(`Goal: ${context.goal}`)
   if (context.recentSessionSummary) contextLines.push(`Last session: ${context.recentSessionSummary}`)
   if (context.biggestDifficulty) contextLines.push(`Biggest difficulty: ${context.biggestDifficulty}`)
+
+  const retryNote = isRetry
+    ? `\nIMPORTANT: The student already attempted this topic before. Use a COMPLETELY DIFFERENT teaching approach this time.\nMETHODOLOGY THIS SESSION: ${METHODOLOGY_NAMES_PT[methodology]} — ${METHODOLOGY_INSTRUCTIONS[methodology]}`
+    : isReview
+    ? `\nIMPORTANT: This is a REVIEW session — the student learned this topic before. Make it feel fresh. Test retention with new examples.`
+    : ''
 
   const prompt = `Create a personalized English lesson plan for a Brazilian student.
 
@@ -57,10 +106,7 @@ ${context.frequentErrors.length > 0 ? `- Frequent mistakes: ${context.frequentEr
 
 TODAY'S TOPIC: ${topic.labelPt} (${topic.promptEn})
 OBJECTIVES: ${topic.objectivesPt.join(', ')}
-
-Generate:
-1. A warm, personalized greeting to open the lesson (use student's name if provided, reference their personal context or goal naturally)
-2. Instructions for HOW the teacher should conduct this session (what to focus on, pacing, correction style)
+${retryNote}
 
 Return ONLY valid JSON:
 {
@@ -68,7 +114,7 @@ Return ONLY valid JSON:
   "objective_pt": "one sentence — what the student will achieve today (Portuguese)",
   "teacher_greeting": "teacher's warm opening in English (2-3 sentences, mention student's name, naturally introduce today's topic)",
   "teacher_greeting_pt": "Portuguese translation of teacher_greeting",
-  "lesson_instructions": "How to run this session — what to focus on and how to correct errors (2-3 sentences in English)",
+  "lesson_instructions": "How to run this session — teaching methodology, pacing, correction style (2-3 sentences in English)",
   "vocabulary_focus": ["word1", "word2", "word3"]
 }`
 
@@ -87,7 +133,7 @@ Return ONLY valid JSON:
       objective_pt: topic.objectivesPt[0] ?? 'Praticar inglês',
       teacher_greeting: topic.starterPhrase,
       teacher_greeting_pt: null,
-      lesson_instructions: `Focus on: ${topic.promptEn}. Be encouraging and patient with the student.`,
+      lesson_instructions: `Focus on: ${topic.promptEn}. ${METHODOLOGY_INSTRUCTIONS[methodology]}`,
       vocabulary_focus: [],
     }
   }
@@ -97,10 +143,13 @@ Return ONLY valid JSON:
     topic_key: topic.key,
     topic_label_pt: topic.labelPt,
     topic_prompt_en: topic.promptEn,
+    methodology,
+    is_retry: isRetry,
+    is_review: isReview,
     generated_at: new Date().toISOString(),
   }
 
-  // Close any dangling open sessions for this teacher so GET /api/session finds the new one
+  // Close dangling open sessions so GET /api/session finds the new one
   await supabase
     .from('sessions')
     .update({ ended_at: new Date().toISOString() })
@@ -108,7 +157,6 @@ Return ONLY valid JSON:
     .eq('teacher_id', userData.teacher_id)
     .is('ended_at', null)
 
-  // Create session with embedded lesson plan
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
     .insert({
@@ -126,7 +174,7 @@ Return ONLY valid JSON:
     return NextResponse.json({ error: sessionError?.message ?? 'Session creation failed' }, { status: 500 })
   }
 
-  // Track topic progress atomically
+  // Track topic start (only if not already in progress — mastery state is set by /assess)
   await supabase.rpc('increment_topic_progress', {
     p_user_id: user.id,
     p_topic_id: topic.key,
@@ -142,6 +190,9 @@ Return ONLY valid JSON:
       topic_key: topic.key,
       topic_label_pt: topic.labelPt,
       emoji: topic.emoji,
+      methodology,
+      is_retry: isRetry,
+      is_review: isReview,
     },
   })
 }

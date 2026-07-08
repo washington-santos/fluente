@@ -24,6 +24,7 @@ import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
 import { getTopicByKey } from '@/lib/topics'
 import type { Teacher, ConversationResponse, CefrLevel } from '@/types'
+import type { CompetencyScores } from '@/lib/mastery'
 
 interface AulaClientProps {
   teacher: Teacher
@@ -57,6 +58,15 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     durationSeconds: number
     missionCompleted: boolean
     missionTitle: string
+    assessment?: {
+      scores: CompetencyScores
+      final_score: number
+      passed: boolean
+      failed_competencies: string[]
+      feedback_pt: string
+      highlight_pt: string
+      attempt_count: number
+    } | null
   } | null>(null)
 
   // Intro screen — hide once first turn is sent or session has existing messages
@@ -201,10 +211,18 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     await endSession()
     if (sessionId) {
       try {
-        const res = await fetch(`/api/session/${sessionId}/report`)
-        if (res.ok) {
-          const data = await res.json()
-          setReportData(data)
+        const [reportRes, assessRes] = await Promise.allSettled([
+          fetch(`/api/session/${sessionId}/report`),
+          fetch(`/api/session/${sessionId}/assess`, { method: 'POST' }),
+        ])
+        if (reportRes.status === 'fulfilled' && reportRes.value.ok) {
+          const data = await reportRes.value.json()
+          let assessment = null
+          if (assessRes.status === 'fulfilled' && assessRes.value.ok) {
+            const a = await assessRes.value.json()
+            if (!a.too_short && !a.error) assessment = a
+          }
+          setReportData({ ...data, assessment })
           setShowReport(true)
           return
         }
@@ -305,6 +323,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
             durationSeconds={reportData.durationSeconds}
             missionCompleted={reportData.missionCompleted}
             missionTitle={reportData.missionTitle}
+            assessment={reportData.assessment}
             onClose={handleReportClose}
           />
         )}
@@ -510,6 +529,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           durationSeconds={reportData.durationSeconds}
           missionCompleted={reportData.missionCompleted}
           missionTitle={reportData.missionTitle}
+          assessment={reportData.assessment}
           onClose={handleReportClose}
         />
       )}
