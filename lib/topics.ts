@@ -471,3 +471,7 @@ export function getTopicByKey(key: string | null | undefined): Topic | null {
   }
   return null
 }
+
+export function getTopicsForLevel(cefrLevel: string | null | undefined): Topic[] {
+  return TOPICS_BY_LEVEL[(cefrLevel ?? 'A1') as CefrLevel] ?? TOPICS_BY_LEVEL['A1'] ?? []
+}

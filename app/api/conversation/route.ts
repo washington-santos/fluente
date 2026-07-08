@@ -207,7 +207,22 @@ export async function POST(request: Request) {
     : ''
 
   const topicData = getTopicByKey(session.topic as string | null)
-  const topicBlock = topicData
+  const lessonPlan = (session as Record<string, unknown>).lesson_plan_json as {
+    title_pt?: string
+    objective_pt?: string
+    teacher_greeting?: string
+    lesson_instructions?: string
+    vocabulary_focus?: string[]
+  } | null
+
+  const topicBlock = lessonPlan
+    ? `\nPERSONALIZED LESSON PLAN FOR TODAY:
+Topic: "${lessonPlan.title_pt ?? topicData?.labelPt ?? ''}"
+Objective: "${lessonPlan.objective_pt ?? ''}"
+On your FIRST message, open with: "${lessonPlan.teacher_greeting ?? ''}"
+Session instructions: ${lessonPlan.lesson_instructions ?? 'Follow normal lesson structure.'}
+${lessonPlan.vocabulary_focus?.length ? `Vocabulary to cover: ${lessonPlan.vocabulary_focus.join(', ')}` : ''}`
+    : topicData
     ? `\nToday's lesson topic: "${topicData.labelPt}" — ${topicData.promptEn}. Naturally guide the conversation toward this theme while staying responsive to the student.`
     : ''
 
