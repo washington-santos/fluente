@@ -20,6 +20,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   }
 
+  // Parse vocab early so Whisper can use it as a hint for better recognition
+  const vocab: string[] = (() => {
+    try { return allowedVocabRaw ? JSON.parse(allowedVocabRaw) : [] }
+    catch { return [] }
+  })()
+
   // Transcribe audio or use panic text
   let transcript = panicText?.trim() ?? null
   if (audio && !transcript) {
@@ -29,6 +35,8 @@ export async function POST(request: Request) {
         model: 'whisper-1',
         file: audioFile,
         language: 'en',
+        // Hint Whisper about expected words — improves recognition of accented speech
+        prompt: vocab.length > 0 ? `The student will say one of: ${vocab.join(', ')}.` : undefined,
       })
       transcript = transcription.text
     } catch {
@@ -60,10 +68,6 @@ Respond ONLY with valid JSON (no markdown):
   }
 
   // type === 'conversation'
-  const vocab: string[] = (() => {
-    try { return allowedVocabRaw ? JSON.parse(allowedVocabRaw) : [] }
-    catch { return [] }
-  })()
   const history: Array<{ role: string; content: string }> = (() => {
     try { return historyRaw ? JSON.parse(historyRaw) : [] }
     catch { return [] }
@@ -74,17 +78,31 @@ Respond ONLY with valid JSON (no markdown):
     .map(m => m.content)
     .join(' ')
 
-  const system = `You are Mrs. Carol, teaching English to an A1 learner.
-VOCABULARY LIST: ${vocab.join(', ')}.
+  const lastQuestion = history.filter(m => m.role === 'assistant').pop()?.content ?? target
 
-Your response MUST always have two parts:
-1. Brief feedback on the student's answer (1 short sentence, encouraging).
-2. A new question asking about a DIFFERENT word from the vocabulary list — pick one that has NOT appeared yet in the conversation. Use a fun emoji or object to illustrate it (e.g. "What color is this? 🔵").
+  const system = `You are Mrs. Carol, an English teacher for Brazilian A1 learners.
+VOCABULARY: ${vocab.join(', ')}.
 
-NEVER end your reply with only feedback. ALWAYS ask the next question immediately after.
-Already discussed in this session: "${askedWords}" — avoid repeating those words.
+Your last question to the student was: "${lastQuestion}"
+The student answered: "${transcript}"
 
-Respond ONLY with valid JSON: {"reply":"<feedback + new question>","reply_pt":"<Portuguese translation of reply>","feedback_pt":"<encouragement in Portuguese>"}`
+STEP 1 — Decide if the answer is CORRECT:
+Check if the student said the word you last asked about. BE VERY LENIENT with Brazilian accent:
+- Accept approximate sounds: "reed/rad" → Red ✅, "orinj/orenj/oranch/orangi" → Orange ✅, "bloo/blew/blu" → Blue ✅, "greem/grin/grien" → Green ✅, "yellou/ielow" → Yellow ✅, "blak/black" → Black ✅, "wayt/wyte/whyte" → White ✅, "porpul/purpul/purpl" → Purple ✅
+- Mark INCORRECT only if: student said a completely different word, said nothing useful, or was totally unintelligible
+
+STEP 2 — Write your reply:
+IF CORRECT → "correct": true:
+  Short praise + immediately ask about a DIFFERENT word not yet discussed.
+  Words already discussed: "${askedWords || 'none'}"
+  Example: "Great! Red! ✅ Now, what color is this? 🔵"
+
+IF INCORRECT → "correct": false:
+  Say the right word clearly, then repeat the EXACT SAME question with the same emoji. Do NOT move to a new word.
+  Example: "Almost! The word is 'orange' 🟠. Try again — what color is this? 🟠"
+
+Respond ONLY with valid JSON where "correct" is a boolean (true or false):
+{"reply":"...","reply_pt":"...","feedback_pt":"...","correct":true}`
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',

@@ -8,6 +8,7 @@ interface Message {
   role: 'teacher' | 'student'
   text: string
   text_pt?: string
+  correct?: boolean
 }
 
 interface GuidedConvoStepProps {
@@ -75,11 +76,12 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       const res = await fetch('/api/lesson/assess', { method: 'POST', body: fd })
       const data = await res.json()
 
-      const studentMsg: Message = { role: 'student', text: data.transcript ?? '...' }
+      const studentMsg: Message = { role: 'student', text: data.transcript ?? '...', correct: data.correct }
       const teacherMsg: Message = { role: 'teacher', text: data.reply ?? '', text_pt: data.reply_pt }
 
       setMessages(prev => [...prev, studentMsg, teacherMsg])
-      setExchangeCount(c => c + 1)
+      // Only count the exchange when the student got it right
+      if (data.correct !== false) setExchangeCount(c => c + 1)
       setIsAssessing(false)
       if (data.reply) await playTts(data.reply)
     } catch {
@@ -112,7 +114,9 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
             )}
             <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${
               msg.role === 'student'
-                ? 'bg-brand-interactive text-content-dark rounded-br-sm'
+                ? msg.correct === false
+                  ? 'bg-red-500/80 text-white rounded-br-sm'
+                  : 'bg-brand-interactive text-content-dark rounded-br-sm'
                 : 'bg-surface-light-card dark:bg-surface-dark-card text-content-light dark:text-content-dark rounded-bl-sm'
             }`}>
               <p>{msg.text}</p>
