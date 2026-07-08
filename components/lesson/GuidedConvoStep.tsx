@@ -24,6 +24,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isAssessing, setIsAssessing] = useState(false)
   const [exchangeCount, setExchangeCount] = useState(0)
+  const [assessError, setAssessError] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -60,8 +61,18 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const handleReplay = (text: string) => {
+    if (isSpeaking) {
+      audioRef.current?.pause()
+      setIsSpeaking(false)
+      return
+    }
+    playTts(text)
+  }
+
   const handleAssessment = async (blob: Blob) => {
     setIsAssessing(true)
+    setAssessError(null)
     try {
       const history = messages.map(m => ({
         role: m.role === 'teacher' ? 'assistant' : 'user',
@@ -73,10 +84,24 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       fd.append('audio', blob, 'recording.webm')
       fd.append('allowed_vocab', JSON.stringify(step.allowed_vocabulary))
       fd.append('history', JSON.stringify(history))
+
       const res = await fetch('/api/lesson/assess', { method: 'POST', body: fd })
+
+      // API error (e.g. empty audio / transcription failed)
+      if (!res.ok) {
+        setAssessError('Não entendi. Fale mais devagar e tente novamente. 🎙️')
+        return
+      }
+
       const data = await res.json()
 
-      const studentMsg: Message = { role: 'student', text: data.transcript ?? '...', correct: data.correct }
+      // Whisper returned blank — student didn't speak or audio was too quiet
+      if (!data.transcript?.trim()) {
+        setAssessError('Não detectei sua voz. Fale mais alto e tente novamente. 🎙️')
+        return
+      }
+
+      const studentMsg: Message = { role: 'student', text: data.transcript, correct: data.correct }
       const teacherMsg: Message = { role: 'teacher', text: data.reply ?? '', text_pt: data.reply_pt }
 
       setMessages(prev => [...prev, studentMsg, teacherMsg])
@@ -85,20 +110,25 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       setIsAssessing(false)
       if (data.reply) await playTts(data.reply)
     } catch {
-      // assessment failure is non-blocking
+      setAssessError('Erro ao processar. Tente novamente.')
     } finally {
       setIsAssessing(false)
     }
   }
 
-  const { isRecording, startRecording, stopRecording, error } = useAudioRecorder({ onComplete: handleAssessment })
+  const { isRecording, startRecording, stopRecording, error: recorderError } = useAudioRecorder({ onComplete: handleAssessment })
 
   const handleMic = () => {
-    if (isRecording) stopRecording()
-    else startRecording()
+    if (isRecording) {
+      stopRecording()
+    } else {
+      setAssessError(null)
+      startRecording()
+    }
   }
 
   const canComplete = exchangeCount >= step.min_exchanges
+  const displayError = assessError ?? recorderError
 
   return (
     <div className="flex flex-col h-full">
@@ -123,6 +153,16 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
               {msg.text_pt && (
                 <p className="text-xs opacity-60 mt-1 italic">{msg.text_pt}</p>
               )}
+              {msg.role === 'teacher' && msg.text && (
+                <button
+                  onClick={() => handleReplay(msg.text)}
+                  disabled={isAssessing || isRecording}
+                  className="mt-2 text-xs opacity-50 hover:opacity-100 transition-opacity disabled:opacity-20"
+                  aria-label="Ouvir novamente"
+                >
+                  🔊 ouvir
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -130,7 +170,9 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
       </div>
 
       <div className="flex flex-col items-center gap-3 px-4 py-4 border-t border-surface-light-card dark:border-surface-dark-card">
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {displayError && (
+          <p className="text-xs text-red-400 text-center">{displayError}</p>
+        )}
         <button
           onClick={handleMic}
           disabled={isAssessing || isSpeaking}
