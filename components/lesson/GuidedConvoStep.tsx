@@ -78,6 +78,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
 
       setMessages(prev => [...prev, studentMsg, teacherMsg])
       setExchangeCount(c => c + 1)
+      setIsAssessing(false)
       if (data.reply) await playTts(data.reply)
     } catch {
       // assessment failure is non-blocking

@@ -3,8 +3,6 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import OpenAI from 'openai'
 import type { PlacementPhase } from '@/types'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
 const SCORING_PROMPT: Record<PlacementPhase, string> = {
   listening: `You are scoring English listening comprehension for a placement test.
 The student was asked: "{prompt_tts}"
@@ -43,6 +41,7 @@ Respond ONLY with JSON: {"score":0.5,"feedback_pt":"one encouraging sentence in 
 }
 
 export async function POST(request: Request) {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

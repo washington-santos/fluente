@@ -309,40 +309,41 @@ For prompt_hint: if the student might not know how to start responding, provide 
   ])
   if (userInsertError) console.error('User message insert failed:', userInsertError.message)
 
-  // Fix 1+2: TTS with graceful fallback — if TTS throws we still insert the assistant message
+  // Run TTS and D-ID in parallel to reduce response latency
+  const supabaseAdmin = createSupabaseAdmin()
+  const didOrigin = process.env.EF_PUBLIC_ORIGIN
+
+  const [ttsSettled, didSettled] = await Promise.allSettled([
+    synthesizeTts(replyText, teacher.tts_voice ?? 'alloy').then(async ({ dataUrl, buffer }) => {
+      const storagePath = `${user.id}/${sessionId}/${crypto.randomUUID()}.mp3`
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from('audio-replay')
+        .upload(storagePath, buffer, { contentType: 'audio/mpeg', upsert: false })
+      const stored = uploadError
+        ? null
+        : supabaseAdmin.storage.from('audio-replay').getPublicUrl(storagePath).data.publicUrl
+      if (uploadError) console.error('Audio upload failed:', uploadError.message)
+      return { audioUrl: dataUrl, storedAudioUrl: stored }
+    }),
+    didOrigin
+      ? createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', `${didOrigin}${teacher.avatar_image_url}`)
+      : Promise.resolve(null),
+  ])
+
   let audioUrl: string | null = null
   let storedAudioUrl: string | null = null
-  try {
-    const { dataUrl, buffer } = await synthesizeTts(replyText, teacher.tts_voice ?? 'alloy')
-    audioUrl = dataUrl
-
-    // Upload to Storage for replay — use admin client to bypass RLS
-    const supabaseAdmin = createSupabaseAdmin()
-    const storagePath = `${user.id}/${sessionId}/${crypto.randomUUID()}.mp3`
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('audio-replay')
-      .upload(storagePath, buffer, { contentType: 'audio/mpeg', upsert: false })
-
-    if (!uploadError) {
-      storedAudioUrl = supabaseAdmin.storage
-        .from('audio-replay')
-        .getPublicUrl(storagePath).data.publicUrl
-    } else {
-      console.error('Audio upload failed:', uploadError.message)
-    }
-  } catch (err) {
-    console.error('TTS/storage failed, continuing without audio:', err)
+  if (ttsSettled.status === 'fulfilled') {
+    audioUrl = ttsSettled.value.audioUrl
+    storedAudioUrl = ttsSettled.value.storedAudioUrl
+  } else {
+    console.error('TTS/storage failed, continuing without audio:', ttsSettled.reason)
   }
 
-  // Fix 1+2: D-ID with graceful fallback
   let videoUrl: string | null = null
-  try {
-    const origin = process.env.EF_PUBLIC_ORIGIN
-    if (origin) {
-      videoUrl = await createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', `${origin}${teacher.avatar_image_url}`)
-    }
-  } catch (err) {
-    console.error('D-ID failed, continuing without video:', err)
+  if (didSettled.status === 'fulfilled') {
+    videoUrl = didSettled.value
+  } else {
+    console.error('D-ID failed, continuing without video:', didSettled.reason)
   }
 
   // Always insert ASSISTANT message; store the Supabase Storage URL (or null if upload failed)
