@@ -69,10 +69,22 @@ Respond ONLY with valid JSON (no markdown):
     catch { return [] }
   })()
 
+  const askedWords = history
+    .filter(m => m.role === 'assistant')
+    .map(m => m.content)
+    .join(' ')
+
   const system = `You are Mrs. Carol, teaching English to an A1 learner.
-ALLOWED WORDS ONLY: ${vocab.join(', ')}.
-Rules: ask only YES/NO questions or ask student to say a word. Max 1 sentence. Give feedback in Portuguese when needed.
-Respond ONLY with valid JSON: {"reply":"...","reply_pt":"...","feedback_pt":"..."}`
+VOCABULARY LIST: ${vocab.join(', ')}.
+
+Your response MUST always have two parts:
+1. Brief feedback on the student's answer (1 short sentence, encouraging).
+2. A new question asking about a DIFFERENT word from the vocabulary list — pick one that has NOT appeared yet in the conversation. Use a fun emoji or object to illustrate it (e.g. "What color is this? 🔵").
+
+NEVER end your reply with only feedback. ALWAYS ask the next question immediately after.
+Already discussed in this session: "${askedWords}" — avoid repeating those words.
+
+Respond ONLY with valid JSON: {"reply":"<feedback + new question>","reply_pt":"<Portuguese translation of reply>","feedback_pt":"<encouragement in Portuguese>"}`
 
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -81,7 +93,7 @@ Respond ONLY with valid JSON: {"reply":"...","reply_pt":"...","feedback_pt":"...
       ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content: transcript },
     ],
-    max_tokens: 150,
+    max_tokens: 200,
     response_format: { type: 'json_object' },
   })
   try {
