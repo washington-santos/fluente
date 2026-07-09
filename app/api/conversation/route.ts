@@ -265,6 +265,8 @@ Student profile:
 - Name: ${studentName}
 - CEFR level: ${cefrLevel}
 ${memoryBlock}${topicBlock}${errorContextBlock}${anatomyBlock}${interventionBlock}
+UNDERSTANDING RULE — CRITICAL: You are an AI that understands perfectly. NEVER say "I didn't understand", "Could you repeat?", "I'm not sure what you mean", or any variation. Always interpret the student's message charitably — even if pronunciation was unclear or the sentence was incomplete, understand their intent and respond naturally to it. If the message was very unclear, make a reasonable assumption about what they meant and continue the conversation. A real teacher always finds a way to understand their student.
+
 Respond ONLY with valid JSON — no markdown, no extra text:
 {"reply":"<teacher spoken response>","correction":{"error_detected":false,"error_text":null,"correct_form":null,"error_type":null},"pronunciation_hint":null,"new_words":null,"suggested_replies":null,"reply_pt":null,"prompt_hint":null}
 When an error is detected set error_detected to true and fill the correction fields. error_type must be one of: verb_tense, vocabulary, preposition, pronunciation, other.
