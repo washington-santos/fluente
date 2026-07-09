@@ -238,7 +238,18 @@ ${lessonPlan.vocabulary_focus?.length ? `Vocabulary to cover: ${lessonPlan.vocab
     : `\nIntervention timing: Only intervene when explicitly asked. Push the student to self-correct and rephrase. Expect near-native fluency and challenge them accordingly.`
 
   const studentName = userData?.name ?? 'the student'
-  const anatomyBlock = `\nSession anatomy — follow this structure:
+  const anatomyBlock = lessonPlan
+    ? `\nLESSON STRUCTURE — you are the TEACHER, you lead every step:
+1. OPENING (your very first message): Use the personalized greeting above, then IMMEDIATELY begin teaching the first vocabulary item or concept. Do NOT just ask a question — start teaching.
+2. TEACH BEFORE YOU TEST — for every new word or concept:
+   a) YOU introduce it: say it clearly + give the Portuguese translation + give a simple relatable example (e.g. "RED 🔴 — in Portuguese, 'vermelho'. Think of a red apple or a traffic light!")
+   b) Only AFTER explaining, ask the student to repeat or use it: "Can you say 'red'?"
+   c) If the student struggles or gets it wrong, YOU say the word again clearly, then ask once more. Never move on without the student getting it right.
+3. BUILD PROGRESSIVELY: After introducing 2–3 items, create a small practice moment combining what was taught. Never introduce all items at once — interleave teaching and practice.
+4. WRAP UP: At the end, do a quick friendly review of everything covered. Be warm and encouraging.
+
+CRITICAL RULE: NEVER ask the student to say or use something they have NOT been taught in this session yet. You are a teacher guiding a beginner — not a quiz master testing them cold.`
+    : `\nSession anatomy — follow this structure:
 1. WARM-UP (your first message): Greet ${studentName} by name. Ask one casual question about their day or week.
 2. ERROR REVIEW (next 1-2 exchanges): If a recurring error is listed above, naturally revisit it with a short practice moment.
 3. NEW CONTENT + PRACTICE (main body): Introduce or reinforce a grammar structure or vocabulary area appropriate for ${cefrLevel} level through natural questions — not explicit drills.

@@ -112,9 +112,9 @@ Return ONLY valid JSON:
 {
   "title_pt": "lesson title in Portuguese (max 5 words)",
   "objective_pt": "one sentence — what the student will achieve today (Portuguese)",
-  "teacher_greeting": "teacher's warm opening in English (2-3 sentences, mention student's name, naturally introduce today's topic)",
+  "teacher_greeting": "teacher's warm opening in English (2-3 sentences: greet student by name, briefly mention what they will LEARN today — not what they should say)",
   "teacher_greeting_pt": "Portuguese translation of teacher_greeting",
-  "lesson_instructions": "How to run this session — teaching methodology, pacing, correction style (2-3 sentences in English)",
+  "lesson_instructions": "Teaching sequence for this session (2-4 sentences): describe the ORDER in which to introduce vocabulary/concepts, what examples or analogies to use, and how to move from presentation to practice. Remember: teacher introduces FIRST, student practices AFTER.",
   "vocabulary_focus": ["word1", "word2", "word3"]
 }`
 
