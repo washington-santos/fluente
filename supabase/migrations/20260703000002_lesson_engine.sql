@@ -1,5 +1,5 @@
 -- Lesson catalog (slugs match JSON files in content/curriculum/)
-CREATE TABLE lessons (
+CREATE TABLE IF NOT EXISTS lessons (
   slug text PRIMARY KEY,
   cefr_level text NOT NULL CHECK (cefr_level IN ('A1','A2','B1','B2','C1','C2')),
   order_index integer NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE lessons (
 );
 
 -- Per-user lesson progress
-CREATE TABLE user_lesson_progress (
+CREATE TABLE IF NOT EXISTS user_lesson_progress (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   lesson_slug text NOT NULL REFERENCES lessons(slug),
@@ -28,7 +28,7 @@ CREATE TABLE user_lesson_progress (
 );
 
 -- Word-level mastery
-CREATE TABLE user_word_mastery (
+CREATE TABLE IF NOT EXISTS user_word_mastery (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   word text NOT NULL,

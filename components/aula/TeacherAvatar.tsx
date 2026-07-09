@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export type AvatarStatus = 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -95,10 +96,11 @@ export function TeacherAvatar({ name, imageUrl, videoUrl, isSpeaking, status = '
               className="w-full h-full object-cover"
             />
           ) : (
-            <img
+            <Image
               src={imageUrl}
               alt={name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           )}
         </motion.div>

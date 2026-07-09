@@ -13,6 +13,11 @@ export async function POST(request: Request) {
 
   if (!text) return NextResponse.json({ error: 'text required' }, { status: 400 })
 
-  const { dataUrl } = await synthesizeTts(text, voice)
-  return NextResponse.json({ audio_url: dataUrl })
+  try {
+    const { dataUrl } = await synthesizeTts(text, voice)
+    return NextResponse.json({ audio_url: dataUrl })
+  } catch (err) {
+    console.error('TTS error:', err)
+    return NextResponse.json({ error: 'TTS failed' }, { status: 502 })
+  }
 }

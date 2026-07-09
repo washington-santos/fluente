@@ -59,8 +59,17 @@ export function useSession(teacherId: string): UseSessionReturn {
           if (!mounted) return
           setSessionId(session.id)
           setTopic((session.topic as string | null) ?? null)
+          interface RawDbMessage {
+            role: string
+            text: string
+            audio_url: string | null
+            had_correction: boolean
+            pronunciation_hint: string | null
+            suggested_replies: string[] | null
+            reply_pt: string | null
+          }
           setMessages(
-            (session.messages ?? []).map((m: any) => ({
+            (session.messages ?? []).map((m: RawDbMessage) => ({
               role: m.role,
               text: m.text,
               audio_url: m.audio_url,

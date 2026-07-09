@@ -26,7 +26,7 @@ export async function getStudentContext(userId: string, supabase: SupabaseClient
   ] = await Promise.all([
     supabase.from('users').select('name, cefr_level, personal_context, streak_days').eq('id', userId).single(),
     supabase.from('learning_plans').select('goal, focus_areas').eq('user_id', userId).maybeSingle(),
-    supabase.from('user_topic_progress').select('topic_id, mastery_score, taught_count').eq('user_id', userId),
+    supabase.from('user_topic_progress').select('topic_id, mastery_status, taught_count').eq('user_id', userId),
     supabase.from('session_memory').select('summary').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('errors_log').select('error_text').eq('user_id', userId).is('resolved_at', null).order('seen_count', { ascending: false }).limit(3),
     supabase.from('placement_results').select('biggest_difficulty').eq('user_id', userId).maybeSingle(),
@@ -37,7 +37,8 @@ export async function getStudentContext(userId: string, supabase: SupabaseClient
     .map((r: { topic_id: string }) => r.topic_id)
 
   const topicsNeedingReview = (topicRows ?? [])
-    .filter((r: { mastery_score: number; taught_count: number }) => r.mastery_score < 0.5 && r.taught_count >= 1)
+    .filter((r: { mastery_status: string | null; taught_count: number }) =>
+      r.mastery_status === 'needs_reinforcement' || (r.mastery_status === 'learning' && r.taught_count >= 1))
     .map((r: { topic_id: string }) => r.topic_id)
 
   return {

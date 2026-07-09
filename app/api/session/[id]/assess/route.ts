@@ -139,7 +139,7 @@ Respond ONLY valid JSON:
   const currentMethodology = lastMethodology ?? 'conversation'
   const newLastMethodology = passed ? 'conversation' : nextMethodology(lastMethodology)
 
-  await Promise.all([
+  const [{ error: assessErr }, { error: progressErr }] = await Promise.all([
     supabase.from('topic_assessments').insert({
       user_id: user.id,
       session_id: sessionId,
@@ -169,6 +169,8 @@ Respond ONLY valid JSON:
       last_taught_at: new Date().toISOString(),
     }, { onConflict: 'user_id,topic_id' }),
   ])
+  if (assessErr) console.error('topic_assessments insert failed:', assessErr.message)
+  if (progressErr) console.error('user_topic_progress upsert failed:', progressErr.message)
 
   return NextResponse.json({
     scores,

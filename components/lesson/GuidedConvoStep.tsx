@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import type { GuidedConvoStep as StepType } from '@/types/lesson'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
@@ -189,7 +190,7 @@ export function GuidedConvoStep({ step, teacherName, teacherImageUrl, ttsVoice, 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'student' ? 'justify-end' : 'justify-start gap-2 items-end'}`}>
             {msg.role === 'teacher' && (
-              <img src={teacherImageUrl} alt={teacherName} className="w-8 h-8 rounded-full flex-shrink-0" />
+              <Image src={teacherImageUrl} alt={teacherName} width={32} height={32} className="rounded-full flex-shrink-0" />
             )}
             <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${
               msg.role === 'student'

@@ -70,9 +70,10 @@ export async function POST(
   // 2 — Update streak if the session had actual practice time (duration set by /end PATCH
   // before finalize fires). Using duration_seconds avoids the race where finalize runs
   // before the conversation route has committed the last messages INSERT.
+  // Use Brazil local date (UTC-3) so evening sessions don't roll to the next UTC day
+  const brazilOffset = -3 * 60 * 60 * 1000
+
   if ((session.duration_seconds ?? 0) > 0) {
-    // Use Brazil local date (UTC-3) so evening sessions don't roll to the next UTC day
-    const brazilOffset = -3 * 60 * 60 * 1000
     const nowBrazil = new Date(Date.now() + brazilOffset)
     const yesterdayBrazil = new Date(Date.now() + brazilOffset - 86_400_000)
     const today = nowBrazil.toISOString().slice(0, 10)
@@ -99,7 +100,6 @@ export async function POST(
 
   // 3 — Mark daily mission complete if user sent enough turns
   const userMsgCount = msgs.filter((m) => m.role === 'user').length
-  const brazilOffset = -3 * 60 * 60 * 1000
   const todayBrazil = new Date(Date.now() + brazilOffset).toISOString().slice(0, 10)
   const mission = getMissionForDate(userData?.cefr_level, todayBrazil)
 

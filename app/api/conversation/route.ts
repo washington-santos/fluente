@@ -102,7 +102,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
       }
 
-      const demoStartDate = demo.demo_started_at!.slice(0, 10)
+      const demoStartDate = (demo.demo_started_at ?? new Date().toISOString()).slice(0, 10)
       const { data: demoUsageRows, error: demoUsageError } = await supabase
         .from('usage_log')
         .select('whisper_minutes')
