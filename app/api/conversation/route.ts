@@ -31,98 +31,102 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // ── Quota check ─────────────────────────────────────────────────────────
-  const nowBR = new Date(Date.now() - 3 * 60 * 60 * 1000)
-  const firstOfMonth = `${nowBR.getUTCFullYear()}-${String(nowBR.getUTCMonth() + 1).padStart(2, '0')}-01`
-
-  const [{ data: subData, error: quotaSubError }, { data: demoUserData, error: quotaDemoError }] = await Promise.all([
-    supabase
-      .from('subscriptions')
-      .select('plans!inner(minutes_per_month)')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle(),
-    supabase
-      .from('users')
-      .select('demo_status, demo_started_at, demo_expires_at')
-      .eq('id', user.id)
-      .single(),
-  ])
-
-  if (quotaSubError || quotaDemoError) {
-    console.error('Quota check DB error', quotaSubError ?? quotaDemoError)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-
-  // ── VIP bypass ──────────────────────────────────────────────────────────
+  // VIP check first — avoids unnecessary DB queries for VIP users
   const vipUser = await isUserVip(user.email ?? '')
+
   if (!vipUser) {
-  // ── End VIP bypass (existing quota logic becomes the else body) ─────────
+    const nowBR = new Date(Date.now() - 3 * 60 * 60 * 1000)
+    const firstOfMonth = `${nowBR.getUTCFullYear()}-${String(nowBR.getUTCMonth() + 1).padStart(2, '0')}-01`
 
-  if (subData) {
-    // ── Active subscription path ─────────────────────────────────────────
-    const minutesLimit = (subData.plans as unknown as { minutes_per_month: number }).minutes_per_month
-    const { data: usageRows, error: usageError } = await supabase
-      .from('usage_log')
-      .select('whisper_minutes')
-      .eq('user_id', user.id)
-      .gte('date', firstOfMonth)
+    const [{ data: subData, error: quotaSubError }, { data: demoUserData, error: quotaDemoError }] = await Promise.all([
+      supabase
+        .from('subscriptions')
+        .select('plans!inner(minutes_per_month)')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle(),
+      supabase
+        .from('users')
+        .select('demo_status, demo_started_at, demo_expires_at')
+        .eq('id', user.id)
+        .single(),
+    ])
 
-    if (usageError) {
-      console.error('Quota usage DB error', usageError)
+    // '42703' = column does not exist — demo columns not yet migrated, treat as no demo
+    const demoColumnsMissing = quotaDemoError?.code === '42703'
+
+    if (quotaSubError || (quotaDemoError && !demoColumnsMissing)) {
+      console.error('Quota check DB error', quotaSubError ?? quotaDemoError)
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
-    const minutesUsed: number = (usageRows ?? []).reduce(
-      (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
-      0,
-    )
-    if (minutesUsed >= minutesLimit) {
-      return NextResponse.json({ error: 'quota_exceeded', minutesUsed, minutesLimit }, { status: 429 })
-    }
-  } else {
-    // ── Demo path ────────────────────────────────────────────────────────
-    const demo = demoUserData
+    if (subData) {
+      // ── Active subscription path ───────────────────────────────────────
+      const minutesLimit = (subData.plans as unknown as { minutes_per_month: number }).minutes_per_month
+      const { data: usageRows, error: usageError } = await supabase
+        .from('usage_log')
+        .select('whisper_minutes')
+        .eq('user_id', user.id)
+        .gte('date', firstOfMonth)
 
-    if (!demo?.demo_status) {
-      return NextResponse.json({ error: 'demo_required', minutesUsed: 0, minutesLimit: 30 }, { status: 403 })
-    }
-    if (demo.demo_status === 'expired') {
-      return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
-    }
-    if (demo.demo_status === 'exhausted') {
-      return NextResponse.json({ error: 'demo_exhausted', minutesUsed: 30, minutesLimit: 30 }, { status: 429 })
-    }
-    // Check time expiry even if status is still 'active'
-    if (demo.demo_expires_at && new Date(demo.demo_expires_at) <= new Date()) {
-      await supabase.from('users').update({ demo_status: 'expired' }).eq('id', user.id)
-      return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
-    }
+      if (usageError) {
+        console.error('Quota usage DB error', usageError)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      }
 
-    const demoStartDate = demo.demo_started_at!.slice(0, 10)
-    const { data: demoUsageRows, error: demoUsageError } = await supabase
-      .from('usage_log')
-      .select('whisper_minutes')
-      .eq('user_id', user.id)
-      .gte('date', demoStartDate)
-
-    if (demoUsageError) {
-      console.error('Demo quota usage DB error', demoUsageError)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-    }
-
-    const DEMO_MINUTES_LIMIT = 30
-    const minutesUsed: number = (demoUsageRows ?? []).reduce(
-      (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
-      0,
-    )
-    if (minutesUsed >= DEMO_MINUTES_LIMIT) {
-      await supabase.from('users').update({ demo_status: 'exhausted' }).eq('id', user.id)
-      return NextResponse.json(
-        { error: 'demo_exhausted', minutesUsed, minutesLimit: DEMO_MINUTES_LIMIT },
-        { status: 429 },
+      const minutesUsed: number = (usageRows ?? []).reduce(
+        (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
+        0,
       )
+      if (minutesUsed >= minutesLimit) {
+        return NextResponse.json({ error: 'quota_exceeded', minutesUsed, minutesLimit }, { status: 429 })
+      }
+    } else if (demoColumnsMissing) {
+      // Demo columns not yet in DB — block until migration is applied
+      return NextResponse.json({ error: 'demo_required', minutesUsed: 0, minutesLimit: 30 }, { status: 403 })
+    } else {
+      // ── Demo path ──────────────────────────────────────────────────────
+      const demo = demoUserData
+
+      if (!demo?.demo_status) {
+        return NextResponse.json({ error: 'demo_required', minutesUsed: 0, minutesLimit: 30 }, { status: 403 })
+      }
+      if (demo.demo_status === 'expired') {
+        return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
+      }
+      if (demo.demo_status === 'exhausted') {
+        return NextResponse.json({ error: 'demo_exhausted', minutesUsed: 30, minutesLimit: 30 }, { status: 429 })
+      }
+      if (demo.demo_expires_at && new Date(demo.demo_expires_at) <= new Date()) {
+        await supabase.from('users').update({ demo_status: 'expired' }).eq('id', user.id)
+        return NextResponse.json({ error: 'demo_expired', minutesUsed: 0, minutesLimit: 30 }, { status: 429 })
+      }
+
+      const demoStartDate = demo.demo_started_at!.slice(0, 10)
+      const { data: demoUsageRows, error: demoUsageError } = await supabase
+        .from('usage_log')
+        .select('whisper_minutes')
+        .eq('user_id', user.id)
+        .gte('date', demoStartDate)
+
+      if (demoUsageError) {
+        console.error('Demo quota usage DB error', demoUsageError)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      }
+
+      const DEMO_MINUTES_LIMIT = 30
+      const minutesUsed: number = (demoUsageRows ?? []).reduce(
+        (sum: number, r: { whisper_minutes: number }) => sum + (r.whisper_minutes ?? 0),
+        0,
+      )
+      if (minutesUsed >= DEMO_MINUTES_LIMIT) {
+        await supabase.from('users').update({ demo_status: 'exhausted' }).eq('id', user.id)
+        return NextResponse.json(
+          { error: 'demo_exhausted', minutesUsed, minutesLimit: DEMO_MINUTES_LIMIT },
+          { status: 429 },
+        )
+      }
     }
-  }
   } // end if (!vipUser) — VIP users skip quota enforcement
   // ── End quota check ──────────────────────────────────────────────────────
 
