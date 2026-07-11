@@ -37,16 +37,19 @@ export async function GET(request: Request, { params }: { params: { talkId: stri
   const result = await pollDidTalk(talkId)
 
   if (result.status === 'done') {
-    await supabase.from('messages').update({ video_status: 'ready', video_url: result.resultUrl }).eq('id', message.id)
+    const { error: readyUpdateError } = await supabase.from('messages').update({ video_status: 'ready', video_url: result.resultUrl }).eq('id', message.id)
+    if (readyUpdateError) console.error('Message video ready-update failed:', readyUpdateError.message)
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    await supabase.rpc('increment_usage_log', {
+    const { error: usageError } = await supabase.rpc('increment_usage_log', {
       p_user_id: user.id, p_date: today, p_whisper_minutes: 0, p_tts_chars: 0, p_claude_tokens: 0, p_did_credits: 1,
     })
+    if (usageError) console.error('D-ID usage log increment failed:', usageError.message)
     const response: AvatarPollResponse = { status: 'ready', video_url: result.resultUrl }
     return NextResponse.json(response)
   }
   if (result.status === 'error') {
-    await supabase.from('messages').update({ video_status: 'failed' }).eq('id', message.id)
+    const { error } = await supabase.from('messages').update({ video_status: 'failed' }).eq('id', message.id)
+    if (error) console.error('Message video_status failed-update failed:', error.message)
     const response: AvatarPollResponse = { status: 'failed', video_url: null }
     return NextResponse.json(response)
   }

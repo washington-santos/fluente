@@ -30,7 +30,8 @@ export async function POST(request: Request) {
 
   const didOrigin = process.env.EF_PUBLIC_ORIGIN
   if (!didOrigin) {
-    await supabase.from('messages').update({ video_status: 'skipped' }).eq('id', messageId)
+    const { error } = await supabase.from('messages').update({ video_status: 'skipped' }).eq('id', messageId)
+    if (error) console.error('Message video_status skipped-update failed:', error.message)
     const response: AvatarCreateResponse = { talk_id: null, video_status: 'skipped' }
     return NextResponse.json(response)
   }
@@ -43,12 +44,14 @@ export async function POST(request: Request) {
   )
 
   if (!talkId) {
-    await supabase.from('messages').update({ video_status: 'failed' }).eq('id', messageId)
+    const { error } = await supabase.from('messages').update({ video_status: 'failed' }).eq('id', messageId)
+    if (error) console.error('Message video_status failed-update failed:', error.message)
     const response: AvatarCreateResponse = { talk_id: null, video_status: 'failed' }
     return NextResponse.json(response)
   }
 
-  await supabase.from('messages').update({ did_talk_id: talkId, video_status: 'pending' }).eq('id', messageId)
+  const { error } = await supabase.from('messages').update({ did_talk_id: talkId, video_status: 'pending' }).eq('id', messageId)
+  if (error) console.error('Message video_status pending-update failed:', error.message)
   const response: AvatarCreateResponse = { talk_id: talkId, video_status: 'pending' }
   return NextResponse.json(response)
 }
