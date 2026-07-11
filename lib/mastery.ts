@@ -96,3 +96,23 @@ export function getMasteryLabel(status: string | null): { emoji: string; label: 
     default:          return { emoji: '⚪', label: 'Não iniciado',       color: 'text-content-light-secondary' }
   }
 }
+
+export interface PronunciationTrend {
+  currentScore: number
+  trend: 'up' | 'down' | 'flat' | null
+}
+
+export function getPronunciationTrend(scores: number[]): PronunciationTrend | null {
+  if (scores.length === 0) return null
+
+  const recent = scores.slice(0, 5)
+  const currentScore = Math.round(recent.reduce((a, b) => a + b, 0) / recent.length)
+
+  const previous = scores.slice(5, 10)
+  if (previous.length < 5) return { currentScore, trend: null }
+
+  const previousScore = Math.round(previous.reduce((a, b) => a + b, 0) / previous.length)
+  const delta = currentScore - previousScore
+  const trend: 'up' | 'down' | 'flat' = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
+  return { currentScore, trend }
+}
