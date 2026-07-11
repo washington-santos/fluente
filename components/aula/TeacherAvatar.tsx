@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -24,6 +25,31 @@ const STATUS_LABEL: Record<AvatarStatus, string> = {
 const BAR_HEIGHTS = [0.4, 0.7, 1, 0.7, 0.4]
 
 export function TeacherAvatar({ name, imageUrl, videoUrl, isSpeaking, status = 'idle', compact = false }: TeacherAvatarProps) {
+  const [videoFailed, setVideoFailed] = useState(false)
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setVideoFailed(false)
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
+    if (videoUrl) {
+      fallbackTimerRef.current = setTimeout(() => setVideoFailed(true), 4000)
+    }
+    return () => {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
+    }
+  }, [videoUrl])
+
+  function handleVideoReady() {
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
+  }
+
+  function handleVideoError() {
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current)
+    setVideoFailed(true)
+  }
+
+  const showVideo = !!videoUrl && !videoFailed
+
   const avatarSize = compact ? 'w-16 h-16' : 'w-28 h-28'
   const containerSize = compact ? 'w-20 h-20' : 'w-32 h-32'
   const derivedStatus: AvatarStatus = isSpeaking ? 'speaking' : status
@@ -87,12 +113,14 @@ export function TeacherAvatar({ name, imageUrl, videoUrl, isSpeaking, status = '
           animate={isSpeaking ? { scale: [1, 1.03, 1] } : { scale: 1 }}
           transition={isSpeaking ? { repeat: Infinity, duration: 1.4, ease: 'easeInOut' } : { duration: 0.3 }}
         >
-          {videoUrl ? (
+          {showVideo ? (
             <video
-              src={videoUrl}
+              src={videoUrl ?? undefined}
               autoPlay
               muted
               playsInline
+              onCanPlay={handleVideoReady}
+              onError={handleVideoError}
               className="w-full h-full object-cover"
             />
           ) : (
