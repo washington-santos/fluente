@@ -92,3 +92,24 @@ describe('MessageBubble — suggestion chips', () => {
     expect(screen.queryByTestId('suggestion-chips')).not.toBeInTheDocument()
   })
 })
+
+describe('MessageBubble — audio status', () => {
+  it('shows a preparing indicator when audioStatus is pending', () => {
+    render(<MessageBubble role="assistant" text="Hi" hadCorrection={false} audioStatus="pending" />)
+    expect(screen.getByText(/preparando áudio/i)).toBeInTheDocument()
+  })
+
+  it('shows a retry affordance when audioStatus is failed', () => {
+    const onRetry = vi.fn()
+    render(<MessageBubble role="assistant" text="Hi" hadCorrection={false} audioStatus="failed" onRetryAudio={onRetry} />)
+    const retryButton = screen.getByText(/áudio indisponível/i)
+    fireEvent.click(retryButton)
+    expect(onRetry).toHaveBeenCalled()
+  })
+
+  it('shows no audio indicator when audioStatus is ready or skipped', () => {
+    render(<MessageBubble role="assistant" text="Hi" hadCorrection={false} audioStatus="ready" />)
+    expect(screen.queryByText(/preparando áudio/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/áudio indisponível/i)).not.toBeInTheDocument()
+  })
+})

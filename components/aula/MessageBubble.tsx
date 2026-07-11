@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mic, Eye, EyeOff } from 'lucide-react'
+import { Mic, Eye, EyeOff, Volume2, VolumeX } from 'lucide-react'
 import type { AudioStatus } from '@/types'
 
 interface MessageBubbleProps {
@@ -12,12 +12,11 @@ interface MessageBubbleProps {
   replyPt?: string | null
   suggestedReplies?: string[] | null
   onChipClick?: (text: string) => void
-  // Handled by Task 11 (loading/failure state on the newest assistant bubble);
-  // declared here only so callers can pass it without a type error.
   audioStatus?: AudioStatus
+  onRetryAudio?: () => void
 }
 
-export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick }: MessageBubbleProps) {
+export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick, audioStatus, onRetryAudio }: MessageBubbleProps) {
   const isUser = role === 'user'
   const [showTranslation, setShowTranslation] = useState(false)
 
@@ -43,6 +42,22 @@ export function MessageBubble({ role, text, hadCorrection, pronunciationHint, re
             <Mic size={12} className="mt-0.5 flex-shrink-0" />
             <span>{pronunciationHint}</span>
           </div>
+        )}
+        {!isUser && audioStatus === 'pending' && (
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-content-light-secondary dark:text-content-dark-secondary animate-pulse" data-testid="audio-pending">
+            <Volume2 size={12} className="flex-shrink-0" />
+            <span>Preparando áudio...</span>
+          </div>
+        )}
+        {!isUser && audioStatus === 'failed' && (
+          <button
+            onClick={onRetryAudio}
+            className="mt-2 flex items-center gap-1.5 text-xs text-content-light-secondary dark:text-content-dark-secondary hover:text-brand-interactive transition-colors"
+            data-testid="audio-failed"
+          >
+            <VolumeX size={12} className="flex-shrink-0" />
+            <span>Áudio indisponível — toque para tentar novamente</span>
+          </button>
         )}
         {!isUser && replyPt && (
           <div className="mt-2">
