@@ -7,6 +7,8 @@ export type ErrorType = 'verb_tense' | 'vocabulary' | 'preposition' | 'pronuncia
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing'
 export type DemoStatus = 'active' | 'expired' | 'exhausted'
 export type TtsProvider = 'openai' | 'elevenlabs'
+export type AudioStatus = 'pending' | 'ready' | 'failed' | 'skipped'
+export type VideoStatus = 'pending' | 'ready' | 'failed' | 'skipped'
 
 // ── Database row types (column names match Supabase schema exactly) ────
 export interface User {
@@ -145,9 +147,12 @@ export interface ErrorReport {
 }
 
 export interface ConversationResponse {
+  message_id: string | null
   text: string
   audio_url: string | null
+  audio_status: AudioStatus
   video_url: string | null
+  video_status: VideoStatus
   had_correction: boolean
   error_report: ErrorReport
   transcript?: string
@@ -156,6 +161,21 @@ export interface ConversationResponse {
   suggested_replies: string[] | null
   reply_pt: string | null
   prompt_hint: string | null
+}
+
+export interface AudioFetchResponse {
+  audio_url: string | null
+  audio_status: AudioStatus
+}
+
+export interface AvatarCreateResponse {
+  talk_id: string | null
+  video_status: VideoStatus
+}
+
+export interface AvatarPollResponse {
+  status: VideoStatus
+  video_url: string | null
 }
 
 export interface McqQuestion {
