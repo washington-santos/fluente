@@ -190,16 +190,21 @@ describe('AulaClient', () => {
       retryAudio: vi.fn(),
     })
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        userMessages: 3,
-        corrections: 1,
-        pronunciationHints: 0,
-        durationSeconds: 120,
-        missionCompleted: false,
-        missionTitle: 'Apresentação completa',
-      }),
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/assess')) {
+        return Promise.resolve({ ok: true, json: async () => ({ too_short: true }) })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          userMessages: 3,
+          corrections: 1,
+          pronunciationHints: 0,
+          durationSeconds: 120,
+          missionCompleted: false,
+          missionTitle: 'Apresentação completa',
+        }),
+      })
     })
 
     render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)

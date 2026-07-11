@@ -38,7 +38,7 @@ describe('SessionReport', () => {
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn()
     render(<SessionReport {...defaultProps} onClose={onClose} />)
-    fireEvent.click(screen.getByRole('button', { name: /ir para o dashboard/i }))
+    fireEvent.click(screen.getByRole('button', { name: /praticar novamente/i }))
     expect(onClose).toHaveBeenCalled()
   })
 })

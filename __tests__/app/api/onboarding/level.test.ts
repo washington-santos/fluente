@@ -19,17 +19,12 @@ vi.mock('openai', () => ({
           create: vi.fn().mockResolvedValue({ text: 'Hello, I work as a software engineer.' }),
         },
       },
-    }
-  }),
-}))
-
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn().mockImplementation(function () {
-    return {
-      messages: {
-        create: vi.fn().mockResolvedValue({
-          content: [{ type: 'text', text: 'B1' }],
-        }),
+      chat: {
+        completions: {
+          create: vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'B1' } }],
+          }),
+        },
       },
     }
   }),

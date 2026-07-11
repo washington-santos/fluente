@@ -5,7 +5,6 @@ vi.mock('@/lib/supabase', () => ({
   createSupabaseClient: vi.fn(() => ({
     auth: {
       signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
-      signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
     },
   })),
 }))
@@ -29,11 +28,6 @@ describe('LoginPage', () => {
   it('renders a password input', () => {
     render(<LoginPage />)
     expect(screen.getByPlaceholderText(/senha/i)).toBeInTheDocument()
-  })
-
-  it('renders the Google OAuth button', () => {
-    render(<LoginPage />)
-    expect(screen.getByText(/entrar com google/i)).toBeInTheDocument()
   })
 
   it('shows validation error when email is empty on submit', async () => {
