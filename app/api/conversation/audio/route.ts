@@ -49,10 +49,11 @@ export async function POST(request: Request) {
     if (uploadError) console.error('Audio upload failed, using inline data URL:', uploadError.message)
     timer.mark('upload')
 
-    await supabase.from('messages').update({ audio_url: audioUrl, audio_status: 'ready' }).eq('id', messageId)
+    const { error: updateError } = await supabase.from('messages').update({ audio_url: audioUrl, audio_status: 'ready' }).eq('id', messageId)
+    if (updateError) console.error('Message audio_url update failed:', updateError.message)
 
     const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    await supabase.rpc('increment_usage_log', {
+    const { error: usageError } = await supabase.rpc('increment_usage_log', {
       p_user_id: user.id,
       p_date: today,
       p_whisper_minutes: 0,
@@ -60,13 +61,15 @@ export async function POST(request: Request) {
       p_claude_tokens: 0,
       p_did_credits: 0,
     })
+    if (usageError) console.error('Usage log increment failed:', usageError.message)
 
     timer.finish({ message_id: messageId })
     const response: AudioFetchResponse = { audio_url: audioUrl, audio_status: 'ready' }
     return NextResponse.json(response)
   } catch (err) {
     console.error('TTS synthesis failed after retries:', err)
-    await supabase.from('messages').update({ audio_status: 'failed' }).eq('id', messageId)
+    const { error: failureUpdateError } = await supabase.from('messages').update({ audio_status: 'failed' }).eq('id', messageId)
+    if (failureUpdateError) console.error('Message audio_status failure update failed:', failureUpdateError.message)
     timer.finish({ message_id: messageId, failed: true })
     const response: AudioFetchResponse = { audio_url: null, audio_status: 'failed' }
     return NextResponse.json(response, { status: 502 })
