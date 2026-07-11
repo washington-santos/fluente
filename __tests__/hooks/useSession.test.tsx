@@ -5,12 +5,18 @@ const pushMock = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: pushMock }) }))
 
 const mockConvResponse = {
+  message_id: 'assistant-msg-1',
   text: 'Hello!',
-  audio_url: 'data:audio/mp3;base64,abc',
+  audio_url: null,
+  audio_status: 'pending',
   video_url: null,
+  video_status: 'skipped',
   had_correction: false,
   error_report: { error_detected: false },
   pronunciation_hint: "Watch your 'th' sound",
+  suggested_replies: null,
+  reply_pt: null,
+  prompt_hint: null,
 }
 
 global.fetch = vi.fn()
@@ -41,46 +47,47 @@ describe('useSession', () => {
   })
 
   it('loads topic from existing session', async () => {
-    mockFetchSequence({
-      session: {
-        id: 'existing-session',
-        topic: 'family',
-        teacher: { id: 't1' },
-        messages: [],
-      },
-    })
+    mockFetchSequence({ session: { id: 'existing-session', topic: 'family', teacher: { id: 't1' }, messages: [] } })
     const { result } = renderHook(() => useSession('teacher-1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.topic).toBe('family')
   })
 
-  it('loads an existing session with messages', async () => {
+  it('loads an existing session with messages, defaulting status fields', async () => {
     mockFetchSequence({
       session: {
         id: 'existing-session',
         teacher: { id: 't1' },
-        messages: [{ role: 'user', text: 'Hi', audio_url: null, had_correction: false }],
+        messages: [{ id: 'm1', role: 'user', text: 'Hi', audio_url: null, had_correction: false }],
       },
     })
     const { result } = renderHook(() => useSession('teacher-1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.sessionId).toBe('existing-session')
     expect(result.current.messages).toHaveLength(1)
+    expect(result.current.messages[0].audio_status).toBe('ready')
+    expect(result.current.messages[0].video_status).toBe('skipped')
   })
 
-  it('sendTurn appends user + assistant messages', async () => {
+  it('sendTurn appends user + assistant messages and resolves without waiting for audio/video', async () => {
     mockFetchSequence(
       { session: null },
       { session_id: 'sess-1', teacher: { id: 't1' } },
-      mockConvResponse
+      mockConvResponse,
+      { audio_url: 'https://cdn.example.com/audio.mp3', audio_status: 'ready' }, // fetchAudio background call
     )
     const { result } = renderHook(() => useSession('teacher-1'))
     await waitFor(() => expect(result.current.loading).toBe(false))
     await act(async () => { await result.current.sendTurn('Hello') })
+
     expect(result.current.messages).toHaveLength(2)
     expect(result.current.messages[0].role).toBe('user')
     expect(result.current.messages[1].role).toBe('assistant')
     expect(result.current.messages[1].pronunciation_hint).toBe("Watch your 'th' sound")
+    expect(result.current.messages[1].audio_status).toBe('pending')
+
+    await waitFor(() => expect(result.current.messages[1].audio_status).toBe('ready'))
+    expect(result.current.messages[1].audio_url).toBe('https://cdn.example.com/audio.mp3')
   })
 
   it('calls finalize after endSession succeeds', async () => {
@@ -93,7 +100,6 @@ describe('useSession', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     await act(async () => { await result.current.endSession() })
 
-    // Should have called fetch 3 times: GET session, PATCH end, POST finalize
     expect(global.fetch).toHaveBeenCalledTimes(3)
     const calls = (global.fetch as any).mock.calls
     expect(calls[2][0]).toContain('/finalize')
@@ -102,22 +108,15 @@ describe('useSession', () => {
 
   describe('quota detection', () => {
     it('sets quotaExceeded=true and stores quotaInfo when conversation returns 429', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session: { id: 'sess-1', messages: [] } }) } as Response)
       vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ session: { id: 'sess-1', messages: [] } }),
-      } as Response)
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 429,
+        ok: false, status: 429,
         json: async () => ({ error: 'quota_exceeded', minutesUsed: 10.5, minutesLimit: 10 }),
       } as unknown as Response)
 
       const { result } = renderHook(() => useSession('teacher-1'))
       await waitFor(() => expect(result.current.loading).toBe(false))
-
-      await act(async () => {
-        await result.current.sendTurn('Hello')
-      })
+      await act(async () => { await result.current.sendTurn('Hello') })
 
       expect(result.current.quotaExceeded).toBe(true)
       expect(result.current.quotaInfo).toEqual({ minutesUsed: 10.5, minutesLimit: 10 })
@@ -125,22 +124,12 @@ describe('useSession', () => {
     })
 
     it('does not set quotaExceeded for non-429 errors', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ session: { id: 'sess-2', messages: [] } }),
-      } as Response)
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: 'internal' }),
-      } as unknown as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session: { id: 'sess-2', messages: [] } }) } as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'internal' }) } as unknown as Response)
 
       const { result } = renderHook(() => useSession('teacher-2'))
       await waitFor(() => expect(result.current.loading).toBe(false))
-
-      await act(async () => {
-        await result.current.sendTurn('Hello')
-      })
+      await act(async () => { await result.current.sendTurn('Hello') })
 
       expect(result.current.quotaExceeded).toBe(false)
       expect(result.current.quotaInfo).toBeNull()
