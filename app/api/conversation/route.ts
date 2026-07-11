@@ -1,12 +1,10 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
-import { createSupabaseAdmin } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { synthesizeTts } from '@/lib/tts'
-import { createTalk, DID_VOICE_IDS } from '@/lib/did'
 import { getTopicByKey } from '@/lib/topics'
 import type { ConversationResponse, ErrorReport, ErrorType } from '@/types'
 import { isUserVip } from '@/lib/vip'
+import { createStageTimer } from '@/lib/timing'
 
 const VALID_ERROR_TYPES = new Set<string>(['verb_tense', 'vocabulary', 'preposition', 'pronunciation', 'other'])
 
@@ -26,6 +24,7 @@ interface ClaudeOutput {
 }
 
 export async function POST(request: Request) {
+  const timer = createStageTimer('conversation')
   const supabase = createSupabaseServer()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -128,6 +127,7 @@ export async function POST(request: Request) {
       }
     }
   } // end if (!vipUser) — VIP users skip quota enforcement
+  timer.mark('quota_check')
   // ── End quota check ──────────────────────────────────────────────────────
 
   const formData = await request.formData()
@@ -139,7 +139,6 @@ export async function POST(request: Request) {
   if (!sessionId) return NextResponse.json({ error: 'session_id required' }, { status: 400 })
   if (!audio && !trimmedPanicText) return NextResponse.json({ error: 'No audio or panic_text' }, { status: 400 })
 
-  // Load session with teacher — also checks user_id to prevent IDOR
   const { data: session } = await supabase
     .from('sessions')
     .select('*, teacher:teachers(*)')
@@ -155,37 +154,36 @@ export async function POST(request: Request) {
   } | null
   if (!teacher) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
 
-  // Load user profile
-  const { data: userData } = await supabase
-    .from('users')
-    .select('name, cefr_level')
-    .eq('id', user.id)
-    .single()
+  // Independent reads — run together instead of four sequential round trips
+  const [{ data: userData }, { data: sessionMemory }, { data: topError }, { data: prevMessages }] = await Promise.all([
+    supabase.from('users').select('name, cefr_level').eq('id', user.id).single(),
+    supabase
+      .from('session_memory')
+      .select('summary, key_topics, personal_details')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('errors_log')
+      .select('error_text, correct_form, error_type')
+      .eq('user_id', user.id)
+      .is('resolved_at', null)
+      .order('seen_count', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('messages')
+      .select('role, text')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+  ])
+  timer.mark('parallel_reads')
 
-  // Load latest session memory for cross-session context
-  const { data: sessionMemory } = await supabase
-    .from('session_memory')
-    .select('summary, key_topics, personal_details')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  // Load top recurring error for error-review block
-  const { data: topError } = await supabase
-    .from('errors_log')
-    .select('error_text, correct_form, error_type')
-    .eq('user_id', user.id)
-    .is('resolved_at', null)
-    .order('seen_count', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  // Transcribe audio or use panic text
   let transcript: string
   if (audio) {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    // Pass the blob directly; the real SDK accepts Blob, and mocks don't validate the type
     const result = await openai.audio.transcriptions.create({
       file: audio as unknown as File,
       model: 'whisper-1',
@@ -195,14 +193,7 @@ export async function POST(request: Request) {
   } else {
     transcript = trimmedPanicText as string
   }
-
-  // Load conversation history (last 20 messages, most-recent first, then reversed for chronological order)
-  const { data: prevMessages } = await supabase
-    .from('messages')
-    .select('role, text')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
-    .limit(20)
+  timer.mark('whisper')
 
   const chronologicalMessages = (prevMessages ?? []).reverse()
 
@@ -280,12 +271,14 @@ For prompt_hint: if the student might not know how to start responding, provide 
   const chatRes = await openaiChat.chat.completions.create({
     model: 'gpt-4o-mini',
     max_tokens: 512,
+    response_format: { type: 'json_object' },
     messages: [
       { role: 'system', content: systemPrompt },
       ...(chronologicalMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text }))),
       { role: 'user', content: transcript },
     ],
   })
+  timer.mark('gpt')
 
   const rawText = chatRes.choices[0]?.message?.content ?? '{}'
   let parsed: ClaudeOutput
@@ -295,8 +288,6 @@ For prompt_hint: if the student might not know how to start responding, provide 
     parsed = { reply: rawText, correction: { error_detected: false, error_text: null, correct_form: null, error_type: null }, pronunciation_hint: null, new_words: null, suggested_replies: null, reply_pt: null, prompt_hint: null }
   }
 
-  // Fix 3: Only fall back to rawText when parsed.reply is not a string at all.
-  // Whitespace-only strings are still better than speaking the full JSON blob.
   const replyText: string = (typeof parsed.reply === 'string' && parsed.reply.length > 0)
     ? parsed.reply
     : rawText
@@ -305,7 +296,6 @@ For prompt_hint: if the student might not know how to start responding, provide 
     ? parsed.pronunciation_hint
     : null
 
-  // Parse new_words from GPT response
   const newWordsRaw: Array<{ word: string; definition: string }> = Array.isArray(parsed.new_words)
     ? (parsed.new_words as unknown[]).filter(
         (w): w is { word: string; definition: string } =>
@@ -335,56 +325,33 @@ For prompt_hint: if the student might not know how to start responding, provide 
     error_type: VALID_ERROR_TYPES.has(correctionRaw.error_type ?? '') ? (correctionRaw.error_type as ErrorType) : undefined,
   }
 
-  // Fix 1+2: Insert USER message — check error so DB failures are not silent
   const { error: userInsertError } = await supabase.from('messages').insert([
     { session_id: sessionId, role: 'user', text: transcript, audio_url: null, had_correction: false },
   ])
   if (userInsertError) console.error('User message insert failed:', userInsertError.message)
 
-  // Run TTS and D-ID in parallel to reduce response latency
-  const supabaseAdmin = createSupabaseAdmin()
   const didOrigin = process.env.EF_PUBLIC_ORIGIN
+  const videoStatus: 'pending' | 'skipped' = didOrigin ? 'pending' : 'skipped'
 
-  const [ttsSettled, didSettled] = await Promise.allSettled([
-    synthesizeTts(replyText, teacher.tts_voice ?? 'alloy').then(async ({ dataUrl, buffer }) => {
-      const storagePath = `${user.id}/${sessionId}/${crypto.randomUUID()}.mp3`
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from('audio-replay')
-        .upload(storagePath, buffer, { contentType: 'audio/mpeg', upsert: false })
-      const stored = uploadError
-        ? null
-        : supabaseAdmin.storage.from('audio-replay').getPublicUrl(storagePath).data.publicUrl
-      if (uploadError) console.error('Audio upload failed:', uploadError.message)
-      return { audioUrl: dataUrl, storedAudioUrl: stored }
-    }),
-    didOrigin
-      ? createTalk(replyText, DID_VOICE_IDS[teacher.slug] ?? 'en-US-JennyNeural', `${didOrigin}${teacher.avatar_image_url}`)
-      : Promise.resolve(null),
-  ])
-
-  let audioUrl: string | null = null
-  let storedAudioUrl: string | null = null
-  if (ttsSettled.status === 'fulfilled') {
-    audioUrl = ttsSettled.value.audioUrl
-    storedAudioUrl = ttsSettled.value.storedAudioUrl
-  } else {
-    console.error('TTS/storage failed, continuing without audio:', ttsSettled.reason)
-  }
-
-  let videoUrl: string | null = null
-  if (didSettled.status === 'fulfilled') {
-    videoUrl = didSettled.value
-  } else {
-    console.error('D-ID failed, continuing without video:', didSettled.reason)
-  }
-
-  // Always insert ASSISTANT message; store the Supabase Storage URL (or null if upload failed)
-  const { error: assistantInsertError } = await supabase.from('messages').insert([
-    { session_id: sessionId, role: 'assistant', text: replyText, audio_url: storedAudioUrl, had_correction: errorReport.error_detected, pronunciation_hint: pronunciationHint },
-  ])
+  const { data: insertedAssistant, error: assistantInsertError } = await supabase
+    .from('messages')
+    .insert([{
+      session_id: sessionId,
+      role: 'assistant',
+      text: replyText,
+      audio_url: null,
+      had_correction: errorReport.error_detected,
+      pronunciation_hint: pronunciationHint,
+      reply_pt: replyPt,
+      suggested_replies: suggestedRepliesRaw,
+      audio_status: 'pending',
+      video_status: videoStatus,
+    }])
+    .select('id')
+    .single()
   if (assistantInsertError) console.error('Assistant message insert failed:', assistantInsertError.message)
+  timer.mark('db_write')
 
-  // Atomic errors_log upsert via RPC — avoids SELECT-then-INSERT race under concurrent requests
   if (errorReport.error_detected && errorReport.error_text && errorReport.correct_form && errorReport.error_type) {
     const { error: errLogError } = await supabase.rpc('upsert_error_log', {
       p_user_id: user.id,
@@ -395,7 +362,6 @@ For prompt_hint: if the student might not know how to start responding, provide 
     if (errLogError) console.error('Error log upsert failed:', errLogError.message)
   }
 
-  // Upsert vocabulary words — ignoreDuplicates keeps existing spaced rep state
   if (newWordsRaw.length > 0) {
     const { error: vocabError } = await supabase
       .from('vocab_log')
@@ -410,24 +376,27 @@ For prompt_hint: if the student might not know how to start responding, provide 
     if (vocabError) console.error('Vocab log upsert failed:', vocabError.message)
   }
 
-  // Atomic usage_log increment via RPC — avoids SELECT-then-UPSERT race
   const usage = chatRes.usage
-  // Brazil local date (UTC-3) so usage_log rows match the streak date from finalize
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const { error: usageError } = await supabase.rpc('increment_usage_log', {
     p_user_id: user.id,
     p_date: today,
     p_whisper_minutes: audio ? 0.5 : 0,
-    p_tts_chars: replyText.length,
+    p_tts_chars: 0,
     p_claude_tokens: (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0),
-    p_did_credits: videoUrl ? 1 : 0,
+    p_did_credits: 0,
   })
   if (usageError) console.error('Usage log increment failed:', usageError.message)
 
+  timer.finish({ session_id: sessionId, has_audio: !!audio, video_status: videoStatus })
+
   const response: ConversationResponse = {
+    message_id: insertedAssistant?.id ?? null,
     text: replyText,
-    audio_url: storedAudioUrl ?? audioUrl,
-    video_url: videoUrl,
+    audio_url: null,
+    audio_status: 'pending',
+    video_url: null,
+    video_status: videoStatus,
     had_correction: errorReport.error_detected,
     error_report: errorReport,
     transcript,
