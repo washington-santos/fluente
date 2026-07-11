@@ -1,22 +1,24 @@
-import { vi, describe, it, expect } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+
+const mockCreate = vi.fn()
 
 vi.mock('openai', () => {
-  const mockData = new Uint8Array([102, 97, 107, 101, 45, 97, 117, 100, 105, 111])
-
   class MockOpenAI {
-    audio = {
-      speech: {
-        create: vi.fn().mockResolvedValue({
-          arrayBuffer: async () => mockData.buffer,
-        }),
-      },
-    }
+    audio = { speech: { create: mockCreate } }
   }
-
   return { default: MockOpenAI }
 })
 
-import { synthesizeTts } from '@/lib/tts'
+import { synthesizeTts, synthesizeTtsWithRetry } from '@/lib/tts'
+
+function fakeAudioResponse() {
+  return { arrayBuffer: async () => new Uint8Array([102, 97, 107, 101, 45, 97, 117, 100, 105, 111]).buffer }
+}
+
+beforeEach(() => {
+  mockCreate.mockReset()
+  mockCreate.mockResolvedValue(fakeAudioResponse())
+})
 
 describe('synthesizeTts', () => {
   it('returns a dataUrl and a buffer', async () => {
@@ -36,5 +38,28 @@ describe('synthesizeTts', () => {
   it('returns the raw buffer bytes', async () => {
     const result = await synthesizeTts('Test', 'nova')
     expect(result.buffer.toString()).toBe('fake-audio')
+  })
+})
+
+describe('synthesizeTtsWithRetry', () => {
+  it('returns immediately on first success without retrying', async () => {
+    const result = await synthesizeTtsWithRetry('Hello', 'alloy')
+    expect(result.dataUrl).toMatch(/^data:audio\/mp3;base64,/)
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries after a transient failure and succeeds', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('rate limited'))
+    mockCreate.mockResolvedValueOnce(fakeAudioResponse())
+
+    const result = await synthesizeTtsWithRetry('Hello', 'alloy', 3)
+    expect(result.dataUrl).toMatch(/^data:audio\/mp3;base64,/)
+    expect(mockCreate).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws the last error after exhausting all attempts', async () => {
+    mockCreate.mockRejectedValue(new Error('persistent failure'))
+    await expect(synthesizeTtsWithRetry('Hello', 'alloy', 2)).rejects.toThrow('persistent failure')
+    expect(mockCreate).toHaveBeenCalledTimes(2)
   })
 })
