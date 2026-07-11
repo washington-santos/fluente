@@ -8,8 +8,8 @@ vi.mock('@/hooks/useSession', () => ({
     sessionId: 'sess-1',
     topic: 'travel',
     messages: [
-      { role: 'user', text: 'Hello!', audio_url: null, had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
-      { role: 'assistant', text: 'Hi there!', audio_url: null, had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
     ],
     loading: false,
     sending: false,
@@ -55,6 +55,57 @@ describe('AulaClient', () => {
     await waitFor(() => {
       expect(screen.getByText('Hello!')).toBeInTheDocument()
       expect(screen.getByText('Hi there!')).toBeInTheDocument()
+    })
+  })
+
+  it('plays audio automatically once the last assistant message becomes ready', async () => {
+    const playSpy = vi.fn().mockResolvedValue(undefined)
+    const originalPlay = window.HTMLMediaElement.prototype.play
+    window.HTMLMediaElement.prototype.play = playSpy
+
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: null,
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hi', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hello!', audio_url: 'https://cdn.example.com/audio.mp3', audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn(),
+      endSession: vi.fn(),
+    })
+
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
+    await waitFor(() => expect(playSpy).toHaveBeenCalled())
+
+    window.HTMLMediaElement.prototype.play = originalPlay
+
+    // Restore the default mock so later tests in this file (which rely on the
+    // `topic: 'travel'` default set by the vi.mock factory above) aren't
+    // affected — mockReturnValue overrides persist across tests even though
+    // beforeEach only clears call history, not implementations.
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'travel',
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn().mockResolvedValue(null),
+      endSession: vi.fn(),
     })
   })
 

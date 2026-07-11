@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Mic, Eye, EyeOff } from 'lucide-react'
+import type { AudioStatus } from '@/types'
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant'
@@ -11,6 +12,9 @@ interface MessageBubbleProps {
   replyPt?: string | null
   suggestedReplies?: string[] | null
   onChipClick?: (text: string) => void
+  // Handled by Task 11 (loading/failure state on the newest assistant bubble);
+  // declared here only so callers can pass it without a type error.
+  audioStatus?: AudioStatus
 }
 
 export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick }: MessageBubbleProps) {

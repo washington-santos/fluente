@@ -48,7 +48,6 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   } = useSession(teacher.id)
 
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [textValue, setTextValue] = useState('')
   const [showReport, setShowReport] = useState(false)
   const [reportData, setReportData] = useState<{
@@ -88,15 +87,48 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const lastPlayedMessageIdRef = useRef<string | null>(null)
 
   const assistantMessageCount = messages.filter((m) => m.role === 'assistant').length
   const topicData = getTopicByKey(topic)
   const teacherFirstName = teacher.name.split(' ')[0]
 
+  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant') ?? null
+  const videoUrl = lastAssistantMessage?.video_url ?? null
+
   // Skip intro if returning user has messages
   useEffect(() => {
     if (!loading && messages.length > 0) setShowIntro(false)
   }, [loading, messages.length])
+
+  function playAudioUrl(url: string) {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.onended = null
+      audioRef.current.onerror = null
+      audioRef.current = null
+    }
+    const audio = new Audio(url)
+    audioRef.current = audio
+    setIsSpeaking(true)
+    const cleanup = () => {
+      setIsSpeaking(false)
+      audioRef.current = null
+    }
+    audio.onended = cleanup
+    audio.onerror = cleanup
+    audio.play().catch(cleanup)
+  }
+
+  // Play audio the moment the newest assistant message's synthesis finishes —
+  // decoupled from the initial text response so the user isn't blocked waiting for TTS.
+  useEffect(() => {
+    if (!lastAssistantMessage) return
+    if (lastAssistantMessage.audio_status !== 'ready' || !lastAssistantMessage.audio_url) return
+    if (lastAssistantMessage.id && lastAssistantMessage.id === lastPlayedMessageIdRef.current) return
+    lastPlayedMessageIdRef.current = lastAssistantMessage.id
+    playAudioUrl(lastAssistantMessage.audio_url)
+  }, [lastAssistantMessage])
 
   const handleTurn = useCallback(
     async (input: File | string) => {
@@ -104,7 +136,6 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       setShowIntro(false)
       const response = await sendTurn(input)
       if (!response) return
-      playAudio(response)
       accumulateResults(response)
     },
     [sendTurn],
@@ -143,27 +174,6 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       })
       correctionTimerRef.current = setTimeout(() => setLastCorrection(null), 7000)
     }
-  }
-
-  function playAudio(response: ConversationResponse) {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.onended = null
-      audioRef.current.onerror = null
-      audioRef.current = null
-    }
-    setVideoUrl(response.video_url)
-    if (!response.audio_url) return
-    const audio = new Audio(response.audio_url)
-    audioRef.current = audio
-    setIsSpeaking(true)
-    const cleanup = () => {
-      setIsSpeaking(false)
-      audioRef.current = null
-    }
-    audio.onended = cleanup
-    audio.onerror = cleanup
-    audio.play().catch(cleanup)
   }
 
   const { isRecording, startRecording, stopRecording, cancelRecording, error: micError } =
@@ -429,6 +439,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
               replyPt={m.role === 'assistant' ? m.reply_pt : undefined}
               suggestedReplies={isLastAssistant ? m.suggested_replies : undefined}
               onChipClick={isLastAssistant ? handleChipClick : undefined}
+              audioStatus={isLastAssistant ? m.audio_status : undefined}
             />
           )
         })}
