@@ -20,6 +20,7 @@ vi.mock('@/hooks/useSession', () => ({
     lastPromptHint: null,
     sendTurn: vi.fn().mockResolvedValue(null),
     endSession: vi.fn(),
+    retryAudio: vi.fn(),
   })),
 }))
 
@@ -79,6 +80,7 @@ describe('AulaClient', () => {
       lastPromptHint: null,
       sendTurn: vi.fn(),
       endSession: vi.fn(),
+      retryAudio: vi.fn(),
     })
 
     render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
@@ -106,6 +108,7 @@ describe('AulaClient', () => {
       lastPromptHint: null,
       sendTurn: vi.fn().mockResolvedValue(null),
       endSession: vi.fn(),
+      retryAudio: vi.fn(),
     })
   })
 
@@ -119,6 +122,54 @@ describe('AulaClient', () => {
   it('renders topic badge when topic is set', async () => {
     render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
     await waitFor(() => expect(screen.getByText('Viagens')).toBeInTheDocument())
+  })
+
+  it('wires onRetryAudio to retryAudio for the last assistant message and calls it on click', async () => {
+    const retryAudioMock = vi.fn()
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'travel',
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'failed', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn().mockResolvedValue(null),
+      endSession: vi.fn(),
+      retryAudio: retryAudioMock,
+    })
+
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
+    const retryButton = await screen.findByTestId('audio-failed')
+    fireEvent.click(retryButton)
+
+    expect(retryAudioMock).toHaveBeenCalledWith('m2')
+
+    // Restore the default mock so later tests in this file aren't affected.
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'travel',
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn().mockResolvedValue(null),
+      endSession: vi.fn(),
+      retryAudio: vi.fn(),
+    })
   })
 
   it('shows session report modal after ending session', async () => {
@@ -136,6 +187,7 @@ describe('AulaClient', () => {
       lastPromptHint: null,
       sendTurn: vi.fn(),
       endSession: endSessionMock,
+      retryAudio: vi.fn(),
     })
 
     global.fetch = vi.fn().mockResolvedValue({
@@ -170,6 +222,7 @@ describe('AulaClient', () => {
       lastPromptHint: null,
       sendTurn: vi.fn(),
       endSession: vi.fn(),
+      retryAudio: vi.fn(),
     })
 
     render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)

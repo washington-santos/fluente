@@ -30,6 +30,7 @@ interface UseSessionReturn {
   lastPromptHint: string | null
   sendTurn: (input: File | string) => Promise<ConversationResponse | null>
   endSession: () => Promise<void>
+  retryAudio: (messageId: string) => void
 }
 
 const AVATAR_POLL_INTERVAL_MS = 1500
@@ -132,6 +133,10 @@ export function useSession(teacherId: string): UseSessionReturn {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId }),
       })
+      if (!res.ok) {
+        patchMessage(messageId, { audio_status: 'failed' })
+        return
+      }
       const data = (await res.json()) as AudioFetchResponse
       patchMessage(messageId, { audio_url: data.audio_url, audio_status: data.audio_status })
     } catch (err) {
@@ -140,6 +145,11 @@ export function useSession(teacherId: string): UseSessionReturn {
     }
   }, [patchMessage])
 
+  const retryAudio = useCallback((messageId: string) => {
+    patchMessage(messageId, { audio_status: 'pending' })
+    fetchAudio(messageId)
+  }, [patchMessage, fetchAudio])
+
   const fetchAvatar = useCallback(async (messageId: string) => {
     try {
       const createRes = await fetch('/api/conversation/avatar', {
@@ -147,6 +157,10 @@ export function useSession(teacherId: string): UseSessionReturn {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId }),
       })
+      if (!createRes.ok) {
+        patchMessage(messageId, { video_status: 'failed' })
+        return
+      }
       const created = (await createRes.json()) as AvatarCreateResponse
       if (!created.talk_id) {
         patchMessage(messageId, { video_status: created.video_status })
@@ -250,5 +264,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }, [sessionId])
 
-  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession }
+  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession, retryAudio }
 }

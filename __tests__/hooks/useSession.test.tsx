@@ -106,6 +106,48 @@ describe('useSession', () => {
     expect(calls[2][1]?.method).toBe('POST')
   })
 
+  describe('audio fetch/retry', () => {
+    it('sets audio_status to failed when the audio fetch response is not ok', async () => {
+      // Explicit call-by-call queue (rather than mockFetchSequence) so ordering is unambiguous:
+      // GET session -> POST session -> POST conversation -> POST audio (background, non-ok).
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session: null }) } as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session_id: 'sess-1', teacher: { id: 't1' } }) } as Response)
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => mockConvResponse } as Response)
+      // Session expired mid-turn (401) with no audio_status field in the body — must not be trusted.
+      vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({ error: 'unauthorized' }) } as Response)
+
+      const { result } = renderHook(() => useSession('teacher-1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => { await result.current.sendTurn('Hello') })
+
+      expect(result.current.messages[1].audio_status).toBe('pending')
+      await waitFor(() => expect(result.current.messages[1].audio_status).toBe('failed'))
+    })
+
+    it('retryAudio patches the message back to pending and re-fetches audio', async () => {
+      mockFetchSequence(
+        { session: { id: 'sess-1', messages: [{ id: 'm2', role: 'assistant', text: 'Hi', audio_url: null, audio_status: 'failed', had_correction: false }] } },
+      )
+      const { result } = renderHook(() => useSession('teacher-1'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.messages[0].audio_status).toBe('failed')
+
+      vi.mocked(fetch).mockImplementationOnce(() =>
+        Promise.resolve({ ok: true, json: async () => ({ audio_url: 'https://cdn.example.com/retry.mp3', audio_status: 'ready' }) } as Response)
+      )
+
+      await act(async () => { result.current.retryAudio('m2') })
+
+      const retryCall = (global.fetch as any).mock.calls.find((c: any[]) => c[0] === '/api/conversation/audio')
+      expect(retryCall).toBeTruthy()
+      expect(JSON.parse(retryCall[1].body)).toEqual({ message_id: 'm2' })
+
+      await waitFor(() => expect(result.current.messages[0].audio_status).toBe('ready'))
+      expect(result.current.messages[0].audio_url).toBe('https://cdn.example.com/retry.mp3')
+    })
+  })
+
   describe('quota detection', () => {
     it('sets quotaExceeded=true and stores quotaInfo when conversation returns 429', async () => {
       vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session: { id: 'sess-1', messages: [] } }) } as Response)

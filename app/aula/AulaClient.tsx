@@ -45,6 +45,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     lastPromptHint,
     sendTurn,
     endSession,
+    retryAudio,
   } = useSession(teacher.id)
 
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -440,6 +441,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
               suggestedReplies={isLastAssistant ? m.suggested_replies : undefined}
               onChipClick={isLastAssistant ? handleChipClick : undefined}
               audioStatus={isLastAssistant ? m.audio_status : undefined}
+              onRetryAudio={isLastAssistant ? () => retryAudio(m.id!) : undefined}
             />
           )
         })}
