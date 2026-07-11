@@ -3,11 +3,13 @@ import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { StreakBadge } from '@/components/dashboard/StreakBadge'
+import { PronunciationScoreCard } from '@/components/dashboard/PronunciationScoreCard'
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
 import { MissionCard } from '@/components/dashboard/MissionCard'
 import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
 import { getMissionForDate } from '@/lib/missions'
+import { getPronunciationTrend } from '@/lib/mastery'
 import type { Teacher, User, ErrorType } from '@/types'
 import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
 import { isUserVip } from '@/lib/vip'
@@ -66,6 +68,18 @@ export default async function DashboardPage() {
     .eq('user_id', authUser.id)
     .lte('next_review_at', new Date().toISOString())
     .limit(1)
+
+  // Load recent pronunciation scores for the dashboard trend card
+  const { data: pronunciationRows } = await supabase
+    .from('topic_assessments')
+    .select('pronunciation')
+    .eq('user_id', authUser.id)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  const pronunciationTrend = getPronunciationTrend(
+    (pronunciationRows ?? []).map((r: { pronunciation: number }) => r.pronunciation),
+  )
 
   // Progress memory — last 30 days
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -179,6 +193,13 @@ export default async function DashboardPage() {
 
         {/* Streak */}
         <StreakBadge streakDays={u.streak_days ?? 0} />
+
+        {pronunciationTrend && (
+          <PronunciationScoreCard
+            currentScore={pronunciationTrend.currentScore}
+            trend={pronunciationTrend.trend}
+          />
+        )}
 
         {vipUser && <VipBadge plan={vipUser.plan} />}
 
