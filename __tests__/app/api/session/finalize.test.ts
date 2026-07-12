@@ -39,56 +39,6 @@ describe('POST /api/session/[id]/finalize', () => {
     expect(res.status).toBe(401)
   })
 
-  it('marks mission complete when user sent enough turns', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
-    mockMemoryGenerate.mockResolvedValue({
-      summary: 'Good session.',
-      key_topics: ['greetings'],
-      personal_details: [],
-    })
-
-    const sessionChain = makeChain({ id: 's1', user_id: 'u1', duration_seconds: 0 })
-    // A1 level — minUserTurns is 3, so 3 user messages should trigger mission completion
-    const userChain = makeChain({ id: 'u1', name: 'Maria', cefr_level: 'A1', streak_days: 0, last_session_at: null })
-    const memInsertChain = makeChain(null)
-
-    const msgListChain: Record<string, unknown> = {}
-    msgListChain.eq = vi.fn().mockReturnValue(msgListChain)
-    msgListChain.select = vi.fn().mockReturnValue(msgListChain)
-    msgListChain.order = vi.fn().mockResolvedValue({
-      data: [
-        { role: 'user', text: 'Hello', had_correction: false },
-        { role: 'assistant', text: 'Hi!', had_correction: false },
-        { role: 'user', text: 'My name is Maria', had_correction: false },
-        { role: 'assistant', text: 'Nice to meet you!', had_correction: false },
-        { role: 'user', text: 'I am from Brazil', had_correction: false },
-      ],
-      error: null,
-    })
-
-    const missionUpsertChain: Record<string, unknown> = {}
-    missionUpsertChain.upsert = vi.fn().mockResolvedValue({ error: null })
-
-    mockFrom.mockImplementation((table: string) => {
-      if (table === 'sessions') return sessionChain
-      if (table === 'users') return userChain
-      if (table === 'messages') return msgListChain
-      if (table === 'session_memory') return memInsertChain
-      if (table === 'daily_missions_log') return missionUpsertChain
-      return makeChain(null)
-    })
-
-    const req = new Request('http://localhost/api/session/s1/finalize', { method: 'POST' })
-    const res = await POST(req, { params: { id: 's1' } })
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.ok).toBe(true)
-    expect(missionUpsertChain.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ user_id: 'u1', mission_key: expect.stringMatching(/^a1-/) }),
-      expect.objectContaining({ onConflict: 'user_id,date', ignoreDuplicates: true }),
-    )
-  })
-
   it('generates memory, upserts errors, updates streak, returns ok:true', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
     mockMemoryGenerate.mockResolvedValue({

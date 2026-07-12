@@ -1,7 +1,6 @@
 import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { generateSessionMemory } from '@/lib/memory'
-import { getMissionForDate } from '@/lib/missions'
 
 export async function POST(
   _request: Request,
@@ -96,21 +95,6 @@ export async function POST(
       .update({ streak_days: newStreak, last_session_at: new Date().toISOString() })
       .eq('id', user.id)
     if (streakError) console.error('Streak update failed:', streakError.message)
-  }
-
-  // 3 — Mark daily mission complete if user sent enough turns
-  const userMsgCount = msgs.filter((m) => m.role === 'user').length
-  const todayBrazil = new Date(Date.now() + brazilOffset).toISOString().slice(0, 10)
-  const mission = getMissionForDate(userData?.cefr_level, todayBrazil)
-
-  if (userMsgCount >= mission.minUserTurns) {
-    const { error: missionError } = await supabase
-      .from('daily_missions_log')
-      .upsert(
-        { user_id: user.id, date: todayBrazil, mission_key: mission.key },
-        { onConflict: 'user_id,date', ignoreDuplicates: true },
-      )
-    if (missionError) console.error('Mission completion failed:', missionError.message)
   }
 
   return NextResponse.json({ ok: true })
