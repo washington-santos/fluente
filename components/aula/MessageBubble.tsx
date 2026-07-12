@@ -14,9 +14,10 @@ interface MessageBubbleProps {
   onChipClick?: (text: string) => void
   audioStatus?: AudioStatus
   onRetryAudio?: () => void
+  audioDebug?: string | null
 }
 
-export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick, audioStatus, onRetryAudio }: MessageBubbleProps) {
+export function MessageBubble({ role, text, hadCorrection, pronunciationHint, replyPt, suggestedReplies, onChipClick, audioStatus, onRetryAudio, audioDebug }: MessageBubbleProps) {
   const isUser = role === 'user'
   const [showTranslation, setShowTranslation] = useState(false)
 
@@ -48,6 +49,11 @@ export function MessageBubble({ role, text, hadCorrection, pronunciationHint, re
             <Volume2 size={12} className="flex-shrink-0" />
             <span>Preparando áudio...</span>
           </div>
+        )}
+        {!isUser && audioDebug && (
+          <p className="mt-1 text-[10px] text-amber-500/80 font-mono" data-testid="audio-debug">
+            🔧 {audioDebug}
+          </p>
         )}
         {!isUser && audioStatus === 'failed' && (
           <button

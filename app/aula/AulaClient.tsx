@@ -442,6 +442,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
               onChipClick={isLastAssistant ? handleChipClick : undefined}
               audioStatus={isLastAssistant ? m.audio_status : undefined}
               onRetryAudio={isLastAssistant ? () => retryAudio(m.id!) : undefined}
+              audioDebug={isLastAssistant ? m.audioDebug : undefined}
             />
           )
         })}

@@ -15,6 +15,9 @@ interface SessionMessage {
   pronunciation_hint: string | null
   suggested_replies: string[] | null
   reply_pt: string | null
+  // TEMP DEBUG (remove once the iOS "stuck on Preparando" bug is found): visible,
+  // on-screen trace of fetchAudio's lifecycle — no DevTools access on the reporter's device.
+  audioDebug?: string | null
 }
 
 interface UseSessionReturn {
@@ -138,6 +141,8 @@ export function useSession(teacherId: string): UseSessionReturn {
   }, [])
 
   const fetchAudio = useCallback(async (messageId: string) => {
+    const t0 = Date.now()
+    patchMessage(messageId, { audioDebug: `chamada iniciada ${new Date(t0).toLocaleTimeString()}` })
     try {
       const res = await fetchWithTimeout('/api/conversation/audio', {
         method: 'POST',
@@ -145,14 +150,15 @@ export function useSession(teacherId: string): UseSessionReturn {
         body: JSON.stringify({ message_id: messageId }),
       })
       if (!res.ok) {
-        patchMessage(messageId, { audio_status: 'failed' })
+        patchMessage(messageId, { audio_status: 'failed', audioDebug: `http ${res.status} apos ${Date.now() - t0}ms` })
         return
       }
       const data = (await res.json()) as AudioFetchResponse
-      patchMessage(messageId, { audio_url: data.audio_url, audio_status: data.audio_status })
+      patchMessage(messageId, { audio_url: data.audio_url, audio_status: data.audio_status, audioDebug: `resposta ${data.audio_status} apos ${Date.now() - t0}ms` })
     } catch (err) {
+      const e = err as { name?: string; message?: string }
       console.error('fetchAudio failed:', err)
-      patchMessage(messageId, { audio_status: 'failed' })
+      patchMessage(messageId, { audio_status: 'failed', audioDebug: `erro ${e?.name ?? '?'}: ${e?.message ?? String(err)} apos ${Date.now() - t0}ms` })
     }
   }, [patchMessage])
 
@@ -228,7 +234,7 @@ export function useSession(teacherId: string): UseSessionReturn {
       setMessages((prev) => [
         ...prev,
         { id: null, role: 'user', text: userText, audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
-        { id: data.message_id, role: 'assistant', text: data.text, audio_url: data.audio_url, audio_status: data.audio_status, video_url: data.video_url, video_status: data.video_status, had_correction: data.had_correction, pronunciation_hint: data.pronunciation_hint ?? null, suggested_replies: data.suggested_replies ?? null, reply_pt: data.reply_pt ?? null },
+        { id: data.message_id, role: 'assistant', text: data.text, audio_url: data.audio_url, audio_status: data.audio_status, video_url: data.video_url, video_status: data.video_status, had_correction: data.had_correction, pronunciation_hint: data.pronunciation_hint ?? null, suggested_replies: data.suggested_replies ?? null, reply_pt: data.reply_pt ?? null, audioDebug: data.audio_status === 'pending' ? `agendado ${new Date().toLocaleTimeString()}` : undefined },
       ])
       setLastPromptHint(data.prompt_hint ?? null)
 
