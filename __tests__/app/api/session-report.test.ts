@@ -28,12 +28,17 @@ import { GET } from '@/app/api/session/[id]/report/route'
 
 const makeChain = (data: unknown, error: unknown = null): any => {
   const chain: any = {}
-  chain.then = (resolve: any, reject: any) => Promise.resolve({ data, error }).then(resolve, reject)
-  chain.catch = (fn: any) => Promise.resolve({ data, error }).catch(fn)
-  chain.finally = (fn: any) => Promise.resolve({ data, error }).finally(fn)
+  // Bare-awaiting the chain (no .single()/.maybeSingle()) mirrors Supabase's
+  // row-array response shape, e.g. `.update(...).select('id')` resolving to
+  // `{ data: [...] }`. `.single()`/`.maybeSingle()` keep the unwrapped value.
+  const listData = Array.isArray(data) ? data : data == null ? [] : [data]
+  chain.then = (resolve: any, reject: any) => Promise.resolve({ data: listData, error }).then(resolve, reject)
+  chain.catch = (fn: any) => Promise.resolve({ data: listData, error }).catch(fn)
+  chain.finally = (fn: any) => Promise.resolve({ data: listData, error }).finally(fn)
   chain.eq = vi.fn().mockReturnValue(chain)
   chain.select = vi.fn().mockReturnValue(chain)
   chain.update = vi.fn().mockReturnValue(chain)
+  chain.is = vi.fn().mockReturnValue(chain)
   chain.single = vi.fn().mockResolvedValue({ data, error })
   chain.maybeSingle = vi.fn().mockResolvedValue({ data, error })
   return chain
@@ -170,7 +175,41 @@ describe('GET /api/session/[id]/report', () => {
     const body = await res.json()
     expect(body.missionCompleted).toBe(true)
     expect(missionChain.update).toHaveBeenCalledWith(expect.objectContaining({ completed_at: expect.any(String) }))
+    expect(missionChain.is).toHaveBeenCalledWith('completed_at', null)
     expect(mockRpc).toHaveBeenCalledWith('increment_missions_completed', { p_user_id: 'user-1' })
+  })
+
+  it('does not double-increment when a concurrent request already completed the mission', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const { missionChain } = mockTables({
+      userData: { cefr_level: 'B1' },
+      missionData: { mission_key: 'b1-movie', title_pt: 'Recomendação cultural', description_pt: 'Recomende um filme.', completed_at: null },
+      messages: [
+        { role: 'user', text: 'I recommend Inception', had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: 'Great choice, why?', had_correction: false, pronunciation_hint: null },
+        { role: 'user', text: 'I like it because of the plot twists', had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: 'What else stood out?', had_correction: false, pronunciation_hint: null },
+        { role: 'user', text: 'It is very smart and well made', had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: 'Anything you disliked?', had_correction: false, pronunciation_hint: null },
+        { role: 'user', text: 'Not really, I loved it', had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: 'Would you recommend it to a friend?', had_correction: false, pronunciation_hint: null },
+        { role: 'user', text: 'Definitely, everyone should watch it', had_correction: false, pronunciation_hint: null },
+      ],
+    })
+    // 5 user turns meets B1's minUserTurns floor, so the AI verdict below is what
+    // actually decides the outcome — not the floor.
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: '{"covered":true}' } }] })
+    // Simulate a concurrent request winning the race: the conditional update
+    // (.is('completed_at', null)) affects zero rows because another request
+    // already flipped completed_at first.
+    missionChain.then = (resolve: any, reject: any) => Promise.resolve({ data: [], error: null }).then(resolve, reject)
+
+    const res = await GET(new Request('http://localhost/api/session/sess-1/report'), { params: { id: 'sess-1' } })
+    const body = await res.json()
+    expect(body.missionCompleted).toBe(true)
+    expect(missionChain.update).toHaveBeenCalledWith(expect.objectContaining({ completed_at: expect.any(String) }))
+    expect(missionChain.is).toHaveBeenCalledWith('completed_at', null)
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('reports an already-completed mission without calling the AI again', async () => {

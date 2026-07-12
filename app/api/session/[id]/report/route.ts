@@ -57,15 +57,19 @@ export async function GET(
         missionCompleted = true
         const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-        const { error: missionError } = await supabase
+        const { data: updatedRows, error: missionError } = await supabase
           .from('daily_missions_log')
           .update({ completed_at: new Date().toISOString() })
           .eq('user_id', user.id)
           .eq('date', today)
+          .is('completed_at', null)
+          .select('id')
         if (missionError) console.error('Mission completion update failed:', missionError.message)
 
-        const { error: rpcError } = await supabase.rpc('increment_missions_completed', { p_user_id: user.id })
-        if (rpcError) console.error('Mission counter increment failed:', rpcError.message)
+        if (updatedRows && updatedRows.length > 0) {
+          const { error: rpcError } = await supabase.rpc('increment_missions_completed', { p_user_id: user.id })
+          if (rpcError) console.error('Mission counter increment failed:', rpcError.message)
+        }
       }
     } catch (err) {
       console.error('Mission verification failed:', err)
