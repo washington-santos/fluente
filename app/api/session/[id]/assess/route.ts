@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { getTopicByKey } from '@/lib/topics'
 import OpenAI from 'openai'
 import {
   calculateFinalScore,
@@ -31,7 +32,9 @@ export async function POST(
 
   const topicId = (session as Record<string, unknown>).lesson_topic_id as string | null
     ?? (session as Record<string, unknown>).topic as string | null
-  if (!topicId) return NextResponse.json({ too_short: true, message: 'Sem tópico nesta sessão.' })
+  if (!topicId || !getTopicByKey(topicId)) {
+    return NextResponse.json({ too_short: true, message: 'Sem tópico nesta sessão.' })
+  }
 
   const [{ data: userData }, { data: messages }] = await Promise.all([
     supabase.from('users').select('name, cefr_level').eq('id', user.id).single(),
