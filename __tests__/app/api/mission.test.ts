@@ -1,23 +1,13 @@
 // @vitest-environment node
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
-const mockUser = { id: 'user-1' }
+const mockGetOrGenerate = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/missions', () => ({ getOrGenerateTodaysMission: mockGetOrGenerate }))
 
 vi.mock('@supabase/ssr', () => ({
   createServerClient: vi.fn(() => ({
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
-    from: vi.fn((table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { cefr_level: 'A1' }, error: null }),
-          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          })),
-        })),
-      })),
-      upsert: vi.fn(() => Promise.resolve({ error: null })),
-    })),
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
   })),
 }))
 
@@ -25,17 +15,21 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(() => ({ getAll: () => [], set: vi.fn() })),
 }))
 
-describe('GET /api/mission', () => {
-  beforeEach(() => vi.resetModules())
+import { GET } from '@/app/api/mission/route'
 
-  it('returns mission and completed=false for a fresh day', async () => {
-    const { GET } = await import('@/app/api/mission/route')
-    const res = await GET(new Request('http://localhost/api/mission'))
+describe('GET /api/mission', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns the mission for the authenticated user', async () => {
+    mockGetOrGenerate.mockResolvedValue({
+      missionKey: 'b1-movie', titlePt: 'Recomendação cultural', descriptionPt: 'Recomende um filme.',
+      minUserTurns: 5, completed: false,
+    })
+    const res = await GET()
     const body = await res.json()
-    expect(body.mission).toBeDefined()
-    expect(body.mission.key).toMatch(/^a1-/)
-    expect(body.completed).toBe(false)
-    expect(body.today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(body.mission.missionKey).toBe('b1-movie')
+    expect(body.mission.completed).toBe(false)
+    expect(mockGetOrGenerate).toHaveBeenCalledWith('user-1', expect.anything())
   })
 
   it('returns 401 when unauthenticated', async () => {
@@ -43,8 +37,7 @@ describe('GET /api/mission', () => {
     vi.mocked(createServerClient).mockReturnValueOnce({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
     } as any)
-    const { GET } = await import('@/app/api/mission/route')
-    const res = await GET(new Request('http://localhost/api/mission'))
+    const res = await GET()
     expect(res.status).toBe(401)
   })
 })
