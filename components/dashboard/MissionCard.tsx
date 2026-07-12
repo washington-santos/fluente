@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle } from 'lucide-react'
 
 interface DailyMission {
   missionKey: string
@@ -60,9 +61,12 @@ export function MissionCard() {
         : 'bg-surface-light-card dark:bg-surface-dark-card'
     }`}>
       <div className="flex items-start gap-3">
-        <div className={`w-5 h-5 rounded-full mt-0.5 flex-shrink-0 ${
-          completed ? 'bg-green-500' : 'bg-content-light-secondary dark:bg-content-dark-secondary opacity-30'
-        }`} />
+        <CheckCircle
+          size={20}
+          className={`mt-0.5 flex-shrink-0 ${
+            completed ? 'text-green-500' : 'text-content-light-secondary dark:text-content-dark-secondary opacity-30'
+          }`}
+        />
         <div>
           <p className={`text-sm font-semibold ${
             completed ? 'text-green-700 dark:text-green-400' : 'text-content-light dark:text-content-dark'

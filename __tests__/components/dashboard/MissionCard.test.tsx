@@ -2,19 +2,13 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-
-// Set up mocks BEFORE any other imports
-const mockPush = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush })
-}))
-
-// Import after mocks
 import { MissionCard } from '@/components/dashboard/MissionCard'
 
-// Mock fetch globally
-const mockFetch = vi.fn()
-global.fetch = mockFetch as any
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
+
+const mockFetch = vi.hoisted(() => vi.fn())
+vi.stubGlobal('fetch', mockFetch)
 
 describe('MissionCard', () => {
   beforeEach(() => {
