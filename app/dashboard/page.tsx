@@ -7,8 +7,8 @@ import { PronunciationScoreCard } from '@/components/dashboard/PronunciationScor
 import { SessionCard } from '@/components/dashboard/SessionCard'
 import { ErrorCard } from '@/components/dashboard/ErrorCard'
 import { MissionCard } from '@/components/dashboard/MissionCard'
+import { MissionCounterBadge } from '@/components/dashboard/MissionCounterBadge'
 import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
-import { getMissionForDate } from '@/lib/missions'
 import { getPronunciationTrend } from '@/lib/mastery'
 import type { Teacher, User, ErrorType } from '@/types'
 import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
@@ -98,15 +98,6 @@ export default async function DashboardPage() {
       .gte('created_at', thirtyDaysAgo),
   ])
 
-  // Load today's mission status
-  const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  const { data: missionLog } = await supabase
-    .from('daily_missions_log')
-    .select('completed_at')
-    .eq('user_id', authUser.id)
-    .eq('date', today)
-    .maybeSingle()
-
   const u = userData as User
   const t = teacher as Teacher | null
 
@@ -146,9 +137,6 @@ export default async function DashboardPage() {
       0,
     )
   }
-
-  const mission = getMissionForDate(u.cefr_level, today)
-  const missionCompleted = !!missionLog?.completed_at
 
   // Lesson progress for A1/A2 users
   const isBeginnerLevel = u.cefr_level === 'A1' || u.cefr_level === 'A2'
@@ -201,6 +189,8 @@ export default async function DashboardPage() {
           />
         )}
 
+        <MissionCounterBadge count={u.missions_completed_count ?? 0} />
+
         {vipUser && <VipBadge plan={vipUser.plan} />}
 
         {/* Demo status */}
@@ -220,11 +210,7 @@ export default async function DashboardPage() {
         />
 
         {/* Daily Mission */}
-        <MissionCard
-          titlePt={mission.titlePt}
-          descriptionPt={mission.descriptionPt}
-          completed={missionCompleted}
-        />
+        <MissionCard />
 
         {/* CTA */}
         {isBeginnerLevel ? (

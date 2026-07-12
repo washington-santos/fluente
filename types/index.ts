@@ -21,6 +21,7 @@ export interface User {
   teacher_id: string | null
   personal_context: string[] | null
   streak_days: number
+  missions_completed_count: number
   last_session_at: string | null
   preferred_session_time: string | null
   theme: Theme
