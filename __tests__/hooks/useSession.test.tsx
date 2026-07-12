@@ -125,6 +125,38 @@ describe('useSession', () => {
       await waitFor(() => expect(result.current.messages[1].audio_status).toBe('failed'))
     })
 
+    it('marks audio_status failed if the fetch hangs past the timeout (e.g. flaky mobile connection)', async () => {
+      vi.useFakeTimers()
+      try {
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session: null }) } as Response)
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ session_id: 'sess-1', teacher: { id: 't1' } }) } as Response)
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => mockConvResponse } as Response)
+        // Simulates a real fetch() that never settles on its own but does honor AbortSignal,
+        // the same way a hung connection behaves once aborted.
+        vi.mocked(fetch).mockImplementationOnce(
+          (_input, init) =>
+            new Promise((_resolve, reject) => {
+              ;(init as RequestInit)?.signal?.addEventListener('abort', () =>
+                reject(new DOMException('Aborted', 'AbortError'))
+              )
+            }) as Promise<Response>
+        )
+
+        const { result } = renderHook(() => useSession('teacher-1'))
+        await act(async () => { await vi.runOnlyPendingTimersAsync() })
+        expect(result.current.loading).toBe(false)
+
+        await act(async () => { await result.current.sendTurn('Hello') })
+        expect(result.current.messages[1].audio_status).toBe('pending')
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(20000) })
+
+        expect(result.current.messages[1].audio_status).toBe('failed')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('retryAudio patches the message back to pending and re-fetches audio', async () => {
       mockFetchSequence(
         { session: { id: 'sess-1', messages: [{ id: 'm2', role: 'assistant', text: 'Hi', audio_url: null, audio_status: 'failed', had_correction: false }] } },

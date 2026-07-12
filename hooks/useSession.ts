@@ -35,6 +35,17 @@ interface UseSessionReturn {
 
 const AVATAR_POLL_INTERVAL_MS = 1500
 const AVATAR_POLL_MAX_ATTEMPTS = 8
+// On a slow/flaky mobile connection a fetch() can hang indefinitely without ever
+// rejecting (observed on iOS Safari — the equivalent desktop call resolves in a
+// few seconds). Without a hard timeout, "Preparando áudio..." stays on screen
+// forever since neither the success nor the catch branch ever runs.
+const BACKGROUND_FETCH_TIMEOUT_MS = 20000
+
+function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = BACKGROUND_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeoutId))
+}
 
 export function useSession(teacherId: string): UseSessionReturn {
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -128,7 +139,7 @@ export function useSession(teacherId: string): UseSessionReturn {
 
   const fetchAudio = useCallback(async (messageId: string) => {
     try {
-      const res = await fetch('/api/conversation/audio', {
+      const res = await fetchWithTimeout('/api/conversation/audio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId }),
@@ -152,7 +163,7 @@ export function useSession(teacherId: string): UseSessionReturn {
 
   const fetchAvatar = useCallback(async (messageId: string) => {
     try {
-      const createRes = await fetch('/api/conversation/avatar', {
+      const createRes = await fetchWithTimeout('/api/conversation/avatar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message_id: messageId }),
@@ -169,7 +180,7 @@ export function useSession(teacherId: string): UseSessionReturn {
 
       for (let attempt = 0; attempt < AVATAR_POLL_MAX_ATTEMPTS; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, AVATAR_POLL_INTERVAL_MS))
-        const pollRes = await fetch(`/api/conversation/avatar/${created.talk_id}`)
+        const pollRes = await fetchWithTimeout(`/api/conversation/avatar/${created.talk_id}`)
         const polled = (await pollRes.json()) as AvatarPollResponse
         if (polled.status === 'ready') {
           patchMessage(messageId, { video_url: polled.video_url, video_status: 'ready' })
