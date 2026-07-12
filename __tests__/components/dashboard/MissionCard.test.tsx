@@ -1,22 +1,65 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MissionCard } from '@/components/dashboard/MissionCard'
 
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
+
+const mockFetch = vi.hoisted(() => vi.fn())
+vi.stubGlobal('fetch', mockFetch)
+
 describe('MissionCard', () => {
-  it('renders mission title and description', () => {
-    render(<MissionCard titlePt="Apresentação completa" descriptionPt="Apresente-se em inglês." completed={false} />)
-    expect(screen.getByText('Apresentação completa')).toBeInTheDocument()
-    expect(screen.getByText('Apresente-se em inglês.')).toBeInTheDocument()
+  beforeEach(() => {
+    vi.clearAllMocks()
   })
 
-  it('shows completed state when completed is true', () => {
-    render(<MissionCard titlePt="Apresentação" descriptionPt="Descrição" completed={true} />)
-    expect(screen.getByText(/missão concluída/i)).toBeInTheDocument()
-  })
-
-  it('does not show completed text when not completed', () => {
-    render(<MissionCard titlePt="Apresentação" descriptionPt="Descrição" completed={false} />)
+  it('shows the mission title and description once loaded, not completed', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ mission: { missionKey: 'b1-movie', titlePt: 'Recomendação cultural', descriptionPt: 'Recomende um filme.', minUserTurns: 5, completed: false } }),
+    })
+    render(<MissionCard />)
+    await waitFor(() => expect(screen.getByText('Recomendação cultural')).toBeInTheDocument())
+    expect(screen.getByText('Recomende um filme.')).toBeInTheDocument()
     expect(screen.queryByText(/missão concluída/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a start button when not completed', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ mission: { missionKey: 'b1-movie', titlePt: 'Recomendação cultural', descriptionPt: 'Recomende um filme.', minUserTurns: 5, completed: false } }),
+    })
+    render(<MissionCard />)
+    await waitFor(() => expect(screen.getByRole('button')).toBeInTheDocument())
+  })
+
+  it('shows completed styling and no start button when completed', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ mission: { missionKey: 'b1-movie', titlePt: 'Recomendação cultural', descriptionPt: 'Recomende um filme.', minUserTurns: 5, completed: true } }),
+    })
+    render(<MissionCard />)
+    await waitFor(() => expect(screen.getByText(/missão concluída/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('starts a mission-focused lesson and navigates to /aula on button click', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ mission: { missionKey: 'b1-movie', titlePt: 'Recomendação cultural', descriptionPt: 'Recomende um filme.', minUserTurns: 5, completed: false } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ session_id: 'session-99' }),
+      })
+    const user = userEvent.setup()
+    render(<MissionCard />)
+    const button = await screen.findByRole('button')
+    await user.click(button)
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/aula'))
+    expect(mockFetch).toHaveBeenCalledWith('/api/mission/start', { method: 'POST' })
   })
 })
