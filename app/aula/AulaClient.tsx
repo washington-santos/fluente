@@ -20,6 +20,7 @@ import { ObjectiveStrip } from '@/components/aula/ObjectiveStrip'
 import { XPBurst } from '@/components/aula/XPBurst'
 import { CorrectionCard } from '@/components/aula/CorrectionCard'
 import { WordsLearned } from '@/components/aula/WordsLearned'
+import { LessonEngine } from '@/components/lesson/LessonEngine'
 import { useAudioRecorder } from '@/hooks/useAudioRecorder'
 import { useSession } from '@/hooks/useSession'
 import { getTopicByKey } from '@/lib/topics'
@@ -36,6 +37,8 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   const {
     sessionId,
     topic,
+    mode,
+    lessonPlan,
     messages,
     loading,
     sending,
@@ -291,6 +294,20 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           Tentar novamente
         </button>
       </div>
+    )
+  }
+
+  // ── Structured lesson ─────────────────────────────────────────────────────
+  if (mode === 'lesson' && lessonPlan && sessionId) {
+    return (
+      <LessonEngine
+        lesson={lessonPlan}
+        sessionId={sessionId}
+        teacherName={teacher.name}
+        teacherImageUrl={teacher.avatar_image_url}
+        ttsVoice={teacher.tts_voice}
+        onComplete={handleEnd}
+      />
     )
   }
 
