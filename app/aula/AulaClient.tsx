@@ -89,6 +89,26 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const lastPlayedMessageIdRef = useRef<string | null>(null)
+  const audioUnlockedRef = useRef(false)
+
+  // iOS Safari only allows audio.play() with sound if it runs synchronously inside
+  // a user gesture (tap/click). The teacher's reply plays several seconds later,
+  // from a useEffect reacting to the TTS response — not inside any gesture's
+  // callstack — so iOS silently rejects it. Priming a real (silent) clip directly
+  // inside the tap that starts a turn "unlocks" playback for the rest of the page.
+  const SILENT_AUDIO_DATA_URL = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+  function unlockAudioPlayback() {
+    if (audioUnlockedRef.current) return
+    audioUnlockedRef.current = true
+    try {
+      const unlock = new Audio(SILENT_AUDIO_DATA_URL)
+      unlock.play().catch(() => {
+        audioUnlockedRef.current = false
+      })
+    } catch {
+      audioUnlockedRef.current = false
+    }
+  }
 
   const assistantMessageCount = messages.filter((m) => m.role === 'assistant').length
   const topicData = getTopicByKey(topic)
@@ -319,7 +339,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
             <StarterPhrase
               teacherFirstName={teacherFirstName}
               phrase={topicData?.starterPhrase ?? `Hello, ${teacherFirstName}!`}
-              onUse={() => handleTurn(topicData?.starterPhrase ?? `Hello, ${teacherFirstName}!`)}
+              onUse={() => { unlockAudioPlayback(); handleTurn(topicData?.starterPhrase ?? `Hello, ${teacherFirstName}!`) }}
               onOther={() => setShowIntro(false)}
               disabled={sending || loading}
             />
@@ -442,7 +462,6 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
               onChipClick={isLastAssistant ? handleChipClick : undefined}
               audioStatus={isLastAssistant ? m.audio_status : undefined}
               onRetryAudio={isLastAssistant ? () => retryAudio(m.id!) : undefined}
-              audioDebug={isLastAssistant ? m.audioDebug : undefined}
             />
           )
         })}
@@ -516,7 +535,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
 
             <RecordButton
               isRecording={isRecording}
-              onStartRecording={startRecording}
+              onStartRecording={() => { unlockAudioPlayback(); startRecording() }}
               onSendRecording={stopRecording}
               onCancelRecording={cancelRecording}
               disabled={sending || loading}
@@ -526,8 +545,8 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
               <TextInput
                 value={textValue}
                 onChange={setTextValue}
-                onSubmit={(text) => handleTurn(text)}
-                onNaoEntendi={handleNaoEntendi}
+                onSubmit={(text) => { unlockAudioPlayback(); handleTurn(text) }}
+                onNaoEntendi={() => { unlockAudioPlayback(); handleNaoEntendi() }}
                 disabled={sending || loading}
               />
             )}
