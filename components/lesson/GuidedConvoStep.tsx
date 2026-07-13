@@ -23,15 +23,20 @@ interface GuidedConvoStepProps {
 
 export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl, ttsVoice, onComplete }: GuidedConvoStepProps) {
   const [messages, setMessages] = useState<Message[]>([])
+  // Start as true so mic stays disabled while initial TTS loads
   const [isSpeaking, setIsSpeaking] = useState(true)
   const [isAssessing, setIsAssessing] = useState(false)
   const [exchangeCount, setExchangeCount] = useState(0)
   const [assessError, setAssessError] = useState<string | null>(null)
+  // true = teacher question not yet heard (autoplay blocked or still loading)
   const [awaitingListen, setAwaitingListen] = useState(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Pre-fetched audio URL ready to play immediately on user tap (iOS-safe)
   const pendingUrlRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Plays teacher's CURRENT question. Tracks whether autoplay succeeded.
+  // If autoplay is blocked (iOS), pendingUrlRef holds the URL for mic-tap triggered play.
   const playCurrentTts = async (text: string) => {
     setIsSpeaking(true)
     setAwaitingListen(true)
@@ -46,6 +51,7 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
         const audio = new Audio(audio_url)
         audioRef.current = audio
         audio.onplaying = () => {
+          // Autoplay succeeded — mic will go straight to record after TTS ends
           pendingUrlRef.current = null
           setAwaitingListen(false)
         }
@@ -59,6 +65,7 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
     }
   }
 
+  // Replays any message on demand (🔊 button). Does not affect awaitingListen state.
   const replayTts = async (text: string) => {
     if (isSpeaking) { audioRef.current?.pause(); setIsSpeaking(false); return }
     setIsSpeaking(true)
@@ -138,11 +145,13 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
 
     const url = pendingUrlRef.current
     if (url) {
+      // Autoplay was blocked — play TTS now directly from user gesture (no await → iOS-safe)
       pendingUrlRef.current = null
       setAwaitingListen(false)
       setIsSpeaking(true)
       const audio = new Audio(url)
       audioRef.current = audio
+      // After teacher speaks, start recording automatically
       audio.onended = () => { setIsSpeaking(false); startRecording() }
       audio.onerror = () => { setIsSpeaking(false); startRecording() }
       audio.play().catch(() => { setIsSpeaking(false); startRecording() })
