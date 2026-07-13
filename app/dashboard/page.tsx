@@ -9,6 +9,7 @@ import { ErrorCard } from '@/components/dashboard/ErrorCard'
 import { MissionCard } from '@/components/dashboard/MissionCard'
 import { MissionCounterBadge } from '@/components/dashboard/MissionCounterBadge'
 import { ProgressMemoryCard } from '@/components/dashboard/ProgressMemoryCard'
+import { FreePracticeButton } from '@/components/dashboard/FreePracticeButton'
 import { getPronunciationTrend } from '@/lib/mastery'
 import type { Teacher, User, ErrorType } from '@/types'
 import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
@@ -138,18 +139,13 @@ export default async function DashboardPage() {
     )
   }
 
-  // Lesson progress for A1/A2 users
-  const isBeginnerLevel = u.cefr_level === 'A1' || u.cefr_level === 'A2'
-  const { data: lessonProgressRows } = isBeginnerLevel
-    ? await supabase
-        .from('user_lesson_progress')
-        .select('status')
-        .eq('user_id', authUser.id)
-    : { data: null }
+  const { data: masteredTopicRows } = await supabase
+    .from('user_topic_progress')
+    .select('mastery_status')
+    .eq('user_id', authUser.id)
+    .eq('mastery_status', 'mastered')
 
-  const completedLessons = (lessonProgressRows ?? []).filter(
-    (r: { status: string }) => r.status === 'completed'
-  ).length
+  const completedLessons = (masteredTopicRows ?? []).length
 
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col">
@@ -213,38 +209,29 @@ export default async function DashboardPage() {
         <MissionCard />
 
         {/* CTA */}
-        {isBeginnerLevel ? (
-          <Link
-            href="/licoes"
-            className="w-full py-4 rounded-xl bg-brand-cta text-content-dark font-bold text-center text-lg hover:opacity-90 transition-opacity"
-          >
-            Continuar lições
-          </Link>
-        ) : (
-          <Link
-            href="/aula"
-            className="w-full py-4 rounded-xl bg-brand-cta text-content-dark font-bold text-center text-lg hover:opacity-90 transition-opacity"
-          >
-            Começar aula
-          </Link>
-        )}
+        <Link
+          href="/licoes"
+          className="w-full py-4 rounded-xl bg-brand-cta text-content-dark font-bold text-center text-lg hover:opacity-90 transition-opacity"
+        >
+          Continuar lições
+        </Link>
 
-        {isBeginnerLevel && (
-          <Link
-            href="/licoes"
-            className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
-          >
-            <div>
-              <p className="text-sm font-semibold text-content-light dark:text-content-dark">
-                Suas lições
-              </p>
-              <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
-                {completedLessons} {completedLessons === 1 ? 'lição concluída' : 'lições concluídas'}
-              </p>
-            </div>
-            <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
-          </Link>
-        )}
+        <FreePracticeButton teacherId={u.teacher_id!} />
+
+        <Link
+          href="/licoes"
+          className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
+        >
+          <div>
+            <p className="text-sm font-semibold text-content-light dark:text-content-dark">
+              Suas lições
+            </p>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+              {completedLessons} {completedLessons === 1 ? 'tópico dominado' : 'tópicos dominados'}
+            </p>
+          </div>
+          <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+        </Link>
 
         {/* Teacher */}
         {t && (
