@@ -1,7 +1,7 @@
 // ── Primitive unions ────────────────────────────────────────────────────
 export type Theme = 'light' | 'dark'
 export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
-export type SessionMode = 'guided' | 'scenario' | 'free' | 'daily'
+export type SessionMode = 'guided' | 'scenario' | 'free' | 'daily' | 'lesson'
 export type MessageRole = 'user' | 'assistant'
 export type ErrorType = 'verb_tense' | 'vocabulary' | 'preposition' | 'pronunciation' | 'other'
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing'

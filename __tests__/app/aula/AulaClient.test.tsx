@@ -36,6 +36,9 @@ vi.mock('@/hooks/useAudioRecorder', () => ({
 
 vi.mock('@/components/ThemeToggle', () => ({ ThemeToggle: () => <button>toggle</button> }))
 vi.mock('@/components/ThemeProvider', () => ({ useTheme: () => ({ theme: 'dark', toggle: vi.fn() }) }))
+vi.mock('@/components/lesson/LessonEngine', () => ({
+  LessonEngine: ({ lesson }: { lesson: { title_pt: string } }) => <div>Lesson engine: {lesson.title_pt}</div>,
+}))
 
 import { useSession } from '@/hooks/useSession'
 import { AulaClient } from '@/app/aula/AulaClient'
@@ -57,6 +60,28 @@ describe('AulaClient', () => {
       expect(screen.getByText('Hello!')).toBeInTheDocument()
       expect(screen.getByText('Hi there!')).toBeInTheDocument()
     })
+  })
+
+  it('renders LessonEngine instead of the chat UI when the session mode is "lesson"', async () => {
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'greetings',
+      mode: 'lesson',
+      lessonPlan: { title_pt: 'Cumprimentos', objective_pt: '', vocabulary: [], learning_objectives: [], steps: [] },
+      messages: [],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn(),
+      endSession: vi.fn(),
+      retryAudio: vi.fn(),
+    })
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
+    await waitFor(() => expect(screen.getByText('Lesson engine: Cumprimentos')).toBeInTheDocument())
   })
 
   it('plays audio automatically once the last assistant message becomes ready', async () => {

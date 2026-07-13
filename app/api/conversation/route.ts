@@ -134,6 +134,12 @@ export async function POST(request: Request) {
   const sessionId = formData.get('session_id') as string | null
   const audio = formData.get('audio') as Blob | null
   const panicText = formData.get('panic_text') as string | null
+  const guidedVocabRaw = formData.get('guided_vocab') as string | null
+  const isChallenge = formData.get('is_challenge') === 'true'
+  const guidedVocab: string[] = (() => {
+    try { return guidedVocabRaw ? JSON.parse(guidedVocabRaw) : [] }
+    catch { return [] }
+  })()
 
   const trimmedPanicText = panicText ? panicText.trim() : null
   if (!sessionId) return NextResponse.json({ error: 'session_id required' }, { status: 400 })
@@ -210,7 +216,11 @@ export async function POST(request: Request) {
     vocabulary_focus?: string[]
   } | null
 
-  const topicBlock = lessonPlan
+  // Guided-practice turns carry their own precise vocab restriction (guidedVocabBlock below) —
+  // suppress the generic topic/anatomy framing so it doesn't add noise to the prompt.
+  const isGuidedPractice = guidedVocab.length > 0
+
+  const topicBlock = isGuidedPractice ? '' : lessonPlan
     ? `\nPERSONALIZED LESSON PLAN FOR TODAY:
 Topic: "${lessonPlan.title_pt ?? topicData?.labelPt ?? ''}"
 Objective: "${lessonPlan.objective_pt ?? ''}"
@@ -233,7 +243,7 @@ ${lessonPlan.vocabulary_focus?.length ? `Vocabulary to cover: ${lessonPlan.vocab
     : `\nIntervention timing: Only intervene when explicitly asked. Push the student to self-correct and rephrase. Expect near-native fluency and challenge them accordingly.`
 
   const studentName = userData?.name ?? 'the student'
-  const anatomyBlock = lessonPlan
+  const anatomyBlock = isGuidedPractice ? '' : lessonPlan
     ? `\nLESSON STRUCTURE — you are the TEACHER, you lead every step:
 1. OPENING (your very first message): Use the personalized greeting above, then IMMEDIATELY begin teaching the first vocabulary item or concept. Do NOT just ask a question — start teaching.
 2. TEACH BEFORE YOU TEST — for every new word or concept:
@@ -250,12 +260,16 @@ CRITICAL RULE: NEVER ask the student to say or use something they have NOT been 
 3. NEW CONTENT + PRACTICE (main body): Introduce or reinforce a grammar structure or vocabulary area appropriate for ${cefrLevel} level through natural questions — not explicit drills.
 4. FREE CONVERSATION (closing): Converse freely on today's topic. Correct errors naturally within the flow without interrupting the conversation.`
 
+  const guidedVocabBlock = guidedVocab.length > 0
+    ? `\nGUIDED PRACTICE RESTRICTION — CRITICAL: This is a structured practice exchange. You must only use vocabulary from this list in your questions and replies: ${guidedVocab.join(', ')}. Keep sentences short and built only from these words plus basic connecting words (a, the, is, you, I, and, etc.).${isChallenge ? ' This is the final challenge of the lesson — ask the student to combine everything they learned into one fuller exchange, and be a bit more demanding than during earlier practice.' : ''}`
+    : ''
+
   const systemPrompt = `${teacher.system_prompt}
 
 Student profile:
 - Name: ${studentName}
 - CEFR level: ${cefrLevel}
-${memoryBlock}${topicBlock}${errorContextBlock}${anatomyBlock}${interventionBlock}
+${memoryBlock}${topicBlock}${errorContextBlock}${anatomyBlock}${interventionBlock}${guidedVocabBlock}
 UNDERSTANDING RULE — CRITICAL: You are an AI that understands perfectly. NEVER say "I didn't understand", "Could you repeat?", "I'm not sure what you mean", or any variation. Always interpret the student's message charitably — even if pronunciation was unclear or the sentence was incomplete, understand their intent and respond naturally to it. If the message was very unclear, make a reasonable assumption about what they meant and continue the conversation. A real teacher always finds a way to understand their student.
 
 Respond ONLY with valid JSON — no markdown, no extra text:

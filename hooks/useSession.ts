@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ConversationResponse, AudioFetchResponse, AvatarCreateResponse, AvatarPollResponse, AudioStatus, VideoStatus } from '@/types'
+import type { ConversationResponse, AudioFetchResponse, AvatarCreateResponse, AvatarPollResponse, AudioStatus, VideoStatus, SessionMode } from '@/types'
+import type { GeneratedLesson } from '@/types/lesson'
 
 interface SessionMessage {
   id: string | null
@@ -20,6 +21,8 @@ interface SessionMessage {
 interface UseSessionReturn {
   sessionId: string | null
   topic: string | null
+  mode: SessionMode | null
+  lessonPlan: GeneratedLesson | null
   messages: SessionMessage[]
   loading: boolean
   sending: boolean
@@ -50,6 +53,8 @@ function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, time
 export function useSession(teacherId: string): UseSessionReturn {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [topic, setTopic] = useState<string | null>(null)
+  const [mode, setMode] = useState<SessionMode | null>(null)
+  const [lessonPlan, setLessonPlan] = useState<GeneratedLesson | null>(null)
   const [messages, setMessages] = useState<SessionMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -78,6 +83,8 @@ export function useSession(teacherId: string): UseSessionReturn {
           if (!mounted) return
           setSessionId(session.id)
           setTopic((session.topic as string | null) ?? null)
+          setMode((session.mode as SessionMode | null) ?? null)
+          setLessonPlan(session.mode === 'lesson' ? (session.lesson_plan_json as GeneratedLesson ?? null) : null)
           interface RawDbMessage {
             id: string
             role: string
@@ -122,6 +129,7 @@ export function useSession(teacherId: string): UseSessionReturn {
         if (mounted) {
           setSessionId(session_id)
           setTopic((newTopic as string | null) ?? null)
+          setMode('daily')
         }
       } catch (err) {
         console.error('useSession init error:', err)
@@ -275,5 +283,5 @@ export function useSession(teacherId: string): UseSessionReturn {
     )
   }, [sessionId])
 
-  return { sessionId, topic, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession, retryAudio }
+  return { sessionId, topic, mode, lessonPlan, messages, loading, sending, initError, turnError, quotaExceeded, quotaInfo, lastPromptHint, sendTurn, endSession, retryAudio }
 }

@@ -3,9 +3,12 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import OpenAI from 'openai'
 import { getStudentContext } from '@/lib/student-context'
 import { getTopicsForLevel } from '@/lib/topics'
+import { getLessonShape } from '@/lib/lesson-shape'
 import { METHODOLOGY_INSTRUCTIONS, METHODOLOGY_NAMES_PT } from '@/lib/mastery'
 import type { Topic } from '@/lib/topics'
 import type { Methodology } from '@/lib/mastery'
+import type { CefrLevel } from '@/types'
+import type { GeneratedLesson, LessonStep, VocabItem, LearningObjective } from '@/types/lesson'
 
 interface TopicProgress {
   topic_id: string
@@ -22,7 +25,6 @@ function selectNextTopic(
   const progressMap = new Map(allProgress.map(p => [p.topic_id, p]))
   const now = new Date()
 
-  // 1. Topics still in "learning" (failed before) — retry with different methodology
   for (const t of topics) {
     const p = progressMap.get(t.key)
     if (p?.mastery_status === 'learning') {
@@ -30,27 +32,151 @@ function selectNextTopic(
       return { topic: t, isRetry: true, isReview: false, methodology: nextMethod }
     }
   }
-
-  // 2. Topics due for spaced review
   for (const t of topics) {
     const p = progressMap.get(t.key)
     if (p?.mastery_status === 'mastered' && p.next_review_at && new Date(p.next_review_at) <= now) {
       return { topic: t, isRetry: false, isReview: true, methodology: 'conversation' }
     }
   }
-
-  // 3. Next unlearned topic
   for (const t of topics) {
     if (!progressMap.has(t.key)) {
       return { topic: t, isRetry: false, isReview: false, methodology: 'conversation' }
     }
   }
-
-  // 4. All mastered, no reviews due — restart from first topic
   const first = topics[0]
   return first
     ? { topic: first, isRetry: false, isReview: true, methodology: 'conversation' }
     : null
+}
+
+interface AiExercise {
+  vocab_word: string
+  question_pt: string
+  correct_answer: string
+  choices: string[]
+  explanation_pt: string
+  fill_blank_sentence: string
+  fill_blank_hint_pt: string
+}
+
+interface AiLessonContent {
+  title_pt: string
+  objective_pt: string
+  learning_objectives: LearningObjective[]
+  vocabulary: Array<VocabItem & { example_sentence_en: string; example_sentence_pt: string; teacher_script: string }>
+  exercises: AiExercise[]
+  guided_convo_opening: string
+  guided_convo_opening_pt: string
+  challenge_opening: string
+  challenge_opening_pt: string
+}
+
+function fallbackAiContent(topic: Topic): AiLessonContent {
+  const word = topic.objectivesPt[0]?.split(' ')[0]?.toLowerCase() ?? 'hello'
+  return {
+    title_pt: topic.labelPt,
+    objective_pt: topic.objectivesPt[0] ?? 'Praticar inglês',
+    learning_objectives: [{ id: 'obj-1', description_pt: topic.objectivesPt[0] ?? 'Praticar inglês', vocab_words: [word] }],
+    vocabulary: [{ word, translation_pt: word, emoji: '📘', pronunciation_hint: word, example_sentence_en: topic.starterPhrase, example_sentence_pt: topic.starterPhrase, teacher_script: topic.starterPhrase }],
+    exercises: [{ vocab_word: word, question_pt: `O que significa "${word}"?`, correct_answer: word, choices: [word, 'other', 'more', 'less'], explanation_pt: topic.promptEn, fill_blank_sentence: `I say ___.`, fill_blank_hint_pt: topic.starterPhrase }],
+    guided_convo_opening: topic.starterPhrase,
+    guided_convo_opening_pt: topic.starterPhrase,
+    challenge_opening: topic.starterPhrase,
+    challenge_opening_pt: topic.starterPhrase,
+  }
+}
+
+function buildSteps(
+  content: AiLessonContent,
+  shape: ReturnType<typeof getLessonShape>,
+  warmup: { recentSummaryPt: string | null; frequentErrorsPt: string[]; recentWords: string[] } | null,
+): LessonStep[] {
+  const steps: LessonStep[] = []
+  let idCounter = 0
+  const nextId = (prefix: string) => `${prefix}-${idCounter++}`
+
+  if (warmup) {
+    steps.push({
+      id: nextId('warmup'),
+      type: 'warmup_review',
+      recent_summary_pt: warmup.recentSummaryPt,
+      frequent_errors_pt: warmup.frequentErrorsPt,
+      recent_words: warmup.recentWords,
+    })
+  }
+
+  steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt })
+
+  content.vocabulary.forEach((vocab, i) => {
+    steps.push({
+      id: nextId('vp'),
+      type: 'vocab_present',
+      vocab_index: i,
+      teacher_script: vocab.teacher_script,
+      example_sentence_en: vocab.example_sentence_en,
+      example_sentence_pt: vocab.example_sentence_pt,
+    })
+    const exercise = content.exercises[i] ?? content.exercises[0]
+    if (exercise) {
+      if (i % 2 === 0) {
+        steps.push({
+          id: nextId('ex'),
+          type: 'exercise_choice',
+          question_pt: exercise.question_pt,
+          image_emoji: vocab.emoji,
+          correct_answer: exercise.correct_answer,
+          choices: exercise.choices,
+          explanation_pt: exercise.explanation_pt,
+        })
+      } else {
+        steps.push({
+          id: nextId('ex'),
+          type: 'exercise_fill_blank',
+          sentence_pt_hint: exercise.fill_blank_hint_pt,
+          sentence_with_blank: exercise.fill_blank_sentence,
+          correct_answer: exercise.correct_answer,
+          explanation_pt: exercise.explanation_pt,
+        })
+      }
+    }
+  })
+
+  const lastVocab = content.vocabulary[content.vocabulary.length - 1]
+  if (lastVocab) {
+    steps.push({
+      id: nextId('vr'),
+      type: 'vocab_repeat',
+      vocab_index: content.vocabulary.length - 1,
+      instruction_pt: `Pratique a pronúncia de "${lastVocab.word}"`,
+    })
+  }
+
+  const allowedVocabulary = content.vocabulary.map(v => v.word)
+
+  steps.push({
+    id: nextId('gc'),
+    type: 'guided_convo',
+    instruction_pt: 'Converse usando o que você aprendeu hoje.',
+    teacher_opens_with: content.guided_convo_opening,
+    teacher_opens_with_pt: content.guided_convo_opening_pt,
+    allowed_vocabulary: allowedVocabulary,
+    min_exchanges: shape.minExchangesPractice,
+  })
+
+  steps.push({
+    id: nextId('gc'),
+    type: 'guided_convo',
+    instruction_pt: 'Use tudo que você aprendeu nesta aula para ir além.',
+    teacher_opens_with: content.challenge_opening,
+    teacher_opens_with_pt: content.challenge_opening_pt,
+    allowed_vocabulary: allowedVocabulary,
+    min_exchanges: shape.minExchangesChallenge,
+    is_challenge: true,
+  })
+
+  steps.push({ id: nextId('summary'), type: 'summary' })
+
+  return steps
 }
 
 export async function POST() {
@@ -66,27 +192,31 @@ export async function POST() {
 
   if (!userData?.teacher_id) return NextResponse.json({ error: 'No teacher assigned' }, { status: 400 })
 
-  const [context, { data: allProgressRows }] = await Promise.all([
+  const [context, { data: allProgressRows }, { data: recentVocabRows }] = await Promise.all([
     getStudentContext(user.id, supabase),
     supabase
       .from('user_topic_progress')
       .select('topic_id, mastery_status, last_methodology, next_review_at')
       .eq('user_id', user.id),
+    supabase
+      .from('vocab_log')
+      .select('word')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(3),
   ])
 
   const allProgress = (allProgressRows ?? []) as TopicProgress[]
   const selection = selectNextTopic(context.cefrLevel, allProgress)
-
   if (!selection) return NextResponse.json({ error: 'No topic available' }, { status: 500 })
 
   const { topic, isRetry, isReview, methodology } = selection
-
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const cefrLevel = context.cefrLevel as CefrLevel
+  const shape = getLessonShape(cefrLevel)
 
   const contextLines: string[] = []
   if (context.personalContext.length > 0) contextLines.push(context.personalContext.slice(0, 3).join('; '))
   if (context.goal) contextLines.push(`Goal: ${context.goal}`)
-  if (context.recentSessionSummary) contextLines.push(`Last session: ${context.recentSessionSummary}`)
   if (context.biggestDifficulty) contextLines.push(`Biggest difficulty: ${context.biggestDifficulty}`)
 
   const retryNote = isRetry
@@ -95,51 +225,71 @@ export async function POST() {
     ? `\nIMPORTANT: This is a REVIEW session — the student learned this topic before. Make it feel fresh. Test retention with new examples.`
     : ''
 
-  const prompt = `Create a personalized English lesson plan for a Brazilian student.
+  const prompt = `Create the teaching content for one structured English lesson for a Brazilian student.
 
 STUDENT:
 - Name: ${context.name ?? 'Aluno'}
-- CEFR Level: ${context.cefrLevel}
-- Streak: ${context.streakDays} days
+- CEFR Level: ${cefrLevel}
 ${contextLines.length > 0 ? `- Context: ${contextLines.join(' | ')}` : ''}
 ${context.frequentErrors.length > 0 ? `- Frequent mistakes: ${context.frequentErrors.join(', ')}` : ''}
 
 TODAY'S TOPIC: ${topic.labelPt} (${topic.promptEn})
 OBJECTIVES: ${topic.objectivesPt.join(', ')}
+VOCABULARY COUNT: exactly ${shape.vocabCount} words/phrases, appropriate for ${cefrLevel}
 ${retryNote}
 
 Return ONLY valid JSON:
 {
   "title_pt": "lesson title in Portuguese (max 5 words)",
   "objective_pt": "one sentence — what the student will achieve today (Portuguese)",
-  "teacher_greeting": "teacher's warm opening in English (2-3 sentences: greet student by name, briefly mention what they will LEARN today — not what they should say)",
-  "teacher_greeting_pt": "Portuguese translation of teacher_greeting",
-  "lesson_instructions": "Teaching sequence for this session (2-4 sentences): describe the ORDER in which to introduce vocabulary/concepts, what examples or analogies to use, and how to move from presentation to practice. Remember: teacher introduces FIRST, student practices AFTER.",
-  "vocabulary_focus": ["word1", "word2", "word3"]
-}`
+  "learning_objectives": [{"id":"obj-1","description_pt":"...","vocab_words":["word1"]}],
+  "vocabulary": [{"word":"...","translation_pt":"...","emoji":"...","pronunciation_hint":"...","example_sentence_en":"...","example_sentence_pt":"...","teacher_script":"spoken intro of this word: say it, translate it, give one example"}],
+  "exercises": [{"vocab_word":"...","question_pt":"...","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"a sentence with the word replaced by ___","fill_blank_hint_pt":"Portuguese translation of that full sentence"}],
+  "guided_convo_opening": "teacher's opening question for guided practice, in English, using only today's vocabulary",
+  "guided_convo_opening_pt": "Portuguese translation",
+  "challenge_opening": "a harder closing question asking the student to combine everything learned, in English",
+  "challenge_opening_pt": "Portuguese translation"
+}
+Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCount} exercises (one per vocabulary item, in the same order).`
 
-  let lessonPlan: Record<string, unknown>
+  let aiContent: AiLessonContent
   try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 600,
+      max_tokens: 2200,
       response_format: { type: 'json_object' },
     })
-    lessonPlan = JSON.parse(completion.choices[0].message.content ?? '{}')
+    const parsed = JSON.parse(completion.choices[0].message.content ?? '{}') as Partial<AiLessonContent>
+    if (!parsed.vocabulary?.length || !parsed.exercises?.length) throw new Error('Incomplete AI lesson content')
+    aiContent = parsed as AiLessonContent
   } catch {
-    lessonPlan = {
-      title_pt: topic.labelPt,
-      objective_pt: topic.objectivesPt[0] ?? 'Praticar inglês',
-      teacher_greeting: topic.starterPhrase,
-      teacher_greeting_pt: null,
-      lesson_instructions: `Focus on: ${topic.promptEn}. ${METHODOLOGY_INSTRUCTIONS[methodology]}`,
-      vocabulary_focus: [],
-    }
+    aiContent = fallbackAiContent(topic)
+  }
+
+  const recentWords = ((recentVocabRows ?? []) as Array<{ word: string }>).map(r => r.word)
+
+  const warmup = (context.recentSessionSummary || context.frequentErrors.length > 0 || recentWords.length > 0)
+    ? {
+        recentSummaryPt: context.recentSessionSummary,
+        frequentErrorsPt: context.frequentErrors,
+        recentWords,
+      }
+    : null
+
+  const steps = buildSteps(aiContent, shape, warmup)
+
+  const generatedLesson: GeneratedLesson = {
+    title_pt: aiContent.title_pt,
+    objective_pt: aiContent.objective_pt,
+    vocabulary: aiContent.vocabulary.map(v => ({ word: v.word, translation_pt: v.translation_pt, emoji: v.emoji, pronunciation_hint: v.pronunciation_hint })),
+    learning_objectives: aiContent.learning_objectives,
+    steps,
   }
 
   const lessonPlanFull = {
-    ...lessonPlan,
+    ...generatedLesson,
     topic_key: topic.key,
     topic_label_pt: topic.labelPt,
     topic_prompt_en: topic.promptEn,
@@ -149,7 +299,6 @@ Return ONLY valid JSON:
     generated_at: new Date().toISOString(),
   }
 
-  // Close dangling open sessions so GET /api/session finds the new one
   await supabase
     .from('sessions')
     .update({ ended_at: new Date().toISOString() })
@@ -162,7 +311,7 @@ Return ONLY valid JSON:
     .insert({
       user_id: user.id,
       teacher_id: userData.teacher_id,
-      mode: 'daily',
+      mode: 'lesson',
       topic: topic.key,
       lesson_plan_json: lessonPlanFull,
       lesson_topic_id: topic.key,
@@ -174,19 +323,18 @@ Return ONLY valid JSON:
     return NextResponse.json({ error: sessionError?.message ?? 'Session creation failed' }, { status: 500 })
   }
 
-  // Track topic start (only if not already in progress — mastery state is set by /assess)
   await supabase.rpc('increment_topic_progress', {
     p_user_id: user.id,
     p_topic_id: topic.key,
-    p_cefr_level: context.cefrLevel,
+    p_cefr_level: cefrLevel,
   })
 
   return NextResponse.json({
     session_id: session.id,
     teacher_id: userData.teacher_id,
     lesson: {
-      title_pt: lessonPlan.title_pt,
-      objective_pt: lessonPlan.objective_pt,
+      title_pt: generatedLesson.title_pt,
+      objective_pt: generatedLesson.objective_pt,
       topic_key: topic.key,
       topic_label_pt: topic.labelPt,
       emoji: topic.emoji,

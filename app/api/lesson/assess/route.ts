@@ -14,9 +14,8 @@ export async function POST(request: Request) {
   const audio = formData.get('audio') as Blob | null
   const panicText = formData.get('text') as string | null
   const allowedVocabRaw = formData.get('allowed_vocab') as string | null
-  const historyRaw = formData.get('history') as string | null
 
-  if (type !== 'pronunciation' && type !== 'conversation') {
+  if (type !== 'pronunciation') {
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   }
 
@@ -65,59 +64,5 @@ Respond ONLY with valid JSON (no markdown):
     } catch {
       return NextResponse.json({ error: 'Assessment parse error' }, { status: 500 })
     }
-  }
-
-  // type === 'conversation'
-  const history: Array<{ role: string; content: string }> = (() => {
-    try { return historyRaw ? JSON.parse(historyRaw) : [] }
-    catch { return [] }
-  })()
-
-  const askedWords = history
-    .filter(m => m.role === 'assistant')
-    .map(m => m.content)
-    .join(' ')
-
-  const lastQuestion = history.filter(m => m.role === 'assistant').pop()?.content ?? target
-
-  const system = `You are Mrs. Carol, an English teacher for Brazilian A1 learners.
-VOCABULARY: ${vocab.join(', ')}.
-
-Your last question to the student was: "${lastQuestion}"
-The student answered: "${transcript}"
-
-STEP 1 — Decide if the answer is CORRECT:
-Check if the student said the word you last asked about. BE VERY LENIENT with Brazilian accent:
-- Accept approximate sounds: "reed/rad" → Red ✅, "orinj/orenj/oranch/orangi" → Orange ✅, "bloo/blew/blu" → Blue ✅, "greem/grin/grien" → Green ✅, "yellou/ielow" → Yellow ✅, "blak/black" → Black ✅, "wayt/wyte/whyte" → White ✅, "porpul/purpul/purpl" → Purple ✅
-- Mark INCORRECT only if: student said a completely different word, said nothing useful, or was totally unintelligible
-
-STEP 2 — Write your reply:
-IF CORRECT → "correct": true:
-  Short praise + immediately ask about a DIFFERENT word not yet discussed.
-  Words already discussed: "${askedWords || 'none'}"
-  Example: "Great! Red! ✅ Now, what color is this? 🔵"
-
-IF INCORRECT → "correct": false:
-  Say the right word clearly, then repeat the EXACT SAME question with the same emoji. Do NOT move to a new word.
-  Example: "Almost! The word is 'orange' 🟠. Try again — what color is this? 🟠"
-
-Respond ONLY with valid JSON where "correct" is a boolean (true or false):
-{"reply":"...","reply_pt":"...","feedback_pt":"...","correct":true}`
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: system },
-      ...history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { role: 'user', content: transcript },
-    ],
-    max_tokens: 200,
-    response_format: { type: 'json_object' },
-  })
-  try {
-    const result = JSON.parse(completion.choices[0].message.content ?? '{}')
-    return NextResponse.json({ ...result, transcript })
-  } catch {
-    return NextResponse.json({ error: 'Response parse error' }, { status: 500 })
   }
 }

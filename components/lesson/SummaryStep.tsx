@@ -32,10 +32,12 @@ export function SummaryStep({ vocabulary, vocabScores, learningObjectives, xpEar
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-center">
-          <p className="text-2xl font-bold text-brand-streak">+{xpEarned} XP</p>
-          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">ganhos</p>
-        </div>
+        {xpEarned > 0 && (
+          <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-center">
+            <p className="text-2xl font-bold text-brand-streak">+{xpEarned} XP</p>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">ganhos</p>
+          </div>
+        )}
         {pronunciationPct > 0 && (
           <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-center">
             <p className="text-2xl font-bold text-brand-interactive">{pronunciationPct}%</p>
