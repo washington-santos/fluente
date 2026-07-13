@@ -48,6 +48,10 @@ export function VocabPresentStep({ step, vocab, ttsVoice, onContinue }: VocabPre
         </p>
         <p className="text-sm text-brand-interactive font-mono mt-1">/{vocab.pronunciation_hint}/</p>
       </div>
+      <div className="w-full p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-center">
+        <p className="text-base text-content-light dark:text-content-dark">{step.example_sentence_en}</p>
+        <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-1 italic">{step.example_sentence_pt}</p>
+      </div>
       <button
         onClick={playTts}
         disabled={isLoading}
