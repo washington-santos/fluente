@@ -90,6 +90,9 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const lastPlayedMessageIdRef = useRef<string | null>(null)
   const audioUnlockedRef = useRef(false)
+  // TEMP DEBUG (remove once the iOS "no sound" bug is found): a single always-visible
+  // trace of the unlock + playback attempts — no DevTools access on the reporter's device.
+  const [audioDebugMsg, setAudioDebugMsg] = useState<string | null>(null)
 
   // iOS Safari only allows audio.play() with sound if it runs synchronously inside
   // a user gesture (tap/click). The teacher's reply plays several seconds later,
@@ -102,11 +105,17 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
     audioUnlockedRef.current = true
     try {
       const unlock = new Audio(SILENT_AUDIO_DATA_URL)
-      unlock.play().catch(() => {
-        audioUnlockedRef.current = false
-      })
-    } catch {
+      unlock.play()
+        .then(() => setAudioDebugMsg('unlock: play() ok'))
+        .catch((err: unknown) => {
+          audioUnlockedRef.current = false
+          const e = err as { name?: string; message?: string }
+          setAudioDebugMsg(`unlock: rejeitado ${e?.name ?? '?'} ${e?.message ?? String(err)}`)
+        })
+    } catch (err) {
       audioUnlockedRef.current = false
+      const e = err as { name?: string; message?: string }
+      setAudioDebugMsg(`unlock: excecao ${e?.name ?? '?'} ${e?.message ?? String(err)}`)
     }
   }
 
@@ -129,6 +138,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       audioRef.current.onerror = null
       audioRef.current = null
     }
+    setAudioDebugMsg(`playAudioUrl: iniciando ${new Date().toLocaleTimeString()} unlocked=${audioUnlockedRef.current}`)
     const audio = new Audio(url)
     audioRef.current = audio
     setIsSpeaking(true)
@@ -137,8 +147,18 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       audioRef.current = null
     }
     audio.onended = cleanup
-    audio.onerror = cleanup
-    audio.play().catch(cleanup)
+    audio.onerror = (ev) => {
+      const mediaErr = (ev as unknown as { target?: { error?: { code?: number; message?: string } } })?.target?.error
+      setAudioDebugMsg(`playAudioUrl: onerror code=${mediaErr?.code ?? '?'} ${mediaErr?.message ?? ''}`)
+      cleanup()
+    }
+    audio.play()
+      .then(() => setAudioDebugMsg(`playAudioUrl: play() ok ${new Date().toLocaleTimeString()}`))
+      .catch((err: unknown) => {
+        const e = err as { name?: string; message?: string }
+        setAudioDebugMsg(`playAudioUrl: play() rejeitado ${e?.name ?? '?'}: ${e?.message ?? String(err)}`)
+        cleanup()
+      })
   }
 
   // Play audio the moment the newest assistant message's synthesis finishes —
@@ -401,6 +421,12 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           <ThemeToggle />
         </div>
       </header>
+
+      {audioDebugMsg && (
+        <div className="shrink-0 px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-mono break-all" data-testid="audio-debug-banner">
+          🔧 {audioDebugMsg}
+        </div>
+      )}
 
       {/* Phase indicator */}
       <div className="shrink-0">
