@@ -1,61 +1,43 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import type { LessonContent, UserLessonProgress } from '@/types/lesson'
+import { useState } from 'react'
+import type { GeneratedLesson } from '@/types/lesson'
 import { LessonProgressBar } from '@/components/lesson/LessonProgressBar'
+import { WarmupReviewStep } from '@/components/lesson/WarmupReviewStep'
 import { IntroStep } from '@/components/lesson/IntroStep'
 import { SummaryStep } from '@/components/lesson/SummaryStep'
 import { VocabPresentStep } from '@/components/lesson/VocabPresentStep'
 import { VocabRepeatStep } from '@/components/lesson/VocabRepeatStep'
 import { ExerciseChoiceStep } from '@/components/lesson/ExerciseChoiceStep'
+import { ExerciseFillBlankStep } from '@/components/lesson/ExerciseFillBlankStep'
 import { GuidedConvoStep } from '@/components/lesson/GuidedConvoStep'
 import { ReviewStep } from '@/components/lesson/ReviewStep'
 
 interface LessonEngineProps {
-  lesson: LessonContent
-  initialProgress: UserLessonProgress | null
+  lesson: GeneratedLesson
+  sessionId: string
   teacherName: string
   teacherImageUrl: string
   ttsVoice: string
+  onComplete: () => void
 }
 
-export function LessonEngine({ lesson, initialProgress, teacherName, teacherImageUrl, ttsVoice }: LessonEngineProps) {
-  const router = useRouter()
-  const [currentStepIndex, setCurrentStepIndex] = useState(initialProgress?.current_step_index ?? 0)
-  const [vocabScores, setVocabScores] = useState<Record<string, number>>(initialProgress?.vocab_scores ?? {})
-  const [xpEarned, setXpEarned] = useState(0)
+export function LessonEngine({ lesson, sessionId, teacherName, teacherImageUrl, ttsVoice, onComplete }: LessonEngineProps) {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [vocabScores, setVocabScores] = useState<Record<string, number>>({})
   const [isCompleted, setIsCompleted] = useState(false)
 
-  const saveProgress = useCallback(async (stepIndex: number, word?: string, score?: number) => {
-    await fetch('/api/lesson/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lesson_slug: lesson.slug, step_index: stepIndex, word, score }),
-    })
-  }, [lesson.slug])
-
-  const advance = useCallback(async (word?: string, score?: number) => {
+  const advance = (word?: string, score?: number) => {
+    if (word !== undefined && score !== undefined) {
+      setVocabScores(prev => ({ ...prev, [word]: score }))
+    }
     const nextIndex = currentStepIndex + 1
-    const newScores = word !== undefined && score !== undefined
-      ? { ...vocabScores, [word]: score }
-      : vocabScores
-    if (word !== undefined && score !== undefined) setVocabScores(newScores)
-
     if (nextIndex >= lesson.steps.length) {
-      const res = await fetch('/api/lesson/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lesson_slug: lesson.slug, vocab_scores: newScores }),
-      })
-      const data = await res.json()
-      setXpEarned(data.xp_earned ?? lesson.xp_reward)
       setIsCompleted(true)
     } else {
-      await saveProgress(nextIndex, word, score)
       setCurrentStepIndex(nextIndex)
     }
-  }, [currentStepIndex, vocabScores, lesson, saveProgress])
+  }
 
   if (isCompleted) {
     return (
@@ -64,9 +46,9 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
           vocabulary={lesson.vocabulary}
           vocabScores={vocabScores}
           learningObjectives={lesson.learning_objectives}
-          xpEarned={xpEarned}
+          xpEarned={0}
           lessonTitle={lesson.title_pt}
-          onFinish={() => router.push('/licoes')}
+          onFinish={onComplete}
         />
       </div>
     )
@@ -76,16 +58,8 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
 
   return (
     <div className="flex flex-col h-screen bg-surface-light dark:bg-surface-dark">
-      {/* Header */}
       <div className="px-4 pt-4 pb-2 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => router.push('/licoes')}
-            className="text-sm text-content-light-secondary dark:text-content-dark-secondary hover:opacity-70 transition-opacity"
-            aria-label="Sair da lição"
-          >
-            ✕ Sair
-          </button>
           <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary">
             {currentStepIndex + 1} / {lesson.steps.length}
           </p>
@@ -93,8 +67,10 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
         <LessonProgressBar currentIndex={currentStepIndex} total={lesson.steps.length} />
       </div>
 
-      {/* Step content */}
       <div className="flex-1 overflow-y-auto">
+        {step.type === 'warmup_review' && (
+          <WarmupReviewStep key={step.id} step={step} onContinue={() => advance()} />
+        )}
         {step.type === 'intro' && (
           <IntroStep key={step.id} step={step} vocabulary={lesson.vocabulary} learningObjectives={lesson.learning_objectives} onContinue={() => advance()} />
         )}
@@ -118,10 +94,14 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
         {step.type === 'exercise_choice' && (
           <ExerciseChoiceStep key={step.id} step={step} onSuccess={() => advance()} />
         )}
+        {step.type === 'exercise_fill_blank' && (
+          <ExerciseFillBlankStep key={step.id} step={step} onSuccess={() => advance()} />
+        )}
         {step.type === 'guided_convo' && (
           <GuidedConvoStep
             key={step.id}
             step={step}
+            sessionId={sessionId}
             teacherName={teacherName}
             teacherImageUrl={teacherImageUrl}
             ttsVoice={ttsVoice}
@@ -137,9 +117,9 @@ export function LessonEngine({ lesson, initialProgress, teacherName, teacherImag
             vocabulary={lesson.vocabulary}
             vocabScores={vocabScores}
             learningObjectives={lesson.learning_objectives}
-            xpEarned={xpEarned}
+            xpEarned={0}
             lessonTitle={lesson.title_pt}
-            onFinish={() => advance()}
+            onFinish={onComplete}
           />
         )}
       </div>

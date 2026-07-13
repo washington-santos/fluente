@@ -2,34 +2,19 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ audio_url: 'data:audio/mp3;base64,AAAA' }) })
+window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
 
-global.fetch = vi.fn().mockResolvedValue({
-  ok: true,
-  json: async () => ({ ok: true, xp_earned: 50, next_lesson_slug: null }),
-})
+import { LessonEngine } from '@/components/lesson/LessonEngine'
+import type { GeneratedLesson } from '@/types/lesson'
 
-import { LessonEngine } from '@/app/licao/[slug]/LessonEngine'
-import type { LessonContent } from '@/types/lesson'
-
-const mockLesson: LessonContent = {
-  slug: 'a1-lesson-01-greetings',
-  level: 'A1',
-  order: 1,
-  title_en: 'Greetings',
-  title_pt: 'Cumprimentos e Frases Básicas',
-  emoji: '👋',
-  estimated_minutes: 12,
-  unlock_after: null,
-  xp_reward: 50,
-  vocabulary: [
-    { word: 'Hello', translation_pt: 'Olá', emoji: '👋', pronunciation_hint: 'HEH-loh' },
-  ],
-  learning_objectives: [
-    { id: 'obj-greet', description_pt: 'Cumprimentar alguém em inglês', vocab_words: ['Hello'] },
-  ],
+const mockLesson: GeneratedLesson = {
+  title_pt: 'Cumprimentos',
+  objective_pt: 'Aprender a cumprimentar alguém.',
+  vocabulary: [{ word: 'Hello', translation_pt: 'Olá', emoji: '👋', pronunciation_hint: 'HEH-loh' }],
+  learning_objectives: [{ id: 'obj-1', description_pt: 'Cumprimentar alguém em inglês', vocab_words: ['Hello'] }],
   steps: [
-    { id: 'intro', type: 'intro', title_pt: 'Hoje você aprenderá', description_pt: 'Palavras essenciais.' },
+    { id: 'intro', type: 'intro', title_pt: 'Cumprimentos', description_pt: 'Hoje você vai aprender a cumprimentar.' },
     { id: 'summary', type: 'summary' },
   ],
 }
@@ -37,33 +22,38 @@ const mockLesson: LessonContent = {
 describe('LessonEngine', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders intro step first', () => {
-    render(<LessonEngine lesson={mockLesson} initialProgress={null} teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" />)
-    expect(screen.getByText('Hoje você aprenderá')).toBeInTheDocument()
-    expect(screen.getByText('Palavras essenciais.')).toBeInTheDocument()
-  })
-
-  it('shows step counter', () => {
-    render(<LessonEngine lesson={mockLesson} initialProgress={null} teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" />)
+  it('renders the intro step first, with the step counter', () => {
+    render(<LessonEngine lesson={mockLesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+    expect(screen.getByText('Hoje você vai aprender a cumprimentar.')).toBeInTheDocument()
     expect(screen.getByText('1 / 2')).toBeInTheDocument()
   })
 
-  it('advances to next step when Começar is clicked', async () => {
-    render(<LessonEngine lesson={mockLesson} initialProgress={null} teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" />)
+  it('advances to the summary step when Começar is tapped', async () => {
+    render(<LessonEngine lesson={mockLesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
     fireEvent.click(screen.getByText('Começar →'))
     await waitFor(() => expect(screen.getByText('Aula concluída!')).toBeInTheDocument())
   })
 
-  it('resumes from saved step index', () => {
-    render(
-      <LessonEngine
-        lesson={mockLesson}
-        initialProgress={{ lesson_slug: 'a1-lesson-01-greetings', status: 'in_progress', current_step_index: 1, vocab_scores: {}, completed_at: null, xp_earned: 0 }}
-        teacherName="Mrs. Carol"
-        teacherImageUrl="/avatar.png"
-        ttsVoice="alloy"
-      />
-    )
-    expect(screen.getByText('Aula concluída!')).toBeInTheDocument()
+  it('calls onComplete (not any /api/lesson/complete call) when the summary is finished', async () => {
+    const onComplete = vi.fn()
+    render(<LessonEngine lesson={mockLesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={onComplete} />)
+    fireEvent.click(screen.getByText('Começar →'))
+    await waitFor(() => screen.getByText('Aula concluída!'))
+    fireEvent.click(screen.getByText('Continuar aprendendo →'))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls.some(c => String(c[0]).includes('/api/lesson/complete'))).toBe(false)
+  })
+
+  it('renders a warmup_review step first when present, before intro', () => {
+    const lessonWithWarmup: GeneratedLesson = {
+      ...mockLesson,
+      steps: [
+        { id: 'warmup', type: 'warmup_review', recent_summary_pt: 'Você praticou saudações.', frequent_errors_pt: [], recent_words: [] },
+        ...mockLesson.steps,
+      ],
+    }
+    render(<LessonEngine lesson={lessonWithWarmup} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+    expect(screen.getByText('Você praticou saudações.')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
   })
 })
