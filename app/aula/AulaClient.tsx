@@ -94,18 +94,27 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   // trace of the unlock + playback attempts — no DevTools access on the reporter's device.
   const [audioDebugMsg, setAudioDebugMsg] = useState<string | null>(null)
 
-  // iOS Safari only allows audio.play() with sound if it runs synchronously inside
-  // a user gesture (tap/click). The teacher's reply plays several seconds later,
-  // from a useEffect reacting to the TTS response — not inside any gesture's
-  // callstack — so iOS silently rejects it. Priming a real (silent) clip directly
-  // inside the tap that starts a turn "unlocks" playback for the rest of the page.
+  // iOS Safari ties the "may play with sound" permission to the specific
+  // HTMLMediaElement that was played inside a user gesture — NOT to the page as a
+  // whole. Creating a throwaway `new Audio()` to "unlock" and a *different* one
+  // later for the real clip (as a prior attempt did) does not carry the unlock
+  // over. The fix is to keep ONE <audio> element alive across the whole session
+  // (audioRef) and reuse it — priming it with a silent clip synchronously inside
+  // the tap, then swapping its `src` later for the teacher's real reply.
   const SILENT_AUDIO_DATA_URL = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+
+  function getOrCreateAudioElement(): HTMLAudioElement {
+    if (!audioRef.current) audioRef.current = new Audio()
+    return audioRef.current
+  }
+
   function unlockAudioPlayback() {
     if (audioUnlockedRef.current) return
     audioUnlockedRef.current = true
     try {
-      const unlock = new Audio(SILENT_AUDIO_DATA_URL)
-      unlock.play()
+      const audio = getOrCreateAudioElement()
+      audio.src = SILENT_AUDIO_DATA_URL
+      audio.play()
         .then(() => setAudioDebugMsg('unlock: play() ok'))
         .catch((err: unknown) => {
           audioUnlockedRef.current = false
@@ -132,26 +141,20 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
   }, [loading, messages.length])
 
   function playAudioUrl(url: string) {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.onended = null
-      audioRef.current.onerror = null
-      audioRef.current = null
-    }
+    const audio = getOrCreateAudioElement()
+    audio.pause()
+    audio.onended = null
+    audio.onerror = null
     setAudioDebugMsg(`playAudioUrl: iniciando ${new Date().toLocaleTimeString()} unlocked=${audioUnlockedRef.current}`)
-    const audio = new Audio(url)
-    audioRef.current = audio
     setIsSpeaking(true)
-    const cleanup = () => {
-      setIsSpeaking(false)
-      audioRef.current = null
-    }
+    const cleanup = () => setIsSpeaking(false)
     audio.onended = cleanup
     audio.onerror = (ev) => {
       const mediaErr = (ev as unknown as { target?: { error?: { code?: number; message?: string } } })?.target?.error
       setAudioDebugMsg(`playAudioUrl: onerror code=${mediaErr?.code ?? '?'} ${mediaErr?.message ?? ''}`)
       cleanup()
     }
+    audio.src = url
     audio.play()
       .then(() => setAudioDebugMsg(`playAudioUrl: play() ok ${new Date().toLocaleTimeString()}`))
       .catch((err: unknown) => {
