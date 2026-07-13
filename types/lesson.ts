@@ -19,6 +19,8 @@ export interface VocabPresentStep {
   type: 'vocab_present'
   vocab_index: number
   teacher_script: string
+  example_sentence_en: string
+  example_sentence_pt: string
 }
 
 export interface VocabRepeatStep {
@@ -46,6 +48,7 @@ export interface GuidedConvoStep {
   teacher_opens_with_pt?: string
   allowed_vocabulary: string[]
   min_exchanges: number
+  is_challenge?: boolean
 }
 
 export interface ReviewStep {
@@ -59,11 +62,30 @@ export interface SummaryStep {
   type: 'summary'
 }
 
+export interface WarmupReviewStep {
+  id: string
+  type: 'warmup_review'
+  recent_summary_pt: string | null
+  frequent_errors_pt: string[]
+  recent_words: string[]
+}
+
+export interface ExerciseFillBlankStep {
+  id: string
+  type: 'exercise_fill_blank'
+  sentence_pt_hint: string
+  sentence_with_blank: string
+  correct_answer: string
+  explanation_pt: string
+}
+
 export type LessonStep =
+  | WarmupReviewStep
   | IntroStep
   | VocabPresentStep
   | VocabRepeatStep
   | ExerciseChoiceStep
+  | ExerciseFillBlankStep
   | GuidedConvoStep
   | ReviewStep
   | SummaryStep
@@ -100,4 +122,12 @@ export interface UserLessonProgress {
 
 export interface LessonWithProgress extends LessonContent {
   progress: UserLessonProgress | null
+}
+
+export interface GeneratedLesson {
+  title_pt: string
+  objective_pt: string
+  vocabulary: VocabItem[]
+  learning_objectives: LearningObjective[]
+  steps: LessonStep[]
 }
