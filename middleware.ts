@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED = ['/dashboard', '/aula', '/licoes', '/licao', '/professores', '/planos', '/perfil', '/admin', '/nivelamento']
+const PROTECTED = ['/dashboard', '/aula', '/licoes', '/professores', '/planos', '/perfil', '/admin', '/nivelamento']
 // /cadastro sub-paths (onboarding steps) require auth; root /cadastro is the signup page (public)
 const PROTECTED_SUBPATHS = ['/cadastro']
 const AUTH_ONLY = ['/login', '/cadastro']
