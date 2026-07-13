@@ -53,6 +53,37 @@ describe('useSession', () => {
     expect(result.current.topic).toBe('family')
   })
 
+  it('exposes mode and lessonPlan from an existing lesson-mode session', async () => {
+    mockFetchSequence({
+      session: {
+        id: 'existing-session',
+        mode: 'lesson',
+        topic: 'greetings',
+        teacher: { id: 't1' },
+        messages: [],
+        lesson_plan_json: {
+          title_pt: 'Cumprimentos',
+          objective_pt: 'Aprender a cumprimentar.',
+          vocabulary: [],
+          learning_objectives: [],
+          steps: [{ id: 'intro', type: 'intro', title_pt: 'Cumprimentos', description_pt: 'Vamos começar.' }],
+        },
+      },
+    })
+    const { result } = renderHook(() => useSession('teacher-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.mode).toBe('lesson')
+    expect(result.current.lessonPlan?.title_pt).toBe('Cumprimentos')
+  })
+
+  it('has a null lessonPlan for a free-chat session', async () => {
+    mockFetchSequence({ session: { id: 'existing-session', mode: 'daily', topic: 'travel', teacher: { id: 't1' }, messages: [] } })
+    const { result } = renderHook(() => useSession('teacher-1'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.mode).toBe('daily')
+    expect(result.current.lessonPlan).toBeNull()
+  })
+
   it('loads an existing session with messages, defaulting status fields', async () => {
     mockFetchSequence({
       session: {
