@@ -1,5 +1,3 @@
-export type LessonStatus = 'locked' | 'available' | 'in_progress' | 'completed'
-
 export interface VocabItem {
   word: string
   translation_pt: string
@@ -94,34 +92,6 @@ export interface LearningObjective {
   id: string
   description_pt: string
   vocab_words: string[]
-}
-
-export interface LessonContent {
-  slug: string
-  level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
-  order: number
-  title_en: string
-  title_pt: string
-  emoji: string
-  estimated_minutes: number
-  unlock_after: string | null
-  xp_reward: number
-  vocabulary: VocabItem[]
-  learning_objectives: LearningObjective[]
-  steps: LessonStep[]
-}
-
-export interface UserLessonProgress {
-  lesson_slug: string
-  status: LessonStatus
-  current_step_index: number
-  vocab_scores: Record<string, number>
-  completed_at: string | null
-  xp_earned: number
-}
-
-export interface LessonWithProgress extends LessonContent {
-  progress: UserLessonProgress | null
 }
 
 export interface GeneratedLesson {
