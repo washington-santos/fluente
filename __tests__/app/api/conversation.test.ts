@@ -309,6 +309,24 @@ describe('POST /api/conversation', () => {
     expect(systemMessage.content).toContain('only use vocabulary from this list')
   })
 
+  it('suppresses the generic teaching-anatomy/topic instructions when guided_vocab is provided', async () => {
+    const { POST } = await import('@/app/api/conversation/route')
+    const form = new FormData()
+    form.append('session_id', 'session-1')
+    form.append('panic_text', 'My name is Ana')
+    form.append('guided_vocab', JSON.stringify(['name', 'hello']))
+
+    const request = new Request('http://localhost/api/conversation', { method: 'POST', body: form })
+    const res = await POST(request)
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[mockChatCreate.mock.calls.length - 1][0]
+    const systemMessage = promptArg.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMessage.content).not.toContain('TEACH BEFORE YOU TEST')
+    expect(systemMessage.content).not.toContain('Session anatomy')
+    expect(systemMessage.content).toContain('only use vocabulary from this list')
+  })
+
   it('marks the exchange as a challenge in the system prompt when is_challenge is true', async () => {
     const { POST } = await import('@/app/api/conversation/route')
     const form = new FormData()

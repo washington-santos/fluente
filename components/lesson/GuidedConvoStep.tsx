@@ -111,7 +111,11 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
       const res = await fetch('/api/conversation', { method: 'POST', body: fd })
 
       if (!res.ok) {
-        setAssessError('Não entendi. Fale mais devagar e tente novamente. 🎙️')
+        if (res.status === 429) {
+          setAssessError('Você atingiu o limite do seu plano. Veja seus planos para continuar.')
+        } else {
+          setAssessError('Não entendi. Fale mais devagar e tente novamente. 🎙️')
+        }
         return
       }
 

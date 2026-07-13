@@ -216,7 +216,11 @@ export async function POST(request: Request) {
     vocabulary_focus?: string[]
   } | null
 
-  const topicBlock = lessonPlan
+  // Guided-practice turns carry their own precise vocab restriction (guidedVocabBlock below) —
+  // suppress the generic topic/anatomy framing so it doesn't add noise to the prompt.
+  const isGuidedPractice = guidedVocab.length > 0
+
+  const topicBlock = isGuidedPractice ? '' : lessonPlan
     ? `\nPERSONALIZED LESSON PLAN FOR TODAY:
 Topic: "${lessonPlan.title_pt ?? topicData?.labelPt ?? ''}"
 Objective: "${lessonPlan.objective_pt ?? ''}"
@@ -239,7 +243,7 @@ ${lessonPlan.vocabulary_focus?.length ? `Vocabulary to cover: ${lessonPlan.vocab
     : `\nIntervention timing: Only intervene when explicitly asked. Push the student to self-correct and rephrase. Expect near-native fluency and challenge them accordingly.`
 
   const studentName = userData?.name ?? 'the student'
-  const anatomyBlock = lessonPlan
+  const anatomyBlock = isGuidedPractice ? '' : lessonPlan
     ? `\nLESSON STRUCTURE — you are the TEACHER, you lead every step:
 1. OPENING (your very first message): Use the personalized greeting above, then IMMEDIATELY begin teaching the first vocabulary item or concept. Do NOT just ask a question — start teaching.
 2. TEACH BEFORE YOU TEST — for every new word or concept:

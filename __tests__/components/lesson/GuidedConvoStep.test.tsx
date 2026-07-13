@@ -108,4 +108,26 @@ describe('GuidedConvoStep', () => {
     const body = convoCall![1].body as FormData
     expect(body.get('is_challenge')).toBe('true')
   })
+
+  it('shows a quota-specific message when /api/conversation returns 429', async () => {
+    let call = 0
+    vi.mocked(fetch).mockImplementation((url) => {
+      if (url === '/api/conversation') {
+        call++
+        return Promise.resolve({ ok: false, status: 429, json: async () => ({ error: 'quota_exceeded', minutesUsed: 300, minutesLimit: 300 }) } as Response)
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ audio_url: 'data:audio/mp3;base64,AAAA' }) } as Response)
+    })
+    render(
+      <GuidedConvoStep step={baseStep} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />
+    )
+    await waitFor(() => expect(screen.getByLabelText('Ouvir pergunta')).not.toBeDisabled())
+    fireEvent.click(screen.getByLabelText('Ouvir pergunta'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Você atingiu o limite do seu plano. Veja seus planos para continuar.')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Não entendi. Fale mais devagar e tente novamente. 🎙️')).not.toBeInTheDocument()
+    expect(call).toBeGreaterThan(0)
+  })
 })
