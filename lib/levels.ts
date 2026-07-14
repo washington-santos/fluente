@@ -1,4 +1,4 @@
-import type { CefrLevel, LevelHistoryReason } from '@/types'
+import type { CefrLevel } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getTopicsForLevel } from '@/lib/topics'
 
