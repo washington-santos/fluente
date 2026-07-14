@@ -112,3 +112,64 @@ describe('shouldSuggestDowngrade', () => {
     expect(() => shouldSuggestDowngrade([true, true, true, true, true, true])).toThrow(RangeError)
   })
 })
+
+import { checkAndApplyReinforcementReturn } from '@/lib/levels'
+
+function makeReturnChain(users: unknown, progress: unknown) {
+  const usersChain: Record<string, unknown> = {}
+  usersChain.select = () => usersChain
+  usersChain.eq = () => usersChain
+  usersChain.single = () => Promise.resolve({ data: users, error: null })
+  usersChain.update = () => usersChain
+  usersChain.insert = (row: unknown) => { inserted.push(row); return Promise.resolve({ error: null }) }
+
+  const progressChain: Record<string, unknown> = {}
+  progressChain.select = () => progressChain
+  // user_topic_progress is queried with two chained .eq() calls; the second
+  // one is the terminal (thenable) call that resolves with the rows.
+  let eqCalls = 0
+  progressChain.eq = () => {
+    eqCalls += 1
+    if (eqCalls >= 2) return Promise.resolve({ data: progress, error: null })
+    return progressChain
+  }
+  progressChain.insert = (row: unknown) => { inserted.push(row); return Promise.resolve({ error: null }) }
+
+  return { usersChain, progressChain }
+}
+
+describe('checkAndApplyReinforcementReturn', () => {
+  it('returns null when the user is not in reinforcement mode', async () => {
+    inserted = []
+    const { usersChain } = makeReturnChain({ cefr_level: 'A2', reinforcement_target_level: null }, [])
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : usersChain) } as any
+    const result = await checkAndApplyReinforcementReturn(supabase, 'u1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when not all reinforcement-level topics are mastered', async () => {
+    inserted = []
+    const { usersChain, progressChain } = makeReturnChain(
+      { cefr_level: 'A1', reinforcement_target_level: 'A2' },
+      [{ topic_id: 'introductions', mastery_status: 'mastered' }], // only 1 of 8 A1 topics
+    )
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : progressChain) } as any
+    const result = await checkAndApplyReinforcementReturn(supabase, 'u1')
+    expect(result).toBeNull()
+  })
+
+  it('promotes back to the target level once every reinforcement-level topic is mastered', async () => {
+    inserted = []
+    const a1TopicIds = ['introductions', 'family', 'numbers-dates', 'colors', 'daily-routine', 'food', 'greetings', 'home']
+    const { usersChain, progressChain } = makeReturnChain(
+      { cefr_level: 'A1', reinforcement_target_level: 'A2' },
+      a1TopicIds.map((topic_id) => ({ topic_id, mastery_status: 'mastered' })),
+    )
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : progressChain) } as any
+    const result = await checkAndApplyReinforcementReturn(supabase, 'u1')
+    expect(result).toBe('A2')
+    expect(inserted).toEqual([{
+      user_id: 'u1', from_level: 'A1', to_level: 'A2', reason: 'reinforcement_auto_return',
+    }])
+  })
+})

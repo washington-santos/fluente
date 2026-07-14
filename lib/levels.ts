@@ -1,5 +1,6 @@
 import type { CefrLevel, LevelHistoryReason } from '@/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getTopicsForLevel } from '@/lib/topics'
 
 export type { LevelHistoryReason } from '@/types'
 
@@ -58,4 +59,55 @@ export function shouldSuggestDowngrade(passedFlags: boolean[]): boolean {
   if (passedFlags.length > 5) throw new RangeError('expected at most the first 5 assessments')
   const failures = passedFlags.filter((p) => !p).length
   return failures >= 3
+}
+
+export async function checkAndApplyReinforcementReturn(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<CefrLevel | null> {
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('cefr_level, reinforcement_target_level')
+    .eq('id', userId)
+    .single()
+
+  const cefrLevel = (userRow as { cefr_level?: CefrLevel | null } | null)?.cefr_level
+  const reinforcementTargetLevel = (userRow as { reinforcement_target_level?: CefrLevel | null } | null)
+    ?.reinforcement_target_level
+
+  if (!cefrLevel || !reinforcementTargetLevel) return null
+
+  const topics = getTopicsForLevel(cefrLevel)
+  if (topics.length === 0) return null
+
+  const { data: progressRows } = await supabase
+    .from('user_topic_progress')
+    .select('topic_id, mastery_status')
+    .eq('user_id', userId)
+    .eq('cefr_level', cefrLevel)
+
+  const masteredTopicIds = new Set(
+    ((progressRows ?? []) as { topic_id: string; mastery_status: string }[])
+      .filter((r) => r.mastery_status === 'mastered')
+      .map((r) => r.topic_id),
+  )
+
+  const allMastered = topics.every((t) => masteredTopicIds.has(t.key))
+  if (!allMastered) return null
+
+  await supabase.from('users').update({
+    cefr_level: reinforcementTargetLevel,
+    reinforcement_target_level: null,
+    level_confirmed_at: new Date().toISOString(),
+    confirmation_suggestion_dismissed: false,
+  }).eq('id', userId)
+
+  await supabase.from('level_history').insert({
+    user_id: userId,
+    from_level: cefrLevel,
+    to_level: reinforcementTargetLevel,
+    reason: 'reinforcement_auto_return',
+  })
+
+  return reinforcementTargetLevel
 }
