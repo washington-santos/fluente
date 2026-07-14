@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react'
-import { vi, describe, it, expect } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { PlacementDiagnosticReport } from '@/components/placement/PlacementDiagnosticReport'
 import type { PlacementResult, LearningPlan } from '@/types'
 
@@ -24,10 +24,17 @@ const mockPlan: LearningPlan = {
   created_at: '2026-07-06T00:00:00Z',
 }
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ level: 'B1' }) })
+})
+
 describe('PlacementDiagnosticReport', () => {
   it('shows overall CEFR level prominently', () => {
     render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={vi.fn()} />)
-    expect(screen.getByText('B1')).toBeInTheDocument()
+    // 'B1' legitimately appears twice now: the badge and the "Seu nível
+    // estimado é B1" headline (Step 5's own assertion covers the headline).
+    expect(screen.getAllByText('B1').length).toBeGreaterThan(0)
   })
 
   it('shows all 5 skill percentages', () => {
@@ -43,15 +50,48 @@ describe('PlacementDiagnosticReport', () => {
     expect(screen.getByText('Vocabulário básico')).toBeInTheDocument()
   })
 
-  it('calls onContinue when CTA is clicked', () => {
-    const onContinue = vi.fn()
-    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={onContinue} />)
-    fireEvent.click(screen.getByRole('button', { name: /começar/i }))
-    expect(onContinue).toHaveBeenCalled()
-  })
-
   it('shows plan summary', () => {
     render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={vi.fn()} />)
     expect(screen.getByText('Em 30 dias, focamos em pronúncia e conversação para viagem.')).toBeInTheDocument()
+  })
+
+  it('shows the estimated level headline', () => {
+    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={vi.fn()} />)
+    expect(screen.getByText(/Seu nível estimado é/i)).toBeInTheDocument()
+  })
+
+  it('confirms the recommended level and calls onContinue', async () => {
+    const onContinue = vi.fn()
+    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={onContinue} />)
+    fireEvent.click(screen.getByRole('button', { name: /começar no b1/i }))
+    await waitFor(() => expect(onContinue).toHaveBeenCalled())
+    expect(fetch).toHaveBeenCalledWith('/api/placement/confirm-level', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ chosen_level: 'B1' }),
+    }))
+  })
+
+  it('reveals lower-level options and never offers B1 or above', () => {
+    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={vi.fn()} />)
+    fireEvent.click(screen.getByText(/prefiro começar mais fácil/i))
+    expect(screen.getByRole('button', { name: /começar no a1/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /começar no a2/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /começar no b2/i })).not.toBeInTheDocument()
+  })
+
+  it('confirms a chosen lower level and calls onContinue', async () => {
+    const onContinue = vi.fn()
+    render(<PlacementDiagnosticReport result={mockResult} plan={mockPlan} onContinue={onContinue} />)
+    fireEvent.click(screen.getByText(/prefiro começar mais fácil/i))
+    fireEvent.click(screen.getByRole('button', { name: /começar no a1/i }))
+    await waitFor(() => expect(onContinue).toHaveBeenCalled())
+    expect(fetch).toHaveBeenCalledWith('/api/placement/confirm-level', expect.objectContaining({
+      body: JSON.stringify({ chosen_level: 'A1' }),
+    }))
+  })
+
+  it('does not offer the "começar mais fácil" option at A1', () => {
+    render(<PlacementDiagnosticReport result={{ ...mockResult, cefr_level: 'A1' }} plan={mockPlan} onContinue={vi.fn()} />)
+    expect(screen.queryByText(/prefiro começar mais fácil/i)).not.toBeInTheDocument()
   })
 })

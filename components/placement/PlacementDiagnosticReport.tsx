@@ -1,5 +1,9 @@
+'use client'
+
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import type { PlacementResult, LearningPlan } from '@/types'
+import { CEFR_ORDER } from '@/lib/levels'
+import type { PlacementResult, LearningPlan, CefrLevel } from '@/types'
 
 interface PlacementDiagnosticReportProps {
   result: PlacementResult
@@ -37,6 +41,34 @@ function SkillBar({ pct, label, emoji }: { pct: number; label: string; emoji: st
 }
 
 export function PlacementDiagnosticReport({ result, plan, onContinue }: PlacementDiagnosticReportProps) {
+  const [showLower, setShowLower] = useState(false)
+  const [confirming, setConfirming] = useState<CefrLevel | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const recommendedIdx = CEFR_ORDER.indexOf(result.cefr_level)
+  const lowerLevels = CEFR_ORDER.slice(0, recommendedIdx)
+
+  async function handleChoose(level: CefrLevel) {
+    setConfirming(level)
+    setError(null)
+    try {
+      const res = await fetch('/api/placement/confirm-level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chosen_level: level }),
+      })
+      if (!res.ok) {
+        setError('Não foi possível salvar seu nível. Tente novamente.')
+        setConfirming(null)
+        return
+      }
+      onContinue()
+    } catch {
+      setError('Erro de conexão. Tente novamente.')
+      setConfirming(null)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -94,13 +126,47 @@ export function PlacementDiagnosticReport({ result, plan, onContinue }: Placemen
         </p>
       </div>
 
-      <button
-        onClick={onContinue}
-        className="w-full py-4 rounded-xl bg-brand-cta text-content-dark font-bold text-lg hover:opacity-90 transition-opacity"
-        aria-label="Começar as aulas"
-      >
-        Começar as aulas →
-      </button>
+      <div className="flex flex-col gap-3">
+        <p className="text-center text-sm text-content-light-secondary dark:text-content-dark-secondary">
+          Seu nível estimado é <span className="font-bold text-content-light dark:text-content-dark">{result.cefr_level}</span>.
+        </p>
+
+        <button
+          onClick={() => handleChoose(result.cefr_level)}
+          disabled={confirming !== null}
+          className="w-full py-4 rounded-xl bg-brand-cta text-content-dark font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-60"
+          aria-label={`Começar no ${result.cefr_level}`}
+        >
+          {confirming === result.cefr_level ? 'Salvando...' : `Começar no ${result.cefr_level} →`}
+        </button>
+
+        {lowerLevels.length > 0 && !showLower && (
+          <button
+            onClick={() => setShowLower(true)}
+            className="text-xs text-content-light-secondary dark:text-content-dark-secondary underline hover:opacity-70 transition-opacity self-center"
+          >
+            Prefiro começar mais fácil
+          </button>
+        )}
+
+        {showLower && (
+          <div className="flex flex-col gap-2">
+            {lowerLevels.map((level) => (
+              <button
+                key={level}
+                onClick={() => handleChoose(level)}
+                disabled={confirming !== null}
+                className="w-full py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-content-light dark:text-content-dark hover:border-brand-interactive transition-colors disabled:opacity-60"
+                aria-label={`Começar no ${level}`}
+              >
+                {confirming === level ? 'Salvando...' : `Começar no ${level}`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {error && <p role="alert" className="text-xs text-red-500 text-center">{error}</p>}
+      </div>
     </motion.div>
   )
 }
