@@ -90,8 +90,5 @@ Respond ONLY with JSON (no markdown):
     return NextResponse.json({ error: 'Failed to save results' }, { status: 500 })
   }
 
-  const { error: userErr } = await supabase.from('users').update({ cefr_level: cefr }).eq('id', user.id)
-  if (userErr) console.error('[placement/complete] Failed to update users.cefr_level:', userErr.message)
-
   return NextResponse.json({ result: { ...resultRow, id: '' }, plan: { ...planRow, id: '' } })
 }

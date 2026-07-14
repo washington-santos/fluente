@@ -1,12 +1,14 @@
 // @vitest-environment node
 import { vi, describe, it, expect } from 'vitest'
 
+const mockUpdate = vi.hoisted(() => vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }))
+
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServer: () => ({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
-    from: () => ({
+    from: (table: string) => ({
       upsert: vi.fn().mockResolvedValue({ error: null }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      update: table === 'users' ? mockUpdate : vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
     }),
   }),
 }))
@@ -43,7 +45,7 @@ vi.mock('openai', () => ({
 import { POST } from '@/app/api/placement/complete/route'
 
 describe('POST /api/placement/complete', () => {
-  it('returns result and plan on success', async () => {
+  it('returns result and plan on success without writing users.cefr_level', async () => {
     const body = {
       answers: [
         { question_id: 'l1', phase: 'listening', transcript: 'My name is João', score: 0.8 },
@@ -63,5 +65,6 @@ describe('POST /api/placement/complete', () => {
     expect(json.result.speaking_pct).toBe(55)
     expect(json.plan.goal).toBe('viagem')
     expect(json.plan.focus_areas).toContain('pronunciation')
+    expect(mockUpdate).not.toHaveBeenCalled()
   })
 })
