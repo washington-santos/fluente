@@ -56,7 +56,7 @@ export default async function PerfilPage() {
           </div>
           <div className="p-3 rounded-xl bg-surface-light-card dark:bg-surface-dark-card text-center">
             <p className="text-xl font-bold text-content-light dark:text-content-dark">
-              {userData.cefr_level ?? '—'}
+              {userData.reinforcement_target_level ?? userData.cefr_level ?? '—'}
             </p>
             <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">nível</p>
           </div>

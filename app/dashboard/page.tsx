@@ -151,14 +151,14 @@ export default async function DashboardPage() {
 
   let suggestDowngrade = false
   let lowerLevel: ReturnType<typeof levelBelow> = null
-  if (u.cefr_level && !u.confirmation_suggestion_dismissed) {
+  if (u.cefr_level && u.level_confirmed_at && !u.confirmation_suggestion_dismissed) {
     lowerLevel = levelBelow(u.cefr_level)
     if (lowerLevel) {
       const { data: windowAssessments } = await supabase
         .from('topic_assessments')
         .select('passed')
         .eq('user_id', authUser.id)
-        .gte('created_at', u.level_confirmed_at ?? new Date(0).toISOString())
+        .gte('created_at', u.level_confirmed_at)
         .order('created_at', { ascending: true })
         .limit(5)
       const passedFlags = (windowAssessments ?? []).map((r: { passed: boolean }) => r.passed)
