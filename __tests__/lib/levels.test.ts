@@ -80,3 +80,35 @@ describe('downgradeLevel', () => {
     }])
   })
 })
+
+import { shouldSuggestDowngrade } from '@/lib/levels'
+
+describe('shouldSuggestDowngrade', () => {
+  it('is false with no assessments yet', () => {
+    expect(shouldSuggestDowngrade([])).toBe(false)
+  })
+
+  it('is false with 2 failures out of 2 (not enough data to decide)', () => {
+    expect(shouldSuggestDowngrade([false, false])).toBe(false)
+  })
+
+  it('is true as soon as 3 of the first 3 fail', () => {
+    expect(shouldSuggestDowngrade([false, false, false])).toBe(true)
+  })
+
+  it('is true with 3 failures and 1 pass out of the first 4', () => {
+    expect(shouldSuggestDowngrade([true, false, false, false])).toBe(true)
+  })
+
+  it('is false when only 2 of the first 5 fail', () => {
+    expect(shouldSuggestDowngrade([true, true, false, true, false])).toBe(false)
+  })
+
+  it('is true with exactly 3 failures out of all 5', () => {
+    expect(shouldSuggestDowngrade([true, false, true, false, false])).toBe(true)
+  })
+
+  it('throws if given more than 5 flags', () => {
+    expect(() => shouldSuggestDowngrade([true, true, true, true, true, true])).toThrow(RangeError)
+  })
+})

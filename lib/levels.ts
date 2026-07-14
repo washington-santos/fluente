@@ -53,3 +53,9 @@ export async function downgradeLevel(
 
   return { newLevel: target, reinforcementTargetLevel }
 }
+
+export function shouldSuggestDowngrade(passedFlags: boolean[]): boolean {
+  if (passedFlags.length > 5) throw new RangeError('expected at most the first 5 assessments')
+  const failures = passedFlags.filter((p) => !p).length
+  return failures >= 3
+}
