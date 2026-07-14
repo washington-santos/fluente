@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseServer } from '@/lib/supabase-server'
+import { LevelCard } from '@/components/perfil/LevelCard'
 import { ProfileForm } from './ProfileForm'
 
 export default async function PerfilPage() {
@@ -10,7 +11,7 @@ export default async function PerfilPage() {
 
   const { data: userData } = await supabase
     .from('users')
-    .select('name, cefr_level, streak_days, created_at')
+    .select('name, cefr_level, streak_days, created_at, reinforcement_target_level')
     .eq('id', user.id)
     .single()
 
@@ -21,15 +22,6 @@ export default async function PerfilPage() {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .not('ended_at', 'is', null)
-
-  const LEVEL_LABELS: Record<string, string> = {
-    A1: 'A1 – Iniciante',
-    A2: 'A2 – Básico',
-    B1: 'B1 – Intermediário',
-    B2: 'B2 – Intermediário avançado',
-    C1: 'C1 – Avançado',
-    C2: 'C2 – Proficiente',
-  }
 
   const memberSince = userData.created_at
     ? new Date(userData.created_at).toLocaleDateString('pt-BR', {
@@ -70,16 +62,16 @@ export default async function PerfilPage() {
           </div>
         </div>
 
-        {/* Level info */}
-        <div className="p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card">
-          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mb-1">Seu nível atual</p>
-          <p className="font-semibold text-content-light dark:text-content-dark">
-            {LEVEL_LABELS[userData.cefr_level ?? ''] ?? userData.cefr_level ?? '—'}
-          </p>
-          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-1">
-            Membro desde {memberSince}
-          </p>
-        </div>
+        {/* Level */}
+        {userData.cefr_level && (
+          <LevelCard
+            cefrLevel={userData.cefr_level}
+            reinforcementTargetLevel={userData.reinforcement_target_level ?? null}
+          />
+        )}
+        <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary -mt-4">
+          Membro desde {memberSince}
+        </p>
 
         {/* Edit form */}
         <ProfileForm
