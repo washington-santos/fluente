@@ -15,6 +15,8 @@ import type { Teacher, User, ErrorType } from '@/types'
 import { DemoStatusCard, DEMO_MINUTES_LIMIT } from '@/components/dashboard/DemoStatusCard'
 import { isUserVip } from '@/lib/vip'
 import { VipBadge } from '@/components/dashboard/VipBadge'
+import { LevelSuggestionCard } from '@/components/dashboard/LevelSuggestionCard'
+import { levelBelow, shouldSuggestDowngrade } from '@/lib/levels'
 
 export default async function DashboardPage() {
   const supabase = createSupabaseServer()
@@ -147,6 +149,23 @@ export default async function DashboardPage() {
 
   const completedLessons = (masteredTopicRows ?? []).length
 
+  let suggestDowngrade = false
+  let lowerLevel: ReturnType<typeof levelBelow> = null
+  if (u.cefr_level && !u.confirmation_suggestion_dismissed) {
+    lowerLevel = levelBelow(u.cefr_level)
+    if (lowerLevel) {
+      const { data: windowAssessments } = await supabase
+        .from('topic_assessments')
+        .select('passed')
+        .eq('user_id', authUser.id)
+        .gte('created_at', u.level_confirmed_at ?? new Date(0).toISOString())
+        .order('created_at', { ascending: true })
+        .limit(5)
+      const passedFlags = (windowAssessments ?? []).map((r: { passed: boolean }) => r.passed)
+      suggestDowngrade = shouldSuggestDowngrade(passedFlags)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-surface-light dark:bg-surface-dark flex flex-col">
       <header className="flex items-center justify-between p-4 border-b border-surface-light-card dark:border-surface-dark-card">
@@ -186,6 +205,10 @@ export default async function DashboardPage() {
         )}
 
         <MissionCounterBadge count={u.missions_completed_count ?? 0} />
+
+        {suggestDowngrade && lowerLevel && (
+          <LevelSuggestionCard currentLevel={u.cefr_level!} lowerLevel={lowerLevel} />
+        )}
 
         {vipUser && <VipBadge plan={vipUser.plan} />}
 
