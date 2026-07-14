@@ -10,6 +10,7 @@ import {
   REVIEW_INTERVALS_DAYS,
   type CompetencyScores,
 } from '@/lib/mastery'
+import { checkAndApplyReinforcementReturn } from '@/lib/levels'
 
 export async function POST(
   _request: Request,
@@ -174,6 +175,8 @@ Respond ONLY valid JSON:
   ])
   if (assessErr) console.error('topic_assessments insert failed:', assessErr.message)
   if (progressErr) console.error('user_topic_progress upsert failed:', progressErr.message)
+
+  await checkAndApplyReinforcementReturn(supabase, user.id)
 
   return NextResponse.json({
     scores,
