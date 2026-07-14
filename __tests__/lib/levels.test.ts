@@ -34,3 +34,49 @@ describe('isAtOrBelow', () => {
     expect(isAtOrBelow('B2', 'B1')).toBe(false)
   })
 })
+
+import { downgradeLevel } from '@/lib/levels'
+
+function makeChain(data: unknown) {
+  const chain: Record<string, unknown> = {}
+  chain.select = () => chain
+  chain.eq = () => chain
+  chain.single = () => Promise.resolve({ data, error: null })
+  chain.update = () => chain
+  chain.insert = (row: unknown) => { inserted.push(row); return Promise.resolve({ error: null }) }
+  return chain
+}
+
+let inserted: unknown[]
+
+describe('downgradeLevel', () => {
+  it('returns null when there is no level below the current one', async () => {
+    inserted = []
+    const supabase = { from: () => makeChain({ reinforcement_target_level: null }) } as any
+    const result = await downgradeLevel(supabase, 'u1', 'A1', 'manual_downgrade')
+    expect(result).toBeNull()
+  })
+
+  it('sets reinforcement_target_level to the current level on a first downgrade', async () => {
+    inserted = []
+    const supabase = { from: () => makeChain({ reinforcement_target_level: null }) } as any
+    const result = await downgradeLevel(supabase, 'u1', 'A2', 'manual_downgrade')
+    expect(result).toEqual({ newLevel: 'A1', reinforcementTargetLevel: 'A2' })
+  })
+
+  it('preserves an existing reinforcement_target_level across repeated downgrades', async () => {
+    inserted = []
+    const supabase = { from: () => makeChain({ reinforcement_target_level: 'B1' }) } as any
+    const result = await downgradeLevel(supabase, 'u1', 'A2', 'manual_downgrade')
+    expect(result).toEqual({ newLevel: 'A1', reinforcementTargetLevel: 'B1' })
+  })
+
+  it('records a level_history row with the given reason', async () => {
+    inserted = []
+    const supabase = { from: () => makeChain({ reinforcement_target_level: null }) } as any
+    await downgradeLevel(supabase, 'u1', 'B1', 'confirmation_suggestion_accepted')
+    expect(inserted).toEqual([{
+      user_id: 'u1', from_level: 'B1', to_level: 'A2', reason: 'confirmation_suggestion_accepted',
+    }])
+  })
+})
