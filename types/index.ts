@@ -28,6 +28,9 @@ export interface User {
   demo_started_at: string | null
   demo_expires_at: string | null
   demo_status: DemoStatus | null
+  level_confirmed_at: string | null
+  reinforcement_target_level: CefrLevel | null
+  confirmation_suggestion_dismissed: boolean
 }
 
 export interface OnboardingProgress {
@@ -234,6 +237,22 @@ export interface LearningPlan {
   focus_areas: string[]
   plan_summary_pt: string
   cefr_at_creation: CefrLevel
+  created_at: string
+}
+
+export type LevelHistoryReason =
+  | 'placement_recommended'
+  | 'placement_chose_lower'
+  | 'confirmation_suggestion_accepted'
+  | 'manual_downgrade'
+  | 'reinforcement_auto_return'
+
+export interface LevelHistory {
+  id: string
+  user_id: string
+  from_level: CefrLevel | null
+  to_level: CefrLevel
+  reason: LevelHistoryReason
   created_at: string
 }
 
