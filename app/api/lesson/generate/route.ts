@@ -63,6 +63,8 @@ interface AiLessonContent {
   title_pt: string
   objective_pt: string
   learning_objectives: LearningObjective[]
+  grammar_point: { teacher_script: string; explanation_pt: string; example_sentence_en: string; example_sentence_pt: string }
+  grammar_exercise: AiExercise
   vocabulary: Array<VocabItem & { example_sentence_en: string; example_sentence_pt: string; teacher_script: string }>
   exercises: AiExercise[]
   guided_convo_opening: string
@@ -77,6 +79,21 @@ function fallbackAiContent(topic: Topic): AiLessonContent {
     title_pt: topic.labelPt,
     objective_pt: topic.objectivesPt[0] ?? 'Praticar inglês',
     learning_objectives: [{ id: 'obj-1', description_pt: topic.objectivesPt[0] ?? 'Praticar inglês', vocab_words: [word] }],
+    grammar_point: {
+      teacher_script: `Let's learn: ${topic.grammarFocus}.`,
+      explanation_pt: topic.grammarFocus,
+      example_sentence_en: topic.starterPhrase,
+      example_sentence_pt: topic.starterPhrase,
+    },
+    grammar_exercise: {
+      vocab_word: word,
+      question_pt: `Qual frase usa corretamente: ${topic.grammarFocus}?`,
+      correct_answer: topic.starterPhrase,
+      choices: [topic.starterPhrase, 'other', 'more', 'less'],
+      explanation_pt: topic.grammarFocus,
+      fill_blank_sentence: `I say ___.`,
+      fill_blank_hint_pt: topic.starterPhrase,
+    },
     vocabulary: [{ word, translation_pt: word, emoji: '📘', pronunciation_hint: word, example_sentence_en: topic.starterPhrase, example_sentence_pt: topic.starterPhrase, teacher_script: topic.starterPhrase }],
     exercises: [{ vocab_word: word, question_pt: `O que significa "${word}"?`, correct_answer: word, choices: [word, 'other', 'more', 'less'], explanation_pt: topic.promptEn, fill_blank_sentence: `I say ___.`, fill_blank_hint_pt: topic.starterPhrase }],
     guided_convo_opening: topic.starterPhrase,
@@ -106,6 +123,25 @@ function buildSteps(
   }
 
   steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt })
+
+  steps.push({
+    id: nextId('gr'),
+    type: 'grammar_present',
+    teacher_script: content.grammar_point.teacher_script,
+    explanation_pt: content.grammar_point.explanation_pt,
+    example_sentence_en: content.grammar_point.example_sentence_en,
+    example_sentence_pt: content.grammar_point.example_sentence_pt,
+  })
+
+  steps.push({
+    id: nextId('gr-ex'),
+    type: 'exercise_choice',
+    question_pt: content.grammar_exercise.question_pt,
+    image_emoji: '📐',
+    correct_answer: content.grammar_exercise.correct_answer,
+    choices: content.grammar_exercise.choices,
+    explanation_pt: content.grammar_exercise.explanation_pt,
+  })
 
   content.vocabulary.forEach((vocab, i) => {
     steps.push({
@@ -235,6 +271,7 @@ ${context.frequentErrors.length > 0 ? `- Frequent mistakes: ${context.frequentEr
 
 TODAY'S TOPIC: ${topic.labelPt} (${topic.promptEn})
 OBJECTIVES: ${topic.objectivesPt.join(', ')}
+GRAMMAR FOCUS: ${topic.grammarFocus}
 VOCABULARY COUNT: exactly ${shape.vocabCount} words/phrases, appropriate for ${cefrLevel}
 ${retryNote}
 
@@ -243,6 +280,8 @@ Return ONLY valid JSON:
   "title_pt": "lesson title in Portuguese (max 5 words)",
   "objective_pt": "one sentence — what the student will achieve today (Portuguese)",
   "learning_objectives": [{"id":"obj-1","description_pt":"...","vocab_words":["word1"]}],
+  "grammar_point": {"teacher_script":"spoken explanation of the GRAMMAR FOCUS rule, in English","explanation_pt":"how/when to use it, in Portuguese","example_sentence_en":"...","example_sentence_pt":"..."},
+  "grammar_exercise": {"vocab_word":"n/a","question_pt":"a multiple-choice question testing the GRAMMAR FOCUS rule","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"...","fill_blank_hint_pt":"..."},
   "vocabulary": [{"word":"...","translation_pt":"...","emoji":"...","pronunciation_hint":"...","example_sentence_en":"...","example_sentence_pt":"...","teacher_script":"spoken intro of this word: say it, translate it, give one example"}],
   "exercises": [{"vocab_word":"...","question_pt":"...","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"a sentence with the word replaced by ___","fill_blank_hint_pt":"Portuguese translation of that full sentence"}],
   "guided_convo_opening": "teacher's opening question for guided practice, in English, using only today's vocabulary",
@@ -250,7 +289,7 @@ Return ONLY valid JSON:
   "challenge_opening": "a harder closing question asking the student to combine everything learned, in English",
   "challenge_opening_pt": "Portuguese translation"
 }
-Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCount} exercises (one per vocabulary item, in the same order).`
+Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCount} exercises (one per vocabulary item, in the same order), plus the grammar_point and grammar_exercise for the GRAMMAR FOCUS above.`
 
   let aiContent: AiLessonContent
   try {
@@ -262,7 +301,7 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
       response_format: { type: 'json_object' },
     })
     const parsed = JSON.parse(completion.choices[0].message.content ?? '{}') as Partial<AiLessonContent>
-    if (!parsed.vocabulary?.length || !parsed.exercises?.length) throw new Error('Incomplete AI lesson content')
+    if (!parsed.vocabulary?.length || !parsed.exercises?.length || !parsed.grammar_point || !parsed.grammar_exercise) throw new Error('Incomplete AI lesson content')
     aiContent = parsed as AiLessonContent
   } catch {
     aiContent = fallbackAiContent(topic)

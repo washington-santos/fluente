@@ -54,6 +54,21 @@ const validAiContent = {
   title_pt: 'Apresentação pessoal',
   objective_pt: 'Você vai aprender a se apresentar em inglês.',
   learning_objectives: [{ id: 'obj-1', description_pt: 'Dizer seu nome', vocab_words: ['name'] }],
+  grammar_point: {
+    teacher_script: "Today we'll learn the verb 'to be': I am, you are, he is.",
+    explanation_pt: 'Use "am/is/are" para dizer quem você é.',
+    example_sentence_en: 'I am Ana.',
+    example_sentence_pt: 'Eu sou a Ana.',
+  },
+  grammar_exercise: {
+    vocab_word: 'n/a',
+    question_pt: 'Como se diz "Eu sou" em inglês?',
+    correct_answer: 'I am',
+    choices: ['I am', 'I is', 'I are', 'I be'],
+    explanation_pt: '"I am" é a forma correta.',
+    fill_blank_sentence: '___ Ana.',
+    fill_blank_hint_pt: 'Eu sou a Ana.',
+  },
   vocabulary: [
     { word: 'name', translation_pt: 'nome', emoji: '📛', pronunciation_hint: 'neym', example_sentence_en: 'My name is Ana.', example_sentence_pt: 'Meu nome é Ana.', teacher_script: "This word is 'name'..." },
   ],
@@ -120,8 +135,11 @@ describe('POST /api/lesson/generate', () => {
     expect(insertedRow.lesson_plan_json.title_pt).toBe('Apresentação pessoal')
     const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string }>
     expect(steps[0].type).toBe('intro')
+    expect(steps[1].type).toBe('grammar_present')
+    expect(steps[2].type).toBe('exercise_choice')
     expect(steps.some(s => s.type === 'vocab_present')).toBe(true)
-    expect(steps.some(s => s.type === 'exercise_choice' || s.type === 'exercise_fill_blank')).toBe(true)
+    // 1 grammar exercise + 1 vocab exercise (fixture has a single vocabulary item)
+    expect(steps.filter(s => s.type === 'exercise_choice' || s.type === 'exercise_fill_blank')).toHaveLength(2)
     expect(steps.some(s => s.type === 'vocab_repeat')).toBe(true)
     expect(steps.filter(s => s.type === 'guided_convo')).toHaveLength(2)
     expect(steps[steps.length - 1].type).toBe('summary')
@@ -154,6 +172,7 @@ describe('POST /api/lesson/generate', () => {
     const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string }>
     expect(steps.length).toBeGreaterThanOrEqual(5)
     expect(steps[0].type).toBe('intro')
+    expect(steps[1].type).toBe('grammar_present')
     expect(steps[steps.length - 1].type).toBe('summary')
   })
 })
