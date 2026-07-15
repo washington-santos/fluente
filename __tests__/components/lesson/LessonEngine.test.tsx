@@ -5,6 +5,31 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ audio_url: 'data:audio/mp3;base64,AAAA' }) })
 window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
 
+vi.mock('@/hooks/useAudioRecorder', () => ({
+  useAudioRecorder: vi.fn(() => ({
+    isRecording: false,
+    startRecording: vi.fn(),
+    stopRecording: vi.fn(),
+    error: null,
+  })),
+}))
+
+// jsdom never fires real 'ended'/'playing' events on HTMLMediaElement — this
+// mock auto-fires onended on the next microtask, matching the pattern already
+// used in GuidedConvoStep.test.tsx for the same reason.
+class MockAudio {
+  onended: (() => void) | null = null
+  onerror: (() => void) | null = null
+  onplaying: (() => void) | null = null
+  constructor(public src?: string) {}
+  play() {
+    queueMicrotask(() => this.onended?.())
+    return Promise.resolve()
+  }
+  pause() {}
+}
+vi.stubGlobal('Audio', MockAudio)
+
 import { LessonEngine } from '@/components/lesson/LessonEngine'
 import type { GeneratedLesson } from '@/types/lesson'
 
@@ -55,5 +80,37 @@ describe('LessonEngine', () => {
     render(<LessonEngine lesson={lessonWithWarmup} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
     expect(screen.getByText('Você praticou saudações.')).toBeInTheDocument()
     expect(screen.getByText('1 / 3')).toBeInTheDocument()
+  })
+
+  it('accumulates struggle events from wrong exercise answers, clones the missed exercise for a retry, and shortens the next guided-convo step once struggling mode is on', async () => {
+    const lesson: GeneratedLesson = {
+      ...mockLesson,
+      steps: [
+        { id: 'ex-1', type: 'exercise_choice', question_pt: 'Q1?', image_emoji: '❓', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp1' },
+        { id: 'ex-2', type: 'exercise_choice', question_pt: 'Q2?', image_emoji: '❓', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp2' },
+        { id: 'gc-1', type: 'guided_convo', instruction_pt: 'inst', teacher_opens_with: 'Hi', allowed_vocabulary: ['Hello'], min_exchanges: 3 },
+        { id: 'summary', type: 'summary' },
+      ],
+    }
+    render(<LessonEngine lesson={lesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+
+    // Wrong answer on ex-1 — 1st struggle event, not enough to trigger struggling mode yet
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // Wrong answer on ex-2 — 2nd struggle event, crosses the threshold
+    await waitFor(() => screen.getByText('Q2?'))
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // ex-2 was cloned as an immediate retry — the same question appears again
+    await waitFor(() => expect(screen.getByText('Q2?')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('A'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // Now on the guided_convo step: min_exchanges was reduced from 3 to 2
+    await waitFor(() => expect(screen.getByLabelText('Ouvir pergunta')).not.toBeDisabled())
+    fireEvent.click(screen.getByLabelText('Ouvir pergunta'))
+    await waitFor(() => expect(screen.getByText('0 / 2 trocas')).toBeInTheDocument())
   })
 })
