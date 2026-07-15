@@ -111,3 +111,61 @@ export async function checkAndApplyReinforcementReturn(
 
   return reinforcementTargetLevel
 }
+
+export function levelAbove(level: CefrLevel): CefrLevel | null {
+  const idx = CEFR_ORDER.indexOf(level)
+  return idx < CEFR_ORDER.length - 1 ? CEFR_ORDER[idx + 1] : null
+}
+
+export async function checkAndApplyLevelPromotion(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<CefrLevel | null> {
+  const { data: userRow } = await supabase
+    .from('users')
+    .select('cefr_level, reinforcement_target_level')
+    .eq('id', userId)
+    .single()
+
+  const cefrLevel = (userRow as { cefr_level?: CefrLevel | null } | null)?.cefr_level
+  const reinforcementTargetLevel = (userRow as { reinforcement_target_level?: CefrLevel | null } | null)
+    ?.reinforcement_target_level
+
+  if (!cefrLevel || reinforcementTargetLevel) return null
+
+  const target = levelAbove(cefrLevel)
+  if (!target) return null
+
+  const topics = getTopicsForLevel(cefrLevel)
+  if (topics.length === 0) return null
+
+  const { data: progressRows } = await supabase
+    .from('user_topic_progress')
+    .select('topic_id, mastery_status')
+    .eq('user_id', userId)
+    .eq('cefr_level', cefrLevel)
+
+  const masteredTopicIds = new Set(
+    ((progressRows ?? []) as { topic_id: string; mastery_status: string }[])
+      .filter((r) => r.mastery_status === 'mastered')
+      .map((r) => r.topic_id),
+  )
+
+  const allMastered = topics.every((t) => masteredTopicIds.has(t.key))
+  if (!allMastered) return null
+
+  await supabase.from('users').update({
+    cefr_level: target,
+    level_confirmed_at: new Date().toISOString(),
+    confirmation_suggestion_dismissed: false,
+  }).eq('id', userId)
+
+  await supabase.from('level_history').insert({
+    user_id: userId,
+    from_level: cefrLevel,
+    to_level: target,
+    reason: 'auto_promotion',
+  })
+
+  return target
+}

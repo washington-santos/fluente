@@ -173,3 +173,63 @@ describe('checkAndApplyReinforcementReturn', () => {
     }])
   })
 })
+
+import { checkAndApplyLevelPromotion, levelAbove } from '@/lib/levels'
+
+describe('levelAbove', () => {
+  it('returns the next level for a mid-range level', () => {
+    expect(levelAbove('B1')).toBe('B2')
+  })
+
+  it('returns null for C2 (nothing above the ceiling)', () => {
+    expect(levelAbove('C2')).toBeNull()
+  })
+
+  it('returns the level above A1', () => {
+    expect(levelAbove('A1')).toBe('A2')
+  })
+})
+
+describe('checkAndApplyLevelPromotion', () => {
+  it('returns null when the user is in reinforcement mode', async () => {
+    inserted = []
+    const { usersChain } = makeReturnChain({ cefr_level: 'A1', reinforcement_target_level: 'A2' }, [])
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : usersChain) } as any
+    const result = await checkAndApplyLevelPromotion(supabase, 'u1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when already at the ceiling level C2', async () => {
+    inserted = []
+    const { usersChain } = makeReturnChain({ cefr_level: 'C2', reinforcement_target_level: null }, [])
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : usersChain) } as any
+    const result = await checkAndApplyLevelPromotion(supabase, 'u1')
+    expect(result).toBeNull()
+  })
+
+  it('returns null when not all current-level topics are mastered', async () => {
+    inserted = []
+    const { usersChain, progressChain } = makeReturnChain(
+      { cefr_level: 'A1', reinforcement_target_level: null },
+      [{ topic_id: 'introductions', mastery_status: 'mastered' }], // only 1 of 8 A1 topics
+    )
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : progressChain) } as any
+    const result = await checkAndApplyLevelPromotion(supabase, 'u1')
+    expect(result).toBeNull()
+  })
+
+  it('promotes to the next level once every current-level topic is mastered', async () => {
+    inserted = []
+    const a1TopicIds = ['introductions', 'family', 'numbers-dates', 'colors', 'daily-routine', 'food', 'greetings', 'home']
+    const { usersChain, progressChain } = makeReturnChain(
+      { cefr_level: 'A1', reinforcement_target_level: null },
+      a1TopicIds.map((topic_id) => ({ topic_id, mastery_status: 'mastered' })),
+    )
+    const supabase = { from: (table: string) => (table === 'users' ? usersChain : progressChain) } as any
+    const result = await checkAndApplyLevelPromotion(supabase, 'u1')
+    expect(result).toBe('A2')
+    expect(inserted).toEqual([{
+      user_id: 'u1', from_level: 'A1', to_level: 'A2', reason: 'auto_promotion',
+    }])
+  })
+})
