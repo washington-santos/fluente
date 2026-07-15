@@ -6,7 +6,7 @@ import type { ExerciseChoiceStep as StepType } from '@/types/lesson'
 
 interface ExerciseChoiceStepProps {
   step: StepType
-  onSuccess: () => void
+  onSuccess: (isCorrect: boolean) => void
 }
 
 export function ExerciseChoiceStep({ step, onSuccess }: ExerciseChoiceStepProps) {
@@ -61,7 +61,7 @@ export function ExerciseChoiceStep({ step, onSuccess }: ExerciseChoiceStepProps)
 
       {answered && (
         <button
-          onClick={onSuccess}
+          onClick={() => onSuccess(isCorrect)}
           className="w-full py-4 rounded-xl bg-brand-interactive text-content-dark font-bold hover:opacity-90 transition-opacity"
         >
           Continuar →

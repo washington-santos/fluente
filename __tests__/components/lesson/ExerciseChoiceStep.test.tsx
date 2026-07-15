@@ -38,12 +38,20 @@ describe('ExerciseChoiceStep', () => {
     expect(screen.getByText("'Thank you' significa 'Obrigado'.")).toBeInTheDocument()
   })
 
-  it('calls onSuccess when Continuar is clicked after any answer', () => {
+  it('calls onSuccess(true) when Continuar is clicked after a correct answer', () => {
+    const onSuccess = vi.fn()
+    render(<ExerciseChoiceStep step={step} onSuccess={onSuccess} />)
+    fireEvent.click(screen.getByText('Obrigado'))
+    fireEvent.click(screen.getByText('Continuar →'))
+    expect(onSuccess).toHaveBeenCalledWith(true)
+  })
+
+  it('calls onSuccess(false) when Continuar is clicked after a wrong answer', () => {
     const onSuccess = vi.fn()
     render(<ExerciseChoiceStep step={step} onSuccess={onSuccess} />)
     fireEvent.click(screen.getByText('Por favor'))
     fireEvent.click(screen.getByText('Continuar →'))
-    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(onSuccess).toHaveBeenCalledWith(false)
   })
 
   it('prevents changing answer after selection', () => {
