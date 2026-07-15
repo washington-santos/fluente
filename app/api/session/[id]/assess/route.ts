@@ -10,7 +10,7 @@ import {
   REVIEW_INTERVALS_DAYS,
   type CompetencyScores,
 } from '@/lib/mastery'
-import { checkAndApplyReinforcementReturn } from '@/lib/levels'
+import { checkAndApplyReinforcementReturn, checkAndApplyLevelPromotion } from '@/lib/levels'
 
 export async function POST(
   _request: Request,
@@ -177,6 +177,7 @@ Respond ONLY valid JSON:
   if (progressErr) console.error('user_topic_progress upsert failed:', progressErr.message)
 
   await checkAndApplyReinforcementReturn(supabase, user.id)
+  const promotedTo = await checkAndApplyLevelPromotion(supabase, user.id)
 
   return NextResponse.json({
     scores,
@@ -187,5 +188,6 @@ Respond ONLY valid JSON:
     highlight_pt: highlightPt,
     attempt_count: attemptCount,
     next_methodology: newLastMethodology,
+    level_promotion: promotedTo ? { from: cefrLevel, to: promotedTo } : null,
   })
 }
