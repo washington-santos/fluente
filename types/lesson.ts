@@ -5,6 +5,12 @@ export interface VocabItem {
   pronunciation_hint: string
 }
 
+export interface ExtraExample {
+  example_sentence_en: string
+  example_sentence_pt: string
+  explanation_pt: string
+}
+
 export interface IntroStep {
   id: string
   type: 'intro'
