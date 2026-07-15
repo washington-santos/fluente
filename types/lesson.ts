@@ -18,6 +18,15 @@ export interface IntroStep {
   description_pt: string
 }
 
+export interface GrammarPresentStep {
+  id: string
+  type: 'grammar_present'
+  teacher_script: string
+  explanation_pt: string
+  example_sentence_en: string
+  example_sentence_pt: string
+}
+
 export interface VocabPresentStep {
   id: string
   type: 'vocab_present'
@@ -86,6 +95,7 @@ export interface ExerciseFillBlankStep {
 export type LessonStep =
   | WarmupReviewStep
   | IntroStep
+  | GrammarPresentStep
   | VocabPresentStep
   | VocabRepeatStep
   | ExerciseChoiceStep
