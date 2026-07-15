@@ -2,6 +2,7 @@
 
 import { X, MessageCircle, AlertCircle, Mic, Clock, Target } from 'lucide-react'
 import { COMPETENCY_LABELS_PT, type CompetencyScores } from '@/lib/mastery'
+import type { CefrLevel } from '@/types'
 
 interface AssessmentData {
   scores: CompetencyScores
@@ -21,6 +22,7 @@ interface SessionReportProps {
   missionCompleted: boolean
   missionTitle: string
   assessment?: AssessmentData | null
+  levelPromotion?: { from: CefrLevel; to: CefrLevel } | null
   onClose: () => void
 }
 
@@ -58,6 +60,7 @@ export function SessionReport({
   missionCompleted,
   missionTitle,
   assessment,
+  levelPromotion,
   onClose,
 }: SessionReportProps) {
   const essentials = new Set(['speaking', 'listening', 'pronunciation'])
@@ -66,6 +69,14 @@ export function SessionReport({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-surface-light dark:bg-surface-dark rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 my-4">
+        {levelPromotion && (
+          <div className="rounded-xl p-4 bg-gradient-to-r from-brand-cta to-brand-interactive text-center">
+            <p className="text-lg font-black text-content-dark">🎉 Você subiu de nível!</p>
+            <p className="text-sm text-content-dark mt-1">
+              Parabéns! Você dominou tudo do {levelPromotion.from} e agora está no {levelPromotion.to}.
+            </p>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-content-light dark:text-content-dark">
             Resumo da aula

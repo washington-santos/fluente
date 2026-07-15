@@ -41,4 +41,15 @@ describe('SessionReport', () => {
     fireEvent.click(screen.getByRole('button', { name: /praticar novamente/i }))
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('shows the level promotion banner when levelPromotion is provided', () => {
+    render(<SessionReport {...defaultProps} levelPromotion={{ from: 'A2', to: 'B1' }} />)
+    expect(screen.getByText('🎉 Você subiu de nível!')).toBeInTheDocument()
+    expect(screen.getByText('Parabéns! Você dominou tudo do A2 e agora está no B1.')).toBeInTheDocument()
+  })
+
+  it('does not show the level promotion banner when levelPromotion is absent', () => {
+    render(<SessionReport {...defaultProps} />)
+    expect(screen.queryByText('🎉 Você subiu de nível!')).not.toBeInTheDocument()
+  })
 })
