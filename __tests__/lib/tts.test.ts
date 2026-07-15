@@ -39,6 +39,16 @@ describe('synthesizeTts', () => {
     const result = await synthesizeTts('Test', 'nova')
     expect(result.buffer.toString()).toBe('fake-audio')
   })
+
+  it('defaults to speed 1.0 when not specified', async () => {
+    await synthesizeTts('Hello', 'alloy')
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ speed: 1.0 }))
+  })
+
+  it('passes a custom speed through to the OpenAI call', async () => {
+    await synthesizeTts('Hello', 'alloy', 0.85)
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ speed: 0.85 }))
+  })
 })
 
 describe('synthesizeTtsWithRetry', () => {
