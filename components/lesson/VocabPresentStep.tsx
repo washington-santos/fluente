@@ -1,16 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { VocabPresentStep as StepType, VocabItem } from '@/types/lesson'
+import type { VocabPresentStep as StepType, VocabItem, ExtraExample } from '@/types/lesson'
 
 interface VocabPresentStepProps {
   step: StepType
   vocab: VocabItem
   ttsVoice: string
+  strugglingMode?: boolean
+  extraExample?: ExtraExample | null
   onContinue: () => void
 }
 
-export function VocabPresentStep({ step, vocab, ttsVoice, onContinue }: VocabPresentStepProps) {
+export function VocabPresentStep({ step, vocab, ttsVoice, strugglingMode = false, extraExample = null, onContinue }: VocabPresentStepProps) {
   const [isLoading, setIsLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -20,6 +22,7 @@ export function VocabPresentStep({ step, vocab, ttsVoice, onContinue }: VocabPre
       const fd = new FormData()
       fd.append('text', step.teacher_script)
       fd.append('voice', ttsVoice)
+      fd.append('speed', strugglingMode ? '0.85' : '1.0')
       const res = await fetch('/api/lesson/tts', { method: 'POST', body: fd })
       const { audio_url } = await res.json()
       const audio = new Audio(audio_url)
@@ -52,6 +55,14 @@ export function VocabPresentStep({ step, vocab, ttsVoice, onContinue }: VocabPre
         <p className="text-base text-content-light dark:text-content-dark">{step.example_sentence_en}</p>
         <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-1 italic">{step.example_sentence_pt}</p>
       </div>
+      {extraExample && (
+        <div className="w-full p-4 rounded-xl bg-brand-interactive/10 border border-brand-interactive/30 text-center">
+          <p className="text-xs font-semibold text-brand-interactive mb-1">💡 Dica extra</p>
+          <p className="text-sm text-content-light dark:text-content-dark">{extraExample.example_sentence_en}</p>
+          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary italic mt-1">{extraExample.example_sentence_pt}</p>
+          <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-2">{extraExample.explanation_pt}</p>
+        </div>
+      )}
       <button
         onClick={playTts}
         disabled={isLoading}
