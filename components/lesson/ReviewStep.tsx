@@ -6,12 +6,13 @@ import type { ReviewStep as StepType, VocabItem } from '@/types/lesson'
 interface ReviewStepProps {
   step: StepType
   vocabulary: VocabItem[]
+  strugglingMode?: boolean
   onComplete: () => void
 }
 
-export function ReviewStep({ step, vocabulary, onComplete }: ReviewStepProps) {
+export function ReviewStep({ step, vocabulary, strugglingMode = false, onComplete }: ReviewStepProps) {
   const [cardIndex, setCardIndex] = useState(0)
-  const [revealed, setRevealed] = useState(false)
+  const [revealed, setRevealed] = useState(strugglingMode)
   const [knewCount, setKnewCount] = useState(0)
   const [done, setDone] = useState(false)
 
@@ -24,7 +25,7 @@ export function ReviewStep({ step, vocabulary, onComplete }: ReviewStepProps) {
       setDone(true)
     } else {
       setCardIndex(i => i + 1)
-      setRevealed(false)
+      setRevealed(strugglingMode)
     }
   }
 
