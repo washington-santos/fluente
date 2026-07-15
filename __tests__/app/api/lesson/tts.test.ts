@@ -41,4 +41,10 @@ describe('POST /api/lesson/tts', () => {
     await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: '0.01' }))
     expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 0.25)
   })
+
+  it('falls back to speed 1.0 when the speed field is not a valid number', async () => {
+    const res = await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: 'not-a-number' }))
+    expect(res.status).toBe(200)
+    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 1.0)
+  })
 })

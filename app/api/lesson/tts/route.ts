@@ -11,7 +11,8 @@ export async function POST(request: Request) {
   const text = formData.get('text') as string | null
   const voice = (formData.get('voice') as string | null) ?? 'alloy'
   const speedRaw = formData.get('speed') as string | null
-  const speed = speedRaw ? Math.min(4.0, Math.max(0.25, parseFloat(speedRaw))) : 1.0
+  const parsedSpeed = speedRaw ? parseFloat(speedRaw) : NaN
+  const speed = Number.isNaN(parsedSpeed) ? 1.0 : Math.min(4.0, Math.max(0.25, parsedSpeed))
 
   if (!text) return NextResponse.json({ error: 'text required' }, { status: 400 })
 
