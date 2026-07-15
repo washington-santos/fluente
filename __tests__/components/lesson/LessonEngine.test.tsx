@@ -113,4 +113,33 @@ describe('LessonEngine', () => {
     fireEvent.click(screen.getByLabelText('Ouvir pergunta'))
     await waitFor(() => expect(screen.getByText('0 / 2 trocas')).toBeInTheDocument())
   })
+
+  it('renders a grammar_present step and counts a wrong grammar exercise answer toward struggle events', async () => {
+    const lesson: GeneratedLesson = {
+      ...mockLesson,
+      steps: [
+        { id: 'gr-1', type: 'grammar_present', teacher_script: 'Learn possessives.', explanation_pt: 'Use my/his/her.', example_sentence_en: 'This is my book.', example_sentence_pt: 'Este é meu livro.' },
+        { id: 'ex-1', type: 'exercise_choice', question_pt: 'Q1?', image_emoji: '📐', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp1' },
+        { id: 'ex-2', type: 'exercise_choice', question_pt: 'Q2?', image_emoji: '❓', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp2' },
+        { id: 'summary', type: 'summary' },
+      ],
+    }
+    render(<LessonEngine lesson={lesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+
+    expect(screen.getByText('Use my/his/her.')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Entendi! Continuar →'))
+
+    // Wrong answer on the grammar exercise (ex-1) — 1st struggle event, not enough yet
+    await waitFor(() => screen.getByText('Q1?'))
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // Wrong answer on ex-2 — 2nd struggle event, crosses the threshold
+    await waitFor(() => screen.getByText('Q2?'))
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // ex-2 was cloned as an immediate retry — the same question appears again
+    await waitFor(() => expect(screen.getByText('Q2?')).toBeInTheDocument())
+  })
 })

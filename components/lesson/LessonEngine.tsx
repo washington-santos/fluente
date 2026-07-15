@@ -5,6 +5,7 @@ import type { GeneratedLesson, LessonStep, ExtraExample } from '@/types/lesson'
 import { LessonProgressBar } from '@/components/lesson/LessonProgressBar'
 import { WarmupReviewStep } from '@/components/lesson/WarmupReviewStep'
 import { IntroStep } from '@/components/lesson/IntroStep'
+import { GrammarPresentStep } from '@/components/lesson/GrammarPresentStep'
 import { SummaryStep } from '@/components/lesson/SummaryStep'
 import { VocabPresentStep } from '@/components/lesson/VocabPresentStep'
 import { VocabRepeatStep } from '@/components/lesson/VocabRepeatStep'
@@ -131,6 +132,15 @@ export function LessonEngine({ lesson, sessionId, teacherName, teacherImageUrl, 
         )}
         {step.type === 'intro' && (
           <IntroStep key={step.id} step={step} vocabulary={lesson.vocabulary} learningObjectives={lesson.learning_objectives} onContinue={() => advance()} />
+        )}
+        {step.type === 'grammar_present' && (
+          <GrammarPresentStep
+            key={step.id}
+            step={step}
+            ttsVoice={ttsVoice}
+            strugglingMode={strugglingMode}
+            onContinue={() => advance()}
+          />
         )}
         {step.type === 'vocab_present' && (
           <VocabPresentStep
