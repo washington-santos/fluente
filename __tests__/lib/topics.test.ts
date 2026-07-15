@@ -51,3 +51,22 @@ describe('pickTopic for C1/C2', () => {
     expect(topic?.key).toBe('native-humor')
   })
 })
+
+import { getTopicsForLevel } from '@/lib/topics'
+
+describe('grammarFocus', () => {
+  it('every topic across every level has a non-empty grammarFocus', () => {
+    for (const level of ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const) {
+      const topics = getTopicsForLevel(level)
+      expect(topics.length).toBeGreaterThan(0)
+      for (const t of topics) {
+        expect(t.grammarFocus).toBeTruthy()
+      }
+    }
+  })
+
+  it('returns the expected grammarFocus for a known topic', () => {
+    const t = getTopicByKey('family')
+    expect(t?.grammarFocus).toBe('Possessive adjectives: my, his, her')
+  })
+})
