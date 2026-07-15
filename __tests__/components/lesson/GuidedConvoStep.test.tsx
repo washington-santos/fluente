@@ -130,4 +130,59 @@ describe('GuidedConvoStep', () => {
     expect(screen.queryByText('Não entendi. Fale mais devagar e tente novamente. 🎙️')).not.toBeInTheDocument()
     expect(call).toBeGreaterThan(0)
   })
+
+  it('sends speed=0.85 in TTS requests when strugglingMode is on', async () => {
+    mockFetchSequence({ audio_url: 'data:audio/mp3;base64,AAAA' })
+    render(
+      <GuidedConvoStep step={baseStep} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" strugglingMode onComplete={vi.fn()} />
+    )
+    await waitFor(() => {
+      const ttsCall = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === '/api/lesson/tts')
+      expect(ttsCall).toBeTruthy()
+      const body = ttsCall![1].body as FormData
+      expect(body.get('speed')).toBe('0.85')
+    })
+  })
+
+  it('sends speed=1.0 by default', async () => {
+    mockFetchSequence({ audio_url: 'data:audio/mp3;base64,AAAA' })
+    render(
+      <GuidedConvoStep step={baseStep} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />
+    )
+    await waitFor(() => {
+      const ttsCall = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(c => c[0] === '/api/lesson/tts')
+      expect(ttsCall).toBeTruthy()
+      const body = ttsCall![1].body as FormData
+      expect(body.get('speed')).toBe('1.0')
+    })
+  })
+
+  it('reports the correction rate to onComplete when the conversation finishes', async () => {
+    mockFetchSequence(
+      { audio_url: 'data:audio/mp3;base64,AAAA' }, // initial TTS
+      { message_id: 'm1', text: 'Try again', reply_pt: 'Tente de novo', transcript: 'bad answer', had_correction: true, audio_url: null, audio_status: 'pending', video_url: null, video_status: 'skipped' },
+      { audio_url: 'data:audio/mp3;base64,BBBB' }, // reply TTS after 1st exchange
+      { message_id: 'm2', text: 'Great!', reply_pt: 'Ótimo!', transcript: 'good answer', had_correction: false, audio_url: null, audio_status: 'pending', video_url: null, video_status: 'skipped' },
+      { audio_url: 'data:audio/mp3;base64,CCCC' }, // reply TTS after 2nd exchange
+    )
+    const onComplete = vi.fn()
+    render(
+      <GuidedConvoStep step={{ ...baseStep, min_exchanges: 1 }} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={onComplete} />
+    )
+    await waitFor(() => expect(screen.getByLabelText('Ouvir pergunta')).not.toBeDisabled())
+    fireEvent.click(screen.getByLabelText('Ouvir pergunta'))
+
+    await waitFor(() => expect(screen.getByText('Try again')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Ouvir pergunta')).not.toBeDisabled())
+    fireEvent.click(screen.getByLabelText('Ouvir pergunta'))
+
+    // Note: the mic-hint text 'Pronto para continuar!' is gated behind `awaitingListen`
+    // (which the component resets to `true` at the top of every playCurrentTts call, and
+    // MockAudio never fires `onplaying` to clear it — see the MockAudio comment above), so
+    // that hint never actually becomes visible in this mocked flow. The finish button's
+    // visibility only depends on `canComplete`, so we wait on that directly instead.
+    await waitFor(() => expect(screen.getByText('Finalizar conversa →')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Finalizar conversa →'))
+    expect(onComplete).toHaveBeenCalledWith(0.5)
+  })
 })

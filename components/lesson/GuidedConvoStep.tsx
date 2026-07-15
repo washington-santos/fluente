@@ -18,10 +18,11 @@ interface GuidedConvoStepProps {
   teacherName: string
   teacherImageUrl: string
   ttsVoice: string
-  onComplete: () => void
+  strugglingMode?: boolean
+  onComplete: (correctionRate: number) => void
 }
 
-export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl, ttsVoice, onComplete }: GuidedConvoStepProps) {
+export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl, ttsVoice, strugglingMode = false, onComplete }: GuidedConvoStepProps) {
   const [messages, setMessages] = useState<Message[]>([])
   // Start as true so mic stays disabled while initial TTS loads
   const [isSpeaking, setIsSpeaking] = useState(true)
@@ -44,6 +45,7 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
       const fd = new FormData()
       fd.append('text', text)
       fd.append('voice', ttsVoice)
+      fd.append('speed', strugglingMode ? '0.85' : '1.0')
       const res = await fetch('/api/lesson/tts', { method: 'POST', body: fd })
       const { audio_url } = await res.json()
       pendingUrlRef.current = audio_url
@@ -73,6 +75,7 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
       const fd = new FormData()
       fd.append('text', text)
       fd.append('voice', ttsVoice)
+      fd.append('speed', strugglingMode ? '0.85' : '1.0')
       const res = await fetch('/api/lesson/tts', { method: 'POST', body: fd })
       const { audio_url } = await res.json()
       const audio = new Audio(audio_url)
@@ -165,6 +168,10 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
   }
 
   const canComplete = exchangeCount >= step.min_exchanges
+  const studentMessages = messages.filter(m => m.role === 'student')
+  const correctionRate = studentMessages.length > 0
+    ? studentMessages.filter(m => m.correct === false).length / studentMessages.length
+    : 0
   const displayError = assessError ?? recorderError
 
   const micIcon = isAssessing ? '⏳' : isSpeaking ? '🔊' : isRecording ? '⏹' : awaitingListen ? '🔊' : '🎤'
@@ -245,7 +252,7 @@ export function GuidedConvoStep({ step, sessionId, teacherName, teacherImageUrl,
         </p>
         {canComplete && (
           <button
-            onClick={onComplete}
+            onClick={() => onComplete(correctionRate)}
             className="w-full py-3 rounded-xl bg-brand-interactive text-content-dark font-bold hover:opacity-90 transition-opacity"
           >
             Finalizar conversa →
