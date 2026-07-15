@@ -70,6 +70,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       highlight_pt: string
       attempt_count: number
     } | null
+    levelPromotion?: { from: CefrLevel; to: CefrLevel } | null
   } | null>(null)
 
   // Intro screen — hide once first turn is sent or session has existing messages
@@ -255,11 +256,13 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
         if (reportRes.status === 'fulfilled' && reportRes.value.ok) {
           const data = await reportRes.value.json()
           let assessment = null
+          let levelPromotion = null
           if (assessRes.status === 'fulfilled' && assessRes.value.ok) {
             const a = await assessRes.value.json()
             if (!a.too_short && !a.error) assessment = a
+            levelPromotion = a.level_promotion ?? null
           }
-          setReportData({ ...data, assessment })
+          setReportData({ ...data, assessment, levelPromotion })
           setShowReport(true)
           return
         }
@@ -375,6 +378,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
             missionCompleted={reportData.missionCompleted}
             missionTitle={reportData.missionTitle}
             assessment={reportData.assessment}
+            levelPromotion={reportData.levelPromotion}
             onClose={handleReportClose}
           />
         )}
@@ -583,6 +587,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           missionCompleted={reportData.missionCompleted}
           missionTitle={reportData.missionTitle}
           assessment={reportData.assessment}
+          levelPromotion={reportData.levelPromotion}
           onClose={handleReportClose}
         />
       )}

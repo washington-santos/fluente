@@ -238,6 +238,59 @@ describe('AulaClient', () => {
     await waitFor(() => expect(screen.getByText('Resumo da aula')).toBeInTheDocument())
   })
 
+  it('shows the level promotion banner when the assess response includes level_promotion', async () => {
+    const endSessionMock = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: null,
+      messages: [],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn(),
+      endSession: endSessionMock,
+      retryAudio: vi.fn(),
+    })
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/assess')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            scores: { speaking: 75, listening: 80, pronunciation: 70, vocabulary: 78, grammar: 72, confidence: 80, fluency: 74 },
+            final_score: 75,
+            passed: true,
+            failed_competencies: [],
+            feedback_pt: 'Muito bem!',
+            highlight_pt: 'Ótimo!',
+            attempt_count: 1,
+            level_promotion: { from: 'A2', to: 'B1' },
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          userMessages: 3,
+          corrections: 1,
+          pronunciationHints: 0,
+          durationSeconds: 120,
+          missionCompleted: false,
+          missionTitle: 'Apresentação completa',
+        }),
+      })
+    })
+
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
+    const endButton = screen.getByText(/encerrar aula/i)
+    await act(async () => { fireEvent.click(endButton) })
+    await waitFor(() => expect(screen.getByText('🎉 Você subiu de nível!')).toBeInTheDocument())
+  })
+
   it('renders quota exceeded banner when quotaExceeded is true', () => {
     vi.mocked(useSession).mockReturnValue({
       sessionId: 'sess-1',
