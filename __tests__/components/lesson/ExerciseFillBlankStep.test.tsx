@@ -34,13 +34,22 @@ describe('ExerciseFillBlankStep', () => {
     expect(screen.getByText('❌ Quase — a resposta certa é "name".')).toBeInTheDocument()
   })
 
-  it('calls onSuccess when Continuar is tapped after answering', () => {
+  it('calls onSuccess(true) when Continuar is tapped after a correct answer', () => {
     const onSuccess = vi.fn()
     render(<ExerciseFillBlankStep step={mockStep} onSuccess={onSuccess} />)
     fireEvent.change(screen.getByTestId('fill-blank-input'), { target: { value: 'name' } })
     fireEvent.click(screen.getByText('Verificar'))
     fireEvent.click(screen.getByText('Continuar →'))
-    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(onSuccess).toHaveBeenCalledWith(true)
+  })
+
+  it('calls onSuccess(false) when Continuar is tapped after a wrong answer', () => {
+    const onSuccess = vi.fn()
+    render(<ExerciseFillBlankStep step={mockStep} onSuccess={onSuccess} />)
+    fireEvent.change(screen.getByTestId('fill-blank-input'), { target: { value: 'age' } })
+    fireEvent.click(screen.getByText('Verificar'))
+    fireEvent.click(screen.getByText('Continuar →'))
+    expect(onSuccess).toHaveBeenCalledWith(false)
   })
 
   it('does not let an empty answer be checked', () => {

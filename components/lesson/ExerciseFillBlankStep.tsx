@@ -6,7 +6,7 @@ import type { ExerciseFillBlankStep as StepType } from '@/types/lesson'
 
 interface ExerciseFillBlankStepProps {
   step: StepType
-  onSuccess: () => void
+  onSuccess: (isCorrect: boolean) => void
 }
 
 export function ExerciseFillBlankStep({ step, onSuccess }: ExerciseFillBlankStepProps) {
@@ -69,7 +69,7 @@ export function ExerciseFillBlankStep({ step, onSuccess }: ExerciseFillBlankStep
 
       {checked && (
         <button
-          onClick={onSuccess}
+          onClick={() => onSuccess(isCorrect)}
           className="w-full py-4 rounded-xl bg-brand-interactive text-content-dark font-bold hover:opacity-90 transition-opacity"
         >
           Continuar →
