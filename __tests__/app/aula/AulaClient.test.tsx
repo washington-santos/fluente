@@ -291,6 +291,84 @@ describe('AulaClient', () => {
     await waitFor(() => expect(screen.getByText('🎉 Você subiu de nível!')).toBeInTheDocument())
   })
 
+  it('shows the level promotion banner via the chat-screen SessionReport render path (the dominant real-world path once a student has sent a message)', async () => {
+    const endSessionMock = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'travel',
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn().mockResolvedValue(null),
+      endSession: endSessionMock,
+      retryAudio: vi.fn(),
+    })
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/assess')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            scores: { speaking: 75, listening: 80, pronunciation: 70, vocabulary: 78, grammar: 72, confidence: 80, fluency: 74 },
+            final_score: 75,
+            passed: true,
+            failed_competencies: [],
+            feedback_pt: 'Muito bem!',
+            highlight_pt: 'Ótimo!',
+            attempt_count: 1,
+            level_promotion: { from: 'A2', to: 'B1' },
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          userMessages: 3,
+          corrections: 1,
+          pronunciationHints: 0,
+          durationSeconds: 120,
+          missionCompleted: false,
+          missionTitle: 'Apresentação completa',
+        }),
+      })
+    })
+
+    render(<AulaClient teacher={mockTeacher} cefrLevel="B1" />)
+    await waitFor(() => expect(screen.getByText('Hello!')).toBeInTheDocument())
+    const endButton = screen.getByText(/encerrar aula/i)
+    await act(async () => { fireEvent.click(endButton) })
+    await waitFor(() => expect(screen.getByText('🎉 Você subiu de nível!')).toBeInTheDocument())
+
+    // Restore the default mock so later tests in this file aren't affected —
+    // matches the convention already used elsewhere in this file.
+    vi.mocked(useSession).mockReturnValue({
+      sessionId: 'sess-1',
+      topic: 'travel',
+      messages: [
+        { id: 'm1', role: 'user', text: 'Hello!', audio_url: null, audio_status: 'skipped', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+        { id: 'm2', role: 'assistant', text: 'Hi there!', audio_url: null, audio_status: 'ready', video_url: null, video_status: 'skipped', had_correction: false, pronunciation_hint: null, suggested_replies: null, reply_pt: null },
+      ],
+      loading: false,
+      sending: false,
+      initError: null,
+      turnError: null,
+      quotaExceeded: false,
+      quotaInfo: null,
+      lastPromptHint: null,
+      sendTurn: vi.fn().mockResolvedValue(null),
+      endSession: vi.fn(),
+      retryAudio: vi.fn(),
+    })
+  })
+
   it('renders quota exceeded banner when quotaExceeded is true', () => {
     vi.mocked(useSession).mockReturnValue({
       sessionId: 'sess-1',
