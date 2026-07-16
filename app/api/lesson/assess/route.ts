@@ -72,11 +72,15 @@ Respond ONLY with valid JSON (no markdown):
     const prompt = `You are assessing English pronunciation for an A1 learner from Brazil by listening to their recording.
 Target word: "${target}"
 
-Listen carefully to the audio and respond ONLY with valid JSON (no markdown):
+Listen carefully to the audio and respond with ONLY a raw JSON object, no markdown code fences, no explanation before or after:
 {"assessment":"correct or close or incorrect","score":0.0 to 1.0,"feedback_pt":"short encouraging feedback in Portuguese","phoneme_note_pt":"one plain-Portuguese sentence naming the specific sound that was wrong and how to fix it, or null if assessment is correct"}`
 
+    // gpt-audio does not support response_format:"json_object" — it only
+    // works with modalities:["text"]-only chat models — so the model may
+    // occasionally wrap its JSON in a markdown code fence despite the
+    // prompt instruction; strip fences before parsing.
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini-audio-preview',
+      model: 'gpt-audio',
       modalities: ['text'],
       messages: [{
         role: 'user',
@@ -86,11 +90,13 @@ Listen carefully to the audio and respond ONLY with valid JSON (no markdown):
         ],
       }],
       max_tokens: 200,
-      response_format: { type: 'json_object' },
     })
-    const result = JSON.parse(completion.choices[0].message.content ?? '{}')
+    const rawContent = completion.choices[0].message.content ?? '{}'
+    const cleaned = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    const result = JSON.parse(cleaned)
     return NextResponse.json(result)
-  } catch {
+  } catch (e) {
+    console.error('lesson/assess pronunciation failed:', e instanceof Error ? e.message : e)
     return NextResponse.json({ error: 'Assessment failed' }, { status: 500 })
   }
 }

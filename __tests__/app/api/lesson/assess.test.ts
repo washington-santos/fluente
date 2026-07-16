@@ -67,7 +67,7 @@ describe('POST /api/lesson/assess', () => {
 
     expect(mockSpawn).toHaveBeenCalledTimes(1)
     const callArgs = mockChatCreate.mock.calls[0][0]
-    expect(callArgs.model).toBe('gpt-4o-mini-audio-preview')
+    expect(callArgs.model).toBe('gpt-audio')
     const content = callArgs.messages[0].content
     const audioPart = content.find((c: { type: string }) => c.type === 'input_audio')
     expect(audioPart.input_audio.format).toBe('wav')
