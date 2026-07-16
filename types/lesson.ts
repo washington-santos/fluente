@@ -27,6 +27,12 @@ export interface GrammarPresentStep {
   example_sentence_pt: string
 }
 
+export interface ListeningPresentStep {
+  id: string
+  type: 'listening_present'
+  teacher_script: string
+}
+
 export interface VocabPresentStep {
   id: string
   type: 'vocab_present'
@@ -96,6 +102,7 @@ export type LessonStep =
   | WarmupReviewStep
   | IntroStep
   | GrammarPresentStep
+  | ListeningPresentStep
   | VocabPresentStep
   | VocabRepeatStep
   | ExerciseChoiceStep
