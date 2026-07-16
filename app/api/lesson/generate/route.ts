@@ -65,6 +65,8 @@ interface AiLessonContent {
   learning_objectives: LearningObjective[]
   grammar_point: { teacher_script: string; explanation_pt: string; example_sentence_en: string; example_sentence_pt: string }
   grammar_exercise: AiExercise
+  listening_passage: { teacher_script: string }
+  listening_questions: [AiExercise, AiExercise]
   vocabulary: Array<VocabItem & { example_sentence_en: string; example_sentence_pt: string; teacher_script: string }>
   exercises: AiExercise[]
   guided_convo_opening: string
@@ -94,6 +96,29 @@ function fallbackAiContent(topic: Topic): AiLessonContent {
       fill_blank_sentence: `I say ___.`,
       fill_blank_hint_pt: topic.starterPhrase,
     },
+    listening_passage: {
+      teacher_script: `${topic.starterPhrase} ${topic.promptEn}.`,
+    },
+    listening_questions: [
+      {
+        vocab_word: 'n/a',
+        question_pt: `Sobre o que é a conversa?`,
+        correct_answer: topic.labelPt,
+        choices: [topic.labelPt, 'other', 'more', 'less'],
+        explanation_pt: topic.promptEn,
+        fill_blank_sentence: `I say ___.`,
+        fill_blank_hint_pt: topic.starterPhrase,
+      },
+      {
+        vocab_word: 'n/a',
+        question_pt: `O que foi dito primeiro?`,
+        correct_answer: topic.starterPhrase,
+        choices: [topic.starterPhrase, 'other', 'more', 'less'],
+        explanation_pt: topic.promptEn,
+        fill_blank_sentence: `I say ___.`,
+        fill_blank_hint_pt: topic.starterPhrase,
+      },
+    ],
     vocabulary: [{ word, translation_pt: word, emoji: '📘', pronunciation_hint: word, example_sentence_en: topic.starterPhrase, example_sentence_pt: topic.starterPhrase, teacher_script: topic.starterPhrase }],
     exercises: [{ vocab_word: word, question_pt: `O que significa "${word}"?`, correct_answer: word, choices: [word, 'other', 'more', 'less'], explanation_pt: topic.promptEn, fill_blank_sentence: `I say ___.`, fill_blank_hint_pt: topic.starterPhrase }],
     guided_convo_opening: topic.starterPhrase,
@@ -186,6 +211,24 @@ function buildSteps(
       instruction_pt: `Pratique a pronúncia de "${lastVocab.word}"`,
     })
   }
+
+  steps.push({
+    id: nextId('ln'),
+    type: 'listening_present',
+    teacher_script: content.listening_passage.teacher_script,
+  })
+
+  content.listening_questions.forEach(question => {
+    steps.push({
+      id: nextId('ln-q'),
+      type: 'exercise_choice',
+      question_pt: question.question_pt,
+      image_emoji: '🎧',
+      correct_answer: question.correct_answer,
+      choices: question.choices,
+      explanation_pt: question.explanation_pt,
+    })
+  })
 
   const allowedVocabulary = content.vocabulary.map(v => v.word)
 
@@ -282,6 +325,8 @@ Return ONLY valid JSON:
   "learning_objectives": [{"id":"obj-1","description_pt":"...","vocab_words":["word1"]}],
   "grammar_point": {"teacher_script":"spoken explanation of the GRAMMAR FOCUS rule, in English","explanation_pt":"how/when to use it, in Portuguese","example_sentence_en":"...","example_sentence_pt":"..."},
   "grammar_exercise": {"vocab_word":"n/a","question_pt":"a multiple-choice question testing the GRAMMAR FOCUS rule","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"...","fill_blank_hint_pt":"..."},
+  "listening_passage": {"teacher_script":"a short 3-5 sentence spoken passage in English, using today's topic and vocabulary, calibrated to the student's CEFR level"},
+  "listening_questions": [{"vocab_word":"n/a","question_pt":"a multiple-choice comprehension question about the listening_passage, in Portuguese","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"what the passage said, explaining the answer, in Portuguese","fill_blank_sentence":"...","fill_blank_hint_pt":"..."},{"vocab_word":"n/a","question_pt":"a second, different multiple-choice comprehension question about the listening_passage","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"...","fill_blank_hint_pt":"..."}],
   "vocabulary": [{"word":"...","translation_pt":"...","emoji":"...","pronunciation_hint":"...","example_sentence_en":"...","example_sentence_pt":"...","teacher_script":"spoken intro of this word: say it, translate it, give one example"}],
   "exercises": [{"vocab_word":"...","question_pt":"...","correct_answer":"...","choices":["...","...","...","..."],"explanation_pt":"...","fill_blank_sentence":"a sentence with the word replaced by ___","fill_blank_hint_pt":"Portuguese translation of that full sentence"}],
   "guided_convo_opening": "teacher's opening question for guided practice, in English, using only today's vocabulary",
@@ -289,7 +334,7 @@ Return ONLY valid JSON:
   "challenge_opening": "a harder closing question asking the student to combine everything learned, in English",
   "challenge_opening_pt": "Portuguese translation"
 }
-Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCount} exercises (one per vocabulary item, in the same order), plus the grammar_point and grammar_exercise for the GRAMMAR FOCUS above.`
+Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCount} exercises (one per vocabulary item, in the same order), plus the grammar_point and grammar_exercise for the GRAMMAR FOCUS above, plus the listening_passage and exactly 2 listening_questions testing comprehension of that passage.`
 
   let aiContent: AiLessonContent
   try {
@@ -301,7 +346,7 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
       response_format: { type: 'json_object' },
     })
     const parsed = JSON.parse(completion.choices[0].message.content ?? '{}') as Partial<AiLessonContent>
-    if (!parsed.vocabulary?.length || !parsed.exercises?.length || !parsed.grammar_point || !parsed.grammar_exercise) throw new Error('Incomplete AI lesson content')
+    if (!parsed.vocabulary?.length || !parsed.exercises?.length || !parsed.grammar_point || !parsed.grammar_exercise || !parsed.listening_passage || !parsed.listening_questions || parsed.listening_questions.length < 2) throw new Error('Incomplete AI lesson content')
     aiContent = parsed as AiLessonContent
   } catch {
     aiContent = fallbackAiContent(topic)

@@ -69,6 +69,29 @@ const validAiContent = {
     fill_blank_sentence: '___ Ana.',
     fill_blank_hint_pt: 'Eu sou a Ana.',
   },
+  listening_passage: {
+    teacher_script: 'Ana is from Brazil. She lives in São Paulo with her family. Every morning she says hello to her neighbors.',
+  },
+  listening_questions: [
+    {
+      vocab_word: 'n/a',
+      question_pt: 'De onde a Ana é?',
+      correct_answer: 'Brazil',
+      choices: ['Brazil', 'Portugal', 'Spain', 'Mexico'],
+      explanation_pt: 'Ana is from Brazil — "Ana é do Brasil".',
+      fill_blank_sentence: 'Ana is from ___.',
+      fill_blank_hint_pt: 'Ana é do Brasil.',
+    },
+    {
+      vocab_word: 'n/a',
+      question_pt: 'O que a Ana faz toda manhã?',
+      correct_answer: 'She says hello to her neighbors',
+      choices: ['She says hello to her neighbors', 'She goes to work', 'She calls her mother', 'She reads the news'],
+      explanation_pt: 'Every morning she says hello to her neighbors — "toda manhã ela cumprimenta os vizinhos".',
+      fill_blank_sentence: 'Every morning she ___ to her neighbors.',
+      fill_blank_hint_pt: 'Toda manhã ela cumprimenta os vizinhos.',
+    },
+  ],
   vocabulary: [
     { word: 'name', translation_pt: 'nome', emoji: '📛', pronunciation_hint: 'neym', example_sentence_en: 'My name is Ana.', example_sentence_pt: 'Meu nome é Ana.', teacher_script: "This word is 'name'..." },
   ],
@@ -138,13 +161,22 @@ describe('POST /api/lesson/generate', () => {
     expect(steps[1].type).toBe('grammar_present')
     expect(steps[2].type).toBe('exercise_choice')
     expect(steps.some(s => s.type === 'vocab_present')).toBe(true)
-    // 1 grammar exercise + 1 vocab exercise (fixture has a single vocabulary item)
-    expect(steps.filter(s => s.type === 'exercise_choice' || s.type === 'exercise_fill_blank')).toHaveLength(2)
+    // 1 grammar exercise + 1 vocab exercise + 2 listening questions (fixture has a single vocabulary item)
+    expect(steps.filter(s => s.type === 'exercise_choice' || s.type === 'exercise_fill_blank')).toHaveLength(4)
     expect(steps.some(s => s.type === 'vocab_repeat')).toBe(true)
     expect(steps.filter(s => s.type === 'guided_convo')).toHaveLength(2)
     expect(steps[steps.length - 1].type).toBe('summary')
     // First lesson ever for this student (no recentSessionSummary/frequentErrors) — no warmup_review step
     expect(steps.some(s => s.type === 'warmup_review')).toBe(false)
+
+    // listening_present + its 2 comprehension questions sit right after vocab_repeat, before the first guided_convo
+    const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
+    const firstGuidedConvoIndex = steps.findIndex(s => s.type === 'guided_convo')
+    expect(steps[vocabRepeatIndex + 1].type).toBe('listening_present')
+    expect(steps[vocabRepeatIndex + 2].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 3].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 4].type).toBe('guided_convo')
+    expect(firstGuidedConvoIndex).toBe(vocabRepeatIndex + 4)
   })
 
   it('falls back to a minimal deterministic lesson when the AI call throws', async () => {
@@ -174,5 +206,6 @@ describe('POST /api/lesson/generate', () => {
     expect(steps[0].type).toBe('intro')
     expect(steps[1].type).toBe('grammar_present')
     expect(steps[steps.length - 1].type).toBe('summary')
+    expect(steps.some(s => s.type === 'listening_present')).toBe(true)
   })
 })
