@@ -169,6 +169,12 @@ describe('POST /api/lesson/generate', () => {
     // First lesson ever for this student (no recentSessionSummary/frequentErrors) — no warmup_review step
     expect(steps.some(s => s.type === 'warmup_review')).toBe(false)
 
+    // No progress rows exist for this student — the selected topic ('introductions',
+    // the first A1 topic) is brand new, so the intro step's explanation should say so.
+    const introStep = steps[0] as { choice_explanation_pt?: string }
+    expect(introStep.choice_explanation_pt).toContain('Apresentações pessoais')
+    expect(introStep.choice_explanation_pt).toContain('novo')
+
     // listening_present + its 2 comprehension questions sit right after vocab_repeat, before the first guided_convo
     const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
     const firstGuidedConvoIndex = steps.findIndex(s => s.type === 'guided_convo')
@@ -177,6 +183,41 @@ describe('POST /api/lesson/generate', () => {
     expect(steps[vocabRepeatIndex + 3].type).toBe('exercise_choice')
     expect(steps[vocabRepeatIndex + 4].type).toBe('guided_convo')
     expect(firstGuidedConvoIndex).toBe(vocabRepeatIndex + 4)
+  })
+
+  it('explains a retry lesson using the methodology it was chosen with', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    // 'introductions' is the first A1 topic — mark it as still being learned (a retry),
+    // with 'roleplay' as the methodology it should retry with next.
+    const progressChain = makeChain([
+      { topic_id: 'introductions', mastery_status: 'learning', last_methodology: 'roleplay', next_review_at: null },
+    ])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-retry' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string; choice_explanation_pt?: string }>
+    const introStep = steps[0]
+    expect(introStep.type).toBe('intro')
+    expect(introStep.choice_explanation_pt).toContain('Apresentações pessoais')
+    expect(introStep.choice_explanation_pt).toContain('Roleplay')
   })
 
   it('truncates listening_questions to exactly 2 when AI returns 3+', async () => {

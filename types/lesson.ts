@@ -16,6 +16,7 @@ export interface IntroStep {
   type: 'intro'
   title_pt: string
   description_pt: string
+  choice_explanation_pt?: string
 }
 
 export interface GrammarPresentStep {

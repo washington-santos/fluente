@@ -5,6 +5,7 @@ import { getStudentContext } from '@/lib/student-context'
 import { getTopicsForLevel } from '@/lib/topics'
 import { getLessonShape } from '@/lib/lesson-shape'
 import { METHODOLOGY_INSTRUCTIONS, METHODOLOGY_NAMES_PT } from '@/lib/mastery'
+import { explainLessonChoice } from '@/lib/lesson-explanation'
 import type { Topic } from '@/lib/topics'
 import type { Methodology } from '@/lib/mastery'
 import type { CefrLevel } from '@/types'
@@ -132,6 +133,7 @@ function buildSteps(
   content: AiLessonContent,
   shape: ReturnType<typeof getLessonShape>,
   warmup: { recentSummaryPt: string | null; frequentErrorsPt: string[]; recentWords: string[] } | null,
+  choiceExplanationPt: string,
 ): LessonStep[] {
   const steps: LessonStep[] = []
   let idCounter = 0
@@ -147,7 +149,7 @@ function buildSteps(
     })
   }
 
-  steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt })
+  steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt, choice_explanation_pt: choiceExplanationPt })
 
   steps.push({
     id: nextId('gr'),
@@ -363,7 +365,12 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
       }
     : null
 
-  const steps = buildSteps(aiContent, shape, warmup)
+  const steps = buildSteps(
+    aiContent,
+    shape,
+    warmup,
+    explainLessonChoice({ isRetry, isReview, methodology, topicLabelPt: topic.labelPt }),
+  )
 
   const generatedLesson: GeneratedLesson = {
     title_pt: aiContent.title_pt,
