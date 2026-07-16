@@ -6,6 +6,7 @@ import { LessonProgressBar } from '@/components/lesson/LessonProgressBar'
 import { WarmupReviewStep } from '@/components/lesson/WarmupReviewStep'
 import { IntroStep } from '@/components/lesson/IntroStep'
 import { GrammarPresentStep } from '@/components/lesson/GrammarPresentStep'
+import { ListeningPresentStep } from '@/components/lesson/ListeningPresentStep'
 import { SummaryStep } from '@/components/lesson/SummaryStep'
 import { VocabPresentStep } from '@/components/lesson/VocabPresentStep'
 import { VocabRepeatStep } from '@/components/lesson/VocabRepeatStep'
@@ -162,6 +163,15 @@ export function LessonEngine({ lesson, sessionId, teacherName, teacherImageUrl, 
               if (score < 0.6) registerStruggleEvent()
               advance(lesson.vocabulary[step.vocab_index].word, score)
             }}
+          />
+        )}
+        {step.type === 'listening_present' && (
+          <ListeningPresentStep
+            key={step.id}
+            step={step}
+            ttsVoice={ttsVoice}
+            strugglingMode={strugglingMode}
+            onContinue={() => advance()}
           />
         )}
         {step.type === 'exercise_choice' && (

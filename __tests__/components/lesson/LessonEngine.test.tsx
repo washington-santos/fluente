@@ -142,4 +142,33 @@ describe('LessonEngine', () => {
     // ex-2 was cloned as an immediate retry — the same question appears again
     await waitFor(() => expect(screen.getByText('Q2?')).toBeInTheDocument())
   })
+
+  it('renders a listening_present step and counts wrong comprehension-question answers toward struggle events', async () => {
+    const lesson: GeneratedLesson = {
+      ...mockLesson,
+      steps: [
+        { id: 'ln-1', type: 'listening_present', teacher_script: 'Ana wakes up at seven every day.' },
+        { id: 'ex-1', type: 'exercise_choice', question_pt: 'Q1?', image_emoji: '🎧', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp1' },
+        { id: 'ex-2', type: 'exercise_choice', question_pt: 'Q2?', image_emoji: '🎧', correct_answer: 'A', choices: ['A', 'B'], explanation_pt: 'exp2' },
+        { id: 'summary', type: 'summary' },
+      ],
+    }
+    render(<LessonEngine lesson={lesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+
+    expect(screen.getByText('Escuta')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Entendi! Continuar →'))
+
+    // Wrong answer on the 1st comprehension question (ex-1) — 1st struggle event, not enough yet
+    await waitFor(() => screen.getByText('Q1?'))
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // Wrong answer on ex-2 — 2nd struggle event, crosses the threshold
+    await waitFor(() => screen.getByText('Q2?'))
+    fireEvent.click(screen.getByText('B'))
+    fireEvent.click(screen.getByText('Continuar →'))
+
+    // ex-2 was cloned as an immediate retry — the same question appears again
+    await waitFor(() => expect(screen.getByText('Q2?')).toBeInTheDocument())
+  })
 })
