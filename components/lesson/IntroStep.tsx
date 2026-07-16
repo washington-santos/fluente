@@ -10,6 +10,13 @@ interface IntroStepProps {
 export function IntroStep({ step, vocabulary, learningObjectives, onContinue }: IntroStepProps) {
   return (
     <div className="flex flex-col gap-5 p-4">
+      {step.choice_explanation_pt && (
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-interactive/10">
+          <span className="text-base" aria-hidden>💡</span>
+          <p className="text-xs text-content-light dark:text-content-dark">{step.choice_explanation_pt}</p>
+        </div>
+      )}
+
       <div>
         <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary uppercase tracking-wide">
           Nesta aula
