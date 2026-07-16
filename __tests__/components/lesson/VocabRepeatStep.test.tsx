@@ -91,4 +91,11 @@ describe('VocabRepeatStep', () => {
     fireEvent.click(screen.getByLabelText('Gravar pronúncia'))
     await waitFor(() => expect(screen.getByText('Erro ao avaliar. Tente novamente.')).toBeInTheDocument())
   })
+
+  it('shows a generic error message when the assess API returns an HTTP error', async () => {
+    ;(fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Assessment failed' }) })
+    render(<VocabRepeatStep step={mockStep} vocab={mockVocab} onSuccess={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Gravar pronúncia'))
+    await waitFor(() => expect(screen.getByText('Erro ao avaliar. Tente novamente.')).toBeInTheDocument())
+  })
 })

@@ -26,6 +26,7 @@ export function VocabRepeatStep({ step, vocab, onSuccess }: VocabRepeatStepProps
       fd.append('target', vocab.word)
       fd.append('audio', blob, 'recording.webm')
       const res = await fetch('/api/lesson/assess', { method: 'POST', body: fd })
+      if (!res.ok) throw new Error('Assessment request failed')
       const data: AssessResult = await res.json()
       setResult(data)
       setAttempts(a => a + 1)
