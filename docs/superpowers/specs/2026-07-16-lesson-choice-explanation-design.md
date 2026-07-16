@@ -47,27 +47,24 @@ Kept in its own file (not added to `lib/mastery.ts` or inlined in the route) bec
 
 ### `app/api/lesson/generate/route.ts` (modified)
 
-`POST` already computes `isRetry`, `isReview`, `methodology`, and `topic.labelPt` — all in scope at the point the final response is built. Call `explainLessonChoice(...)` and add one field to the existing response's `lesson` object:
+**Correction from an earlier draft of this spec:** the student-facing lesson UI does *not* read the top-level `lesson: {...}` object `POST` returns at the end of the handler. `components/lesson/StartLessonButton.tsx` calls `POST /api/lesson/generate`, checks only `res.ok`, and discards the response body before navigating to `/aula`. `AulaClient.tsx` never touches `/api/lesson/generate` at all — it mounts `useSession`, which independently does `GET /api/session` and reads `session.lesson_plan_json` (persisted by this same `POST` handler as `lessonPlanFull = { ...generatedLesson, topic_key, topic_label_pt, topic_prompt_en, methodology, is_retry, is_review, generated_at }`, where `generatedLesson.steps` is `buildSteps()`'s output). So the only path that actually reaches the student is through the `intro` step inside `steps`, not the separate `lesson` object in the HTTP response.
+
+The correct, and simpler, wiring: compute the explanation right after `selectNextTopic()` resolves (`isRetry`, `isReview`, `methodology`, and `topic.labelPt` are all in scope there) and pass it into `buildSteps()` as a new parameter, which sets it directly on the `intro` step it already constructs:
 
 ```typescript
-lesson: {
-  title_pt: generatedLesson.title_pt,
-  objective_pt: generatedLesson.objective_pt,
-  topic_key: topic.key,
-  topic_label_pt: topic.labelPt,
-  emoji: topic.emoji,
-  methodology,
-  is_retry: isRetry,
-  is_review: isReview,
-  choice_explanation_pt: explainLessonChoice({ isRetry, isReview, methodology, topicLabelPt: topic.labelPt }),
-},
+function buildSteps(
+  content: AiLessonContent,
+  shape: ReturnType<typeof getLessonShape>,
+  warmup: { recentSummaryPt: string | null; frequentErrorsPt: string[]; recentWords: string[] } | null,
+  choiceExplanationPt: string,
+): LessonStep[] {
+  // ...
+  steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt, choice_explanation_pt: choiceExplanationPt })
+  // ...
+}
 ```
 
-No change to `buildSteps()`, `AiLessonContent`, or any AI prompt — `choice_explanation_pt` is computed after `selectNextTopic()` and attached directly to the top-level API response, sitting alongside the already-present (and already-unused) `is_retry`/`is_review`/`methodology` fields.
-
-### `app/aula/AulaClient.tsx` (modified)
-
-The client already receives the `lesson` object from `/api/lesson/generate`'s response and threads `title_pt`/`objective_pt` etc. into the `GeneratedLesson` shape consumed by `LessonEngine`. `choice_explanation_pt` needs the same treatment: capture it from the generate response and pass it down to `LessonEngine`, which passes it to the `IntroStep` render case as a new prop.
+Called as `buildSteps(aiContent, shape, warmup, explainLessonChoice({ isRetry, isReview, methodology, topicLabelPt: topic.labelPt }))`. No change to `AiLessonContent` or any AI prompt — this is pure post-processing of already-known values, same as `warmup` is already threaded through today. No change needed to `app/aula/AulaClient.tsx` at all: the enriched `intro` step rides inside `lesson_plan_json.steps`, which already flows unmodified through `useSession` → `LessonEngine` → `IntroStep`, exactly the same path every other step-level field (e.g. `grammar_present`'s fields, `listening_present`'s `teacher_script`) already takes without any `AulaClient.tsx` involvement.
 
 ### `types/lesson.ts` (modified)
 
@@ -92,9 +89,8 @@ Render `step.choice_explanation_pt` when present, above the existing title, styl
 ## Testing
 
 - `__tests__/lib/lesson-explanation.test.ts` (new): unit tests for `explainLessonChoice` covering all three branches (retry, review, new-topic), asserting the topic label and methodology name are correctly interpolated, and that retry takes priority if somehow both `isRetry` and `isReview` were true (shouldn't happen given `selectNextTopic()`'s mutually-exclusive branches, but the function's own branch order should be deterministic regardless).
-- `__tests__/app/api/lesson/generate.test.ts` (modified): assert the response's `lesson.choice_explanation_pt` is present and non-empty, and specifically differs between a retry-path test case and a fresh-topic test case (reusing the existing `isRetry`/`isReview` test fixtures already in this file).
+- `__tests__/app/api/lesson/generate.test.ts` (modified): assert the `intro` step inside the persisted `lesson_plan_json.steps` (the object inserted into `sessions`) has a non-empty `choice_explanation_pt`, and specifically differs between a retry-path test case and a fresh-topic test case (reusing the existing `isRetry`/`isReview` test fixtures already in this file).
 - `__tests__/components/lesson/IntroStep.test.tsx` (new — no test file exists for this component today): render with `choice_explanation_pt` present, assert the text appears; render without it (undefined), assert nothing extra renders and no crash.
-- `__tests__/app/aula/AulaClient.test.tsx` (modified): assert `choice_explanation_pt` from a mocked generate response flows into the `intro` step passed to `LessonEngine`.
 
 ## Rollout
 
