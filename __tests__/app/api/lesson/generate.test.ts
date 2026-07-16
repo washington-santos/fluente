@@ -179,6 +179,65 @@ describe('POST /api/lesson/generate', () => {
     expect(firstGuidedConvoIndex).toBe(vocabRepeatIndex + 4)
   })
 
+  it('truncates listening_questions to exactly 2 when AI returns 3+', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+
+    // Create a fixture with 3 listening questions
+    const contentWith3Questions = {
+      ...validAiContent,
+      listening_questions: [
+        validAiContent.listening_questions[0],
+        validAiContent.listening_questions[1],
+        {
+          vocab_word: 'n/a',
+          question_pt: 'Terceira pergunta?',
+          correct_answer: 'Answer',
+          choices: ['Answer', 'Other 1', 'Other 2', 'Other 3'],
+          explanation_pt: 'Explicação da terceira pergunta.',
+          fill_blank_sentence: 'Test ___.',
+          fill_blank_hint_pt: 'Teste.',
+        },
+      ],
+    }
+
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(contentWith3Questions) } }] })
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    const progressChain = makeChain([])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-truncate' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.session_id).toBe('session-truncate')
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string }>
+
+    // Should still have exactly 4 exercises: 1 grammar + 1 vocab + 2 listening (truncated, not 3)
+    expect(steps.filter(s => s.type === 'exercise_choice' || s.type === 'exercise_fill_blank')).toHaveLength(4)
+
+    // Verify exactly 2 listening questions appear in steps
+    const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
+    expect(steps[vocabRepeatIndex + 1].type).toBe('listening_present')
+    expect(steps[vocabRepeatIndex + 2].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 3].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 4].type).toBe('guided_convo')
+  })
+
   it('falls back to a minimal deterministic lesson when the AI call throws', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     mockChatCreate.mockRejectedValue(new Error('network down'))

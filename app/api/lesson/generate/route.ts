@@ -347,6 +347,7 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
     })
     const parsed = JSON.parse(completion.choices[0].message.content ?? '{}') as Partial<AiLessonContent>
     if (!parsed.vocabulary?.length || !parsed.exercises?.length || !parsed.grammar_point || !parsed.grammar_exercise || !parsed.listening_passage || !parsed.listening_questions || parsed.listening_questions.length < 2) throw new Error('Incomplete AI lesson content')
+    parsed.listening_questions = parsed.listening_questions.slice(0, 2) as [AiExercise, AiExercise]
     aiContent = parsed as AiLessonContent
   } catch {
     aiContent = fallbackAiContent(topic)
