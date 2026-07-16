@@ -116,3 +116,16 @@ export function getPronunciationTrend(scores: number[]): PronunciationTrend | nu
   const trend: 'up' | 'down' | 'flat' = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat'
   return { currentScore, trend }
 }
+
+export function rankCompetencies(
+  assessments: Array<Partial<CompetencyScores>>,
+): Array<{ key: keyof CompetencyScores; avg: number }> {
+  if (assessments.length === 0) return []
+  const keys = Object.keys(COMPETENCY_LABELS_PT) as (keyof CompetencyScores)[]
+  const avgs = keys.map(k => ({
+    key: k,
+    avg: assessments.reduce((sum, a) => sum + (a[k] ?? 0), 0) / assessments.length,
+  }))
+  avgs.sort((a, b) => b.avg - a.avg)
+  return avgs
+}

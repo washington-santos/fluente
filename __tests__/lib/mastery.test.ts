@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getPronunciationTrend } from '@/lib/mastery'
+import { getPronunciationTrend, rankCompetencies } from '@/lib/mastery'
 
 describe('getPronunciationTrend', () => {
   it('returns null when there are no scores', () => {
@@ -58,5 +58,42 @@ describe('getPronunciationTrend', () => {
     const result = getPronunciationTrend([70, 71, 70])
     // avg = 70.333... -> rounds to 70
     expect(result).toEqual({ currentScore: 70, trend: null })
+  })
+})
+
+describe('rankCompetencies', () => {
+  it('returns an empty array when there are no assessments', () => {
+    expect(rankCompetencies([])).toEqual([])
+  })
+
+  it('ranks a single assessment by its own values, strongest first', () => {
+    const result = rankCompetencies([
+      { speaking: 90, listening: 50, pronunciation: 70, vocabulary: 60, grammar: 80, confidence: 40, fluency: 30 },
+    ])
+    expect(result[0]).toEqual({ key: 'speaking', avg: 90 })
+    expect(result[result.length - 1]).toEqual({ key: 'fluency', avg: 30 })
+    expect(result).toHaveLength(7)
+  })
+
+  it('averages multiple assessments per competency and sorts descending', () => {
+    const result = rankCompetencies([
+      { speaking: 80, listening: 60, pronunciation: 40, vocabulary: 40, grammar: 40, confidence: 40, fluency: 40 },
+      { speaking: 60, listening: 60, pronunciation: 40, vocabulary: 40, grammar: 40, confidence: 40, fluency: 40 },
+    ])
+    // speaking avg = 70, listening avg = 60, the rest are all 40
+    expect(result[0]).toEqual({ key: 'speaking', avg: 70 })
+    expect(result[1]).toEqual({ key: 'listening', avg: 60 })
+    expect(result.slice(2).every(r => r.avg === 40)).toBe(true)
+  })
+
+  it('treats a missing competency field on an assessment as 0 for that assessment', () => {
+    const result = rankCompetencies([
+      { speaking: 100 },
+      { speaking: 100, listening: 100 },
+    ])
+    const speaking = result.find(r => r.key === 'speaking')!
+    const listening = result.find(r => r.key === 'listening')!
+    expect(speaking.avg).toBe(100)
+    expect(listening.avg).toBe(50) // (0 + 100) / 2 — first row's missing listening counts as 0
   })
 })
