@@ -77,7 +77,7 @@ export default async function DashboardPage() {
     .from('topic_assessments')
     .select('pronunciation')
     .eq('user_id', authUser.id)
-    .order('created_at', { ascending: false })
+    .order('assessed_at', { ascending: false })
     .limit(10)
 
   const pronunciationTrend = getPronunciationTrend(

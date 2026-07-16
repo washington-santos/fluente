@@ -4,7 +4,8 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { getTopicsForLevel } from '@/lib/topics'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { StartLessonButton } from '@/components/lesson/StartLessonButton'
-import { getMasteryLabel } from '@/lib/mastery'
+import { getMasteryLabel, rankCompetencies, COMPETENCY_LABELS_PT } from '@/lib/mastery'
+import type { CompetencyScores } from '@/lib/mastery'
 
 const LEVEL_LABELS: Record<string, string> = {
   A1: 'A1 — Iniciante',
@@ -44,25 +45,10 @@ export default async function LicoesPage() {
   }) ?? allTopics[0]
 
   // Average competency scores for "strengths" summary
-  const assessments = (avgScores ?? []) as Record<string, number>[]
-  const competencyKeys = ['speaking', 'listening', 'pronunciation', 'vocabulary', 'grammar', 'confidence', 'fluency'] as const
-  const competencyLabels: Record<string, string> = {
-    speaking: 'Conversação', listening: 'Compreensão', pronunciation: 'Pronúncia',
-    vocabulary: 'Vocabulário', grammar: 'Gramática', confidence: 'Confiança', fluency: 'Fluência',
-  }
-
-  let strongestCompetency: string | null = null
-  let weakestCompetency: string | null = null
-
-  if (assessments.length > 0) {
-    const avgs = competencyKeys.map(k => ({
-      key: k,
-      avg: assessments.reduce((s, a) => s + (a[k] ?? 0), 0) / assessments.length,
-    }))
-    avgs.sort((a, b) => b.avg - a.avg)
-    strongestCompetency = competencyLabels[avgs[0].key]
-    weakestCompetency = competencyLabels[avgs[avgs.length - 1].key]
-  }
+  const assessments = (avgScores ?? []) as Array<Partial<CompetencyScores>>
+  const ranked = rankCompetencies(assessments)
+  const strongestCompetency = ranked.length > 0 ? COMPETENCY_LABELS_PT[ranked[0].key] : null
+  const weakestCompetency = ranked.length > 0 ? COMPETENCY_LABELS_PT[ranked[ranked.length - 1].key] : null
 
   const dominioPct = Math.round((masteredTopics / Math.max(allTopics.length, 1)) * 100)
 
