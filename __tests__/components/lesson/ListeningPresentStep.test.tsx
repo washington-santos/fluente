@@ -19,7 +19,7 @@ describe('ListeningPresentStep', () => {
 
   it('shows the listening label and instruction, with no passage text', () => {
     render(<ListeningPresentStep step={mockStep} ttsVoice="alloy" onContinue={vi.fn()} />)
-    expect(screen.getByText('Listening')).toBeInTheDocument()
+    expect(screen.getByText('Escuta')).toBeInTheDocument()
     expect(screen.getByText('Ouça com atenção. Você vai responder perguntas sobre o que ouviu.')).toBeInTheDocument()
     expect(screen.queryByText(mockStep.teacher_script)).not.toBeInTheDocument()
   })

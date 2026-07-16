@@ -43,7 +43,7 @@ export function ListeningPresentStep({ step, ttsVoice, strugglingMode = false, o
     <div className="flex flex-col items-center gap-6 p-6">
       <span className="text-6xl" aria-hidden>🎧</span>
       <div className="text-center">
-        <p className="text-xs font-semibold text-brand-interactive uppercase tracking-wide mb-2">Listening</p>
+        <p className="text-xs font-semibold text-brand-interactive uppercase tracking-wide mb-2">Escuta</p>
         <p className="text-base text-content-light dark:text-content-dark">
           Ouça com atenção. Você vai responder perguntas sobre o que ouviu.
         </p>
