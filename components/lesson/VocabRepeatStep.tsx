@@ -11,7 +11,7 @@ interface VocabRepeatStepProps {
   onSuccess: (score: number) => void
 }
 
-type AssessResult = { assessment: 'correct' | 'close' | 'incorrect'; score: number; feedback_pt: string }
+type AssessResult = { assessment: 'correct' | 'close' | 'incorrect'; score: number; feedback_pt: string; phoneme_note_pt: string | null }
 
 export function VocabRepeatStep({ step, vocab, onSuccess }: VocabRepeatStepProps) {
   const [result, setResult] = useState<AssessResult | null>(null)
@@ -30,7 +30,7 @@ export function VocabRepeatStep({ step, vocab, onSuccess }: VocabRepeatStepProps
       setResult(data)
       setAttempts(a => a + 1)
     } catch {
-      setResult({ assessment: 'incorrect', score: 0, feedback_pt: 'Erro ao avaliar. Tente novamente.' })
+      setResult({ assessment: 'incorrect', score: 0, feedback_pt: 'Erro ao avaliar. Tente novamente.', phoneme_note_pt: null })
       setAttempts(a => a + 1)
     } finally {
       setIsAssessing(false)
@@ -79,6 +79,11 @@ export function VocabRepeatStep({ step, vocab, onSuccess }: VocabRepeatStepProps
           <p className="text-sm text-content-light-secondary dark:text-content-dark-secondary mt-1">
             {result.feedback_pt}
           </p>
+          {result.phoneme_note_pt && (
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-2 italic">
+              {result.phoneme_note_pt}
+            </p>
+          )}
         </motion.div>
       )}
 
