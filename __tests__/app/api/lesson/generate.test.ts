@@ -483,4 +483,32 @@ describe('POST /api/lesson/generate', () => {
     const promptArg = mockChatCreate.mock.calls[0][0]
     expect(promptArg.messages[0].content).toContain('Write every "explanation_pt" field mostly in English')
   })
+
+  it('instructs the AI to avoid grammar jargon in explanations, at every Portuguese tier', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+    // The file's default getStudentContext mock already returns cefrLevel: 'A1'.
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    const progressChain = makeChain([])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-lang-simple' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    expect(promptArg.messages[0].content).toContain('avoid grammar jargon')
+  })
 })

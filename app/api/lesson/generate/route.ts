@@ -79,9 +79,9 @@ interface AiLessonContent {
 }
 
 const EXPLANATION_INSTRUCTIONS: Record<PortugueseTier, string> = {
-  full: 'Write every "explanation_pt" field as 1-2 full sentences in Portuguese.',
-  reduced: 'Write every "explanation_pt" field as 1 short sentence, mixing in English grammar/vocabulary terms naturally.',
-  minimal: 'Write every "explanation_pt" field mostly in English, with at most a couple of Portuguese words only if a term has no clear English equivalent.',
+  full: 'Write every "explanation_pt" field as 1-2 full sentences in Portuguese. Use simple, everyday language — avoid grammar jargon (e.g. say "ações que já terminaram" instead of "pretérito perfeito").',
+  reduced: 'Write every "explanation_pt" field as 1 short sentence, mixing in English grammar/vocabulary terms naturally. Use simple, everyday language — avoid grammar jargon.',
+  minimal: 'Write every "explanation_pt" field mostly in English, with at most a couple of Portuguese words only if a term has no clear English equivalent. Use simple, everyday language — avoid grammar jargon.',
 }
 
 function fallbackAiContent(topic: Topic): AiLessonContent {
