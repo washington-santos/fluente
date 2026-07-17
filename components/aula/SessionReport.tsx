@@ -3,6 +3,8 @@
 import { X, MessageCircle, AlertCircle, Mic, Clock, Target } from 'lucide-react'
 import { COMPETENCY_LABELS_PT, type CompetencyScores } from '@/lib/mastery'
 import type { CefrLevel } from '@/types'
+import { BADGE_DEFINITIONS, type BadgeKey } from '@/lib/badges'
+import { BadgeIcon } from '@/components/dashboard/BadgeIcon'
 
 interface AssessmentData {
   scores: CompetencyScores
@@ -23,6 +25,7 @@ interface SessionReportProps {
   missionTitle: string
   assessment?: AssessmentData | null
   levelPromotion?: { from: CefrLevel; to: CefrLevel } | null
+  newlyAwardedBadges?: BadgeKey[]
   onClose: () => void
 }
 
@@ -61,6 +64,7 @@ export function SessionReport({
   missionTitle,
   assessment,
   levelPromotion,
+  newlyAwardedBadges,
   onClose,
 }: SessionReportProps) {
   const essentials = new Set(['speaking', 'listening', 'pronunciation'])
@@ -75,6 +79,21 @@ export function SessionReport({
             <p className="text-sm text-content-dark mt-1">
               Parabéns! Você dominou tudo do {levelPromotion.from} e agora está no {levelPromotion.to}.
             </p>
+          </div>
+        )}
+        {newlyAwardedBadges && newlyAwardedBadges.length > 0 && (
+          <div className="rounded-xl p-4 bg-gradient-to-r from-amber-400 to-amber-500 flex flex-col gap-2">
+            <p className="text-sm font-black text-white text-center">🏅 Nova medalha!</p>
+            {newlyAwardedBadges.map(key => {
+              const badge = BADGE_DEFINITIONS.find(b => b.key === key)
+              if (!badge) return null
+              return (
+                <div key={key} className="flex items-center gap-2 justify-center">
+                  <BadgeIcon icon={badge.icon} size={18} className="text-white" />
+                  <span className="text-sm font-semibold text-white">{badge.title_pt}</span>
+                </div>
+              )
+            })}
           </div>
         )}
         <div className="flex items-center justify-between">

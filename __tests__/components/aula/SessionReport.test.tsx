@@ -52,4 +52,20 @@ describe('SessionReport', () => {
     render(<SessionReport {...defaultProps} />)
     expect(screen.queryByText('🎉 Você subiu de nível!')).not.toBeInTheDocument()
   })
+
+  it('shows a highlight for each newly awarded badge', () => {
+    render(
+      <SessionReport
+        {...defaultProps}
+        newlyAwardedBadges={['primeira_conversa', 'sequencia_3']}
+      />,
+    )
+    expect(screen.getByText('Primeira conversa')).toBeInTheDocument()
+    expect(screen.getByText('Sequência de 3 dias')).toBeInTheDocument()
+  })
+
+  it('renders no badge highlight section when newlyAwardedBadges is empty or omitted', () => {
+    render(<SessionReport {...defaultProps} />)
+    expect(screen.queryByText(/nova medalha/i)).not.toBeInTheDocument()
+  })
 })
