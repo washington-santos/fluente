@@ -28,6 +28,11 @@ vi.mock('@/lib/levels', () => ({
   checkAndApplyLevelPromotion: mockCheckLevelPromotion,
 }))
 
+const mockCheckAndAwardBadges = vi.hoisted(() => vi.fn().mockResolvedValue([]))
+vi.mock('@/lib/badges', () => ({
+  checkAndAwardBadges: mockCheckAndAwardBadges,
+}))
+
 import { POST } from '@/app/api/session/[id]/assess/route'
 
 // Creates a chainable query builder supporting select/eq/order plus
@@ -266,5 +271,45 @@ describe('POST /api/session/[id]/assess', () => {
     const body = await res.json()
 
     expect(body.level_promotion).toEqual({ from: 'A1', to: 'A2' })
+  })
+
+  it('includes newly_awarded_badges from checkAndAwardBadges in the response', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockCheckAndAwardBadges.mockResolvedValueOnce(['primeira_conversa'])
+
+    const sessionChain = makeChain({ id: 'sess-1', user_id: 'u1', topic: 'travel', lesson_topic_id: 'travel' })
+    const userChain = makeChain({ name: 'Ana', cefr_level: 'B1' })
+    const messagesChain = makeChain([
+      { role: 'user', text: 'Hi' }, { role: 'assistant', text: 'Hello' },
+      { role: 'user', text: 'How are you' }, { role: 'assistant', text: 'Good' },
+      { role: 'user', text: 'Great' },
+    ])
+    const progressChain = makeChain(null)
+    const insertChain = makeChain(null)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sessions') return sessionChain
+      if (table === 'users') return userChain
+      if (table === 'messages') return messagesChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'topic_assessments') return insertChain
+      return makeChain(null)
+    })
+
+    mockChatCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({
+        speaking: 75, listening: 80, pronunciation: 70, vocabulary: 78, grammar: 72, confidence: 80, fluency: 74,
+        feedback_pt: 'Muito bem!', highlight_pt: 'Ótimo!',
+      }) } }],
+    })
+
+    const res = await POST(
+      new Request('http://localhost/api/session/sess-1/assess', { method: 'POST' }),
+      { params: { id: 'sess-1' } },
+    )
+    const body = await res.json()
+
+    expect(mockCheckAndAwardBadges).toHaveBeenCalledWith(expect.anything(), 'u1')
+    expect(body.newly_awarded_badges).toEqual(['primeira_conversa'])
   })
 })

@@ -11,6 +11,7 @@ import {
   type CompetencyScores,
 } from '@/lib/mastery'
 import { checkAndApplyReinforcementReturn, checkAndApplyLevelPromotion } from '@/lib/levels'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function POST(
   _request: Request,
@@ -178,6 +179,7 @@ Respond ONLY valid JSON:
 
   await checkAndApplyReinforcementReturn(supabase, user.id)
   const promotedTo = await checkAndApplyLevelPromotion(supabase, user.id)
+  const newlyAwardedBadges = await checkAndAwardBadges(supabase, user.id)
 
   return NextResponse.json({
     scores,
@@ -189,5 +191,6 @@ Respond ONLY valid JSON:
     attempt_count: attemptCount,
     next_methodology: newLastMethodology,
     level_promotion: promotedTo ? { from: cefrLevel, to: promotedTo } : null,
+    newly_awarded_badges: newlyAwardedBadges,
   })
 }

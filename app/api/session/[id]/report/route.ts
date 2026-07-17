@@ -2,6 +2,7 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getOrGenerateTodaysMission } from '@/lib/missions'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function GET(
   _request: Request,
@@ -76,6 +77,8 @@ export async function GET(
     }
   }
 
+  const newlyAwardedBadges = await checkAndAwardBadges(supabase, user.id)
+
   return NextResponse.json({
     userMessages,
     corrections,
@@ -83,5 +86,6 @@ export async function GET(
     durationSeconds: session.duration_seconds ?? 0,
     missionCompleted,
     missionTitle: mission.titlePt,
+    newlyAwardedBadges,
   })
 }
