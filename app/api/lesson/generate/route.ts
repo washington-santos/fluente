@@ -6,6 +6,7 @@ import { getTopicsForLevel } from '@/lib/topics'
 import { getLessonShape } from '@/lib/lesson-shape'
 import { METHODOLOGY_INSTRUCTIONS, METHODOLOGY_NAMES_PT } from '@/lib/mastery'
 import { explainLessonChoice } from '@/lib/lesson-explanation'
+import { getNpcForTopic } from '@/lib/npcs'
 import type { Topic } from '@/lib/topics'
 import type { Methodology } from '@/lib/mastery'
 import type { CefrLevel } from '@/types'
@@ -134,6 +135,8 @@ function buildSteps(
   shape: ReturnType<typeof getLessonShape>,
   warmup: { recentSummaryPt: string | null; frequentErrorsPt: string[]; recentWords: string[] } | null,
   choiceExplanationPt: string,
+  npcKey: string | null,
+  npcIntroPt: string | null,
 ): LessonStep[] {
   const steps: LessonStep[] = []
   let idCounter = 0
@@ -149,7 +152,15 @@ function buildSteps(
     })
   }
 
-  steps.push({ id: nextId('intro'), type: 'intro', title_pt: content.title_pt, description_pt: content.objective_pt, choice_explanation_pt: choiceExplanationPt })
+  steps.push({
+    id: nextId('intro'),
+    type: 'intro',
+    title_pt: content.title_pt,
+    description_pt: content.objective_pt,
+    choice_explanation_pt: choiceExplanationPt,
+    npc_key: npcKey ?? undefined,
+    npc_intro_pt: npcIntroPt ?? undefined,
+  })
 
   steps.push({
     id: nextId('gr'),
@@ -295,6 +306,28 @@ export async function POST() {
   const cefrLevel = context.cefrLevel as CefrLevel
   const shape = getLessonShape(cefrLevel)
 
+  let npcKey: string | null = null
+  let npcIntroPt: string | null = null
+  if (methodology === 'roleplay') {
+    const npc = getNpcForTopic(topic.key)
+    if (npc) {
+      try {
+        const { data: encounter } = await supabase
+          .from('npc_encounters')
+          .select('encounter_count, last_summary_pt')
+          .eq('user_id', user.id)
+          .eq('npc_key', npc.key)
+          .maybeSingle()
+        npcKey = npc.key
+        npcIntroPt = encounter && (encounter as { encounter_count: number }).encounter_count > 0
+          ? `Você vai reencontrar ${npc.name}! Da última vez: ${(encounter as { last_summary_pt: string }).last_summary_pt}`
+          : `Hoje você vai conhecer ${npc.name}! ${npc.emoji}`
+      } catch (err) {
+        console.error('npc_encounters lookup failed:', err)
+      }
+    }
+  }
+
   const contextLines: string[] = []
   if (context.personalContext.length > 0) contextLines.push(context.personalContext.slice(0, 3).join('; '))
   if (context.goal) contextLines.push(`Goal: ${context.goal}`)
@@ -370,6 +403,8 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
     shape,
     warmup,
     explainLessonChoice({ isRetry, isReview, methodology, topicLabelPt: topic.labelPt }),
+    npcKey,
+    npcIntroPt,
   )
 
   const generatedLesson: GeneratedLesson = {
@@ -407,6 +442,7 @@ Provide exactly ${shape.vocabCount} vocabulary items and exactly ${shape.vocabCo
       topic: topic.key,
       lesson_plan_json: lessonPlanFull,
       lesson_topic_id: topic.key,
+      npc_key: npcKey,
     })
     .select('id')
     .single()

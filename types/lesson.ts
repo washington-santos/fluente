@@ -17,6 +17,8 @@ export interface IntroStep {
   title_pt: string
   description_pt: string
   choice_explanation_pt?: string
+  npc_key?: string
+  npc_intro_pt?: string
 }
 
 export interface GrammarPresentStep {

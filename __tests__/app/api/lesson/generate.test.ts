@@ -29,6 +29,7 @@ vi.mock('@/lib/student-context', () => ({
 }))
 
 import { POST } from '@/app/api/lesson/generate/route'
+import { getStudentContext } from '@/lib/student-context'
 
 // Chainable + thenable — matches the convention already used in
 // __tests__/app/api/session-report.test.ts. Thenable so `await`ing the chain
@@ -307,5 +308,119 @@ describe('POST /api/lesson/generate', () => {
     expect(steps[1].type).toBe('grammar_present')
     expect(steps[steps.length - 1].type).toBe('summary')
     expect(steps.some(s => s.type === 'listening_present')).toBe(true)
+  })
+
+  it('sets npc_key and a first-encounter intro note when methodology resolves to roleplay on an NPC-mapped topic', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+    vi.mocked(getStudentContext).mockResolvedValueOnce({
+      userId: 'user-1', name: 'Ana', cefrLevel: 'A2', personalContext: [], goal: null,
+      focusAreas: [], taughtTopicIds: [], topicsNeedingReview: [], frequentErrors: [],
+      recentSessionSummary: null, biggestDifficulty: null, streakDays: 0,
+    })
+
+    // 'shopping' is an A2 topic mapped to the NPC 'anna'; marking it 'learning'
+    // with last_methodology 'roleplay' makes selectNextTopic pick it with that methodology.
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A2' })
+    const progressChain = makeChain([
+      { topic_id: 'shopping', mastery_status: 'learning', last_methodology: 'roleplay', next_review_at: null },
+    ])
+    const npcEncounterChain = makeChain(null)
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-npc-1' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'npc_encounters') return npcEncounterChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    expect(insertedRow.npc_key).toBe('anna')
+
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string; npc_key?: string; npc_intro_pt?: string }>
+    const introStep = steps[0]
+    expect(introStep.npc_key).toBe('anna')
+    expect(introStep.npc_intro_pt).toContain('conhecer Anna')
+  })
+
+  it('gives a returning-encounter intro note reusing the last visit summary when the student has met the NPC before', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+    vi.mocked(getStudentContext).mockResolvedValueOnce({
+      userId: 'user-1', name: 'Ana', cefrLevel: 'A2', personalContext: [], goal: null,
+      focusAreas: [], taughtTopicIds: [], topicsNeedingReview: [], frequentErrors: [],
+      recentSessionSummary: null, biggestDifficulty: null, streakDays: 0,
+    })
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A2' })
+    const progressChain = makeChain([
+      { topic_id: 'shopping', mastery_status: 'learning', last_methodology: 'roleplay', next_review_at: null },
+    ])
+    const npcEncounterChain = makeChain({ encounter_count: 2, last_summary_pt: 'Comprou uma camisa azul.' })
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-npc-2' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'npc_encounters') return npcEncounterChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string; npc_intro_pt?: string }>
+    expect(steps[0].npc_intro_pt).toContain('reencontrar Anna')
+    expect(steps[0].npc_intro_pt).toContain('Comprou uma camisa azul.')
+  })
+
+  it('does not set npc fields for a roleplay session on a topic with no matching NPC', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+
+    // 'introductions' is the first A1 topic — no NPC is mapped to it.
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    const progressChain = makeChain([
+      { topic_id: 'introductions', mastery_status: 'learning', last_methodology: 'roleplay', next_review_at: null },
+    ])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-no-npc' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    expect(insertedRow.npc_key).toBeNull()
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string; npc_key?: string; npc_intro_pt?: string }>
+    expect(steps[0].npc_key).toBeUndefined()
+    expect(steps[0].npc_intro_pt).toBeUndefined()
   })
 })
