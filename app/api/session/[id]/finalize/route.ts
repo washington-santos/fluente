@@ -15,7 +15,7 @@ export async function POST(
   // Verify session ownership; also load duration_seconds to decide streak eligibility
   const { data: session } = await supabase
     .from('sessions')
-    .select('id, user_id, duration_seconds')
+    .select('id, user_id, duration_seconds, npc_key')
     .eq('id', sessionId)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -61,6 +61,16 @@ export async function POST(
         key_topics: memory.key_topics,
         personal_details: memory.personal_details,
       })
+
+      const npcKey = (session as Record<string, unknown>).npc_key as string | null
+      if (npcKey && (session.duration_seconds ?? 0) > 0) {
+        const { error: npcError } = await supabase.rpc('increment_npc_encounter', {
+          p_user_id: user.id,
+          p_npc_key: npcKey,
+          p_summary_pt: memory.summary,
+        })
+        if (npcError) console.error('increment_npc_encounter failed:', npcError.message)
+      }
     } catch (err) {
       console.error('Memory generation failed:', err)
     }

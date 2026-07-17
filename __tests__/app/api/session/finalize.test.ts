@@ -4,11 +4,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockGetUser = vi.hoisted(() => vi.fn())
 const mockFrom = vi.hoisted(() => vi.fn())
 const mockMemoryGenerate = vi.hoisted(() => vi.fn())
+const mockRpc = vi.hoisted(() => vi.fn().mockResolvedValue({ error: null }))
 
 vi.mock('@/lib/supabase-server', () => ({
   createSupabaseServer: () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
+    rpc: mockRpc,
   }),
 }))
 
@@ -87,5 +89,86 @@ describe('POST /api/session/[id]/finalize', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.ok).toBe(true)
+  })
+
+  it('calls increment_npc_encounter with the generated summary when the session has npc_key and real duration', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockMemoryGenerate.mockResolvedValue({
+      summary: 'Praticou pedir comida no restaurante.',
+      key_topics: ['food'],
+      personal_details: [],
+    })
+
+    const sessionChain = makeChain({ id: 's1', user_id: 'u1', duration_seconds: 200, npc_key: 'tom' })
+    const userChain = makeChain({ id: 'u1', name: 'Ana', cefr_level: 'B1', streak_days: 2, last_session_at: null })
+    const memInsertChain = makeChain(null)
+
+    const msgListChain: Record<string, unknown> = {}
+    msgListChain.eq = vi.fn().mockReturnValue(msgListChain)
+    msgListChain.select = vi.fn().mockReturnValue(msgListChain)
+    msgListChain.order = vi.fn().mockResolvedValue({
+      data: [{ role: 'user', text: 'I would like pizza', had_correction: false }],
+      error: null,
+    })
+
+    const userUpdateChain: Record<string, unknown> = {}
+    userUpdateChain.eq = vi.fn().mockResolvedValue({ error: null })
+    userUpdateChain.update = vi.fn().mockReturnValue(userUpdateChain)
+
+    let fromCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      fromCallCount++
+      if (table === 'sessions') return sessionChain
+      if (table === 'users') return fromCallCount <= 3 ? userChain : userUpdateChain
+      if (table === 'messages') return msgListChain
+      if (table === 'session_memory') return memInsertChain
+      return makeChain(null)
+    })
+
+    const req = new Request('http://localhost/api/session/s1/finalize', { method: 'POST' })
+    const res = await POST(req, { params: { id: 's1' } })
+    expect(res.status).toBe(200)
+
+    expect(mockRpc).toHaveBeenCalledWith('increment_npc_encounter', {
+      p_user_id: 'u1',
+      p_npc_key: 'tom',
+      p_summary_pt: 'Praticou pedir comida no restaurante.',
+    })
+  })
+
+  it('does not call increment_npc_encounter when the session has no npc_key', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+    mockMemoryGenerate.mockResolvedValue({ summary: 'Sessão comum.', key_topics: [], personal_details: [] })
+
+    const sessionChain = makeChain({ id: 's1', user_id: 'u1', duration_seconds: 200, npc_key: null })
+    const userChain = makeChain({ id: 'u1', name: 'Ana', cefr_level: 'B1', streak_days: 2, last_session_at: null })
+    const memInsertChain = makeChain(null)
+
+    const msgListChain: Record<string, unknown> = {}
+    msgListChain.eq = vi.fn().mockReturnValue(msgListChain)
+    msgListChain.select = vi.fn().mockReturnValue(msgListChain)
+    msgListChain.order = vi.fn().mockResolvedValue({
+      data: [{ role: 'user', text: 'Hi', had_correction: false }],
+      error: null,
+    })
+
+    const userUpdateChain: Record<string, unknown> = {}
+    userUpdateChain.eq = vi.fn().mockResolvedValue({ error: null })
+    userUpdateChain.update = vi.fn().mockReturnValue(userUpdateChain)
+
+    let fromCallCount = 0
+    mockFrom.mockImplementation((table: string) => {
+      fromCallCount++
+      if (table === 'sessions') return sessionChain
+      if (table === 'users') return fromCallCount <= 3 ? userChain : userUpdateChain
+      if (table === 'messages') return msgListChain
+      if (table === 'session_memory') return memInsertChain
+      return makeChain(null)
+    })
+
+    const req = new Request('http://localhost/api/session/s1/finalize', { method: 'POST' })
+    const res = await POST(req, { params: { id: 's1' } })
+    expect(res.status).toBe(200)
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 })
