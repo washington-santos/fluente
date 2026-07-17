@@ -342,4 +342,123 @@ describe('POST /api/conversation', () => {
     const systemMessage = promptArg.messages.find((m: { role: string }) => m.role === 'system')
     expect(systemMessage.content).toContain('final challenge')
   })
+
+  it('injects the NPC persona block into the system prompt for a first encounter when session.npc_key is set', async () => {
+    const { createServerClient } = await import('@supabase/ssr')
+    vi.mocked(createServerClient).mockReturnValueOnce({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
+      rpc: vi.fn().mockResolvedValue({ error: null }),
+      from: vi.fn((table: string) => {
+        if (table === 'sessions') return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { ...mockSession, npc_key: 'anna' }, error: null }),
+              })),
+            })),
+          })),
+        }
+        if (table === 'users') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
+        }
+        if (table === 'subscriptions') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+        }
+        if (table === 'usage_log') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [], error: null }) })) })),
+        }
+        if (table === 'session_memory') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })) })),
+        }
+        if (table === 'errors_log') return {
+          select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }
+        if (table === 'messages') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
+          insert: mockMessagesInsert,
+        }
+        if (table === 'vocab_log') return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+        if (table === 'npc_encounters') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+        }
+        return {}
+      }),
+    } as any)
+
+    const audio = new Blob(['fake-audio'], { type: 'audio/webm' })
+    const res = await POST(makeFormRequest({ session_id: 'session-1', audio }))
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    const systemMessage = promptArg.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMessage.content).toContain('You are NOT Mr. Jake the teacher')
+    expect(systemMessage.content).toContain('voicing Anna')
+    expect(systemMessage.content).toContain('first time you are meeting this student')
+  })
+
+  it('mentions the last encounter summary in the system prompt when the student has met the NPC before', async () => {
+    const { createServerClient } = await import('@supabase/ssr')
+    vi.mocked(createServerClient).mockReturnValueOnce({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: mockUser } }) },
+      rpc: vi.fn().mockResolvedValue({ error: null }),
+      from: vi.fn((table: string) => {
+        if (table === 'sessions') return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { ...mockSession, npc_key: 'anna' }, error: null }),
+              })),
+            })),
+          })),
+        }
+        if (table === 'users') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: mockUserData, error: null }) })) })),
+        }
+        if (table === 'subscriptions') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })),
+        }
+        if (table === 'usage_log') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ gte: vi.fn().mockResolvedValue({ data: [], error: null }) })) })),
+        }
+        if (table === 'session_memory') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) })) })) })) })),
+        }
+        if (table === 'errors_log') return {
+          select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), is: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(), limit: vi.fn().mockReturnThis(),
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }
+        if (table === 'messages') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) })) })) })),
+          insert: mockMessagesInsert,
+        }
+        if (table === 'vocab_log') return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+        if (table === 'npc_encounters') return {
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: { encounter_count: 3, last_summary_pt: 'Comprou uma camisa azul.' }, error: null }) })) })) })),
+        }
+        return {}
+      }),
+    } as any)
+
+    const audio = new Blob(['fake-audio'], { type: 'audio/webm' })
+    const res = await POST(makeFormRequest({ session_id: 'session-1', audio }))
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    const systemMessage = promptArg.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMessage.content).toContain('met this student before (3')
+    expect(systemMessage.content).toContain('Comprou uma camisa azul.')
+  })
+
+  it('does not inject an NPC block when session.npc_key is absent', async () => {
+    const audio = new Blob(['fake-audio'], { type: 'audio/webm' })
+    const res = await POST(makeFormRequest({ session_id: 'session-1', audio }))
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    const systemMessage = promptArg.messages.find((m: { role: string }) => m.role === 'system')
+    expect(systemMessage.content).not.toContain('ROLEPLAY CHARACTER')
+  })
 })

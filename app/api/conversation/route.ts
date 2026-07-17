@@ -2,6 +2,7 @@ import { createSupabaseServer } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getTopicByKey } from '@/lib/topics'
+import { getNpcByKey } from '@/lib/npcs'
 import type { ConversationResponse, ErrorReport, ErrorType } from '@/types'
 import { isUserVip } from '@/lib/vip'
 import { createStageTimer } from '@/lib/timing'
@@ -264,8 +265,38 @@ CRITICAL RULE: NEVER ask the student to say or use something they have NOT been 
     ? `\nGUIDED PRACTICE RESTRICTION — CRITICAL: This is a structured practice exchange. You must only use vocabulary from this list in your questions and replies: ${guidedVocab.join(', ')}. Keep sentences short and built only from these words plus basic connecting words (a, the, is, you, I, and, etc.).${isChallenge ? ' This is the final challenge of the lesson — ask the student to combine everything they learned into one fuller exchange, and be a bit more demanding than during earlier practice.' : ''}`
     : ''
 
-  const systemPrompt = `${teacher.system_prompt}
+  const npcKeyOnSession = (session as Record<string, unknown>).npc_key as string | null
+  let npcBlock = ''
+  if (npcKeyOnSession) {
+    const npc = getNpcByKey(npcKeyOnSession)
+    if (npc) {
+      try {
+        const { data: encounter, error: encounterError } = await supabase
+          .from('npc_encounters')
+          .select('encounter_count, last_summary_pt')
+          .eq('user_id', user.id)
+          .eq('npc_key', npc.key)
+          .maybeSingle()
 
+        if (encounterError) {
+          console.error('npc_encounters lookup failed during conversation turn:', encounterError.message)
+        } else {
+          const count = (encounter as { encounter_count?: number } | null)?.encounter_count ?? 0
+          const lastSummary = (encounter as { last_summary_pt?: string } | null)?.last_summary_pt
+          npcBlock = `\nROLEPLAY CHARACTER — CRITICAL: You are NOT ${teacher.name} the teacher for this session. You are voicing ${npc.name}, ${npc.personalityPromptEn}. Stay in character as ${npc.name} throughout this roleplay scenario.
+${count > 0
+  ? `You have met this student before (${count} time(s)). Last time: "${lastSummary}". Naturally acknowledge you remember them, early in the conversation.`
+  : `This is the first time you are meeting this student.`}
+You are still fundamentally a supportive English teacher underneath the character — all correction, pedagogy, and JSON-response rules below still apply, just narrated in character as ${npc.name}.`
+        }
+      } catch (err) {
+        console.error('npc_encounters lookup failed during conversation turn:', err)
+      }
+    }
+  }
+
+  const systemPrompt = `${teacher.system_prompt}
+${npcBlock}
 Student profile:
 - Name: ${studentName}
 - CEFR level: ${cefrLevel}
