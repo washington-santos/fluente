@@ -24,6 +24,11 @@ vi.mock('openai', () => ({
   },
 }))
 
+const mockCheckAndAwardBadges = vi.hoisted(() => vi.fn().mockResolvedValue([]))
+vi.mock('@/lib/badges', () => ({
+  checkAndAwardBadges: mockCheckAndAwardBadges,
+}))
+
 import { GET } from '@/app/api/session/[id]/report/route'
 
 const makeChain = (data: unknown, error: unknown = null): any => {
@@ -102,6 +107,23 @@ describe('GET /api/session/[id]/report', () => {
     expect(body.pronunciationHints).toBe(1)
     expect(body.durationSeconds).toBe(300)
     expect(body.missionTitle).toBe('Recomendação cultural')
+  })
+
+  it('includes newlyAwardedBadges from checkAndAwardBadges in the response', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockCheckAndAwardBadges.mockResolvedValueOnce(['primeira_conversa'])
+    mockTables({
+      missionData: { mission_key: 'b1-movie', title_pt: 'Recomendação cultural', description_pt: 'Recomende um filme.', completed_at: null },
+      messages: [
+        { role: 'user', text: 'Hi', had_correction: false, pronunciation_hint: null },
+        { role: 'assistant', text: 'Hi!', had_correction: true, pronunciation_hint: 'Buzz the th sound.' },
+        { role: 'user', text: 'OK', had_correction: false, pronunciation_hint: null },
+      ],
+    })
+    const res = await GET(new Request('http://localhost/api/session/sess-1/report'), { params: { id: 'sess-1' } })
+    const body = await res.json()
+    expect(mockCheckAndAwardBadges).toHaveBeenCalledWith(expect.anything(), 'user-1')
+    expect(body.newlyAwardedBadges).toEqual(['primeira_conversa'])
   })
 
   it('does not call the AI when there are too few user turns', async () => {
