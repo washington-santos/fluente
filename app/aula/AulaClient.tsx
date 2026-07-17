@@ -26,6 +26,7 @@ import { useSession } from '@/hooks/useSession'
 import { getTopicByKey } from '@/lib/topics'
 import type { Teacher, ConversationResponse, CefrLevel } from '@/types'
 import type { CompetencyScores } from '@/lib/mastery'
+import type { BadgeKey } from '@/lib/badges'
 
 interface AulaClientProps {
   teacher: Teacher
@@ -71,6 +72,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
       attempt_count: number
     } | null
     levelPromotion?: { from: CefrLevel; to: CefrLevel } | null
+    newlyAwardedBadges?: BadgeKey[]
   } | null>(null)
 
   // Intro screen — hide once first turn is sent or session has existing messages
@@ -257,12 +259,14 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           const data = await reportRes.value.json()
           let assessment = null
           let levelPromotion = null
+          let newlyAwardedBadges: BadgeKey[] = data.newlyAwardedBadges ?? []
           if (assessRes.status === 'fulfilled' && assessRes.value.ok) {
             const a = await assessRes.value.json()
             if (!a.too_short && !a.error) assessment = a
             levelPromotion = a.level_promotion ?? null
+            newlyAwardedBadges = [...newlyAwardedBadges, ...(a.newly_awarded_badges ?? [])]
           }
-          setReportData({ ...data, assessment, levelPromotion })
+          setReportData({ ...data, assessment, levelPromotion, newlyAwardedBadges })
           setShowReport(true)
           return
         }
@@ -379,6 +383,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
             missionTitle={reportData.missionTitle}
             assessment={reportData.assessment}
             levelPromotion={reportData.levelPromotion}
+            newlyAwardedBadges={reportData.newlyAwardedBadges}
             onClose={handleReportClose}
           />
         )}
@@ -588,6 +593,7 @@ export function AulaClient({ teacher, cefrLevel }: AulaClientProps) {
           missionTitle={reportData.missionTitle}
           assessment={reportData.assessment}
           levelPromotion={reportData.levelPromotion}
+          newlyAwardedBadges={reportData.newlyAwardedBadges}
           onClose={handleReportClose}
         />
       )}
