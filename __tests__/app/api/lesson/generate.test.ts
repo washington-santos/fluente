@@ -176,14 +176,16 @@ describe('POST /api/lesson/generate', () => {
     expect(introStep.choice_explanation_pt).toContain('Apresentações pessoais')
     expect(introStep.choice_explanation_pt).toContain('novo')
 
-    // listening_present + its 2 comprehension questions sit right after vocab_repeat, before the first guided_convo
+    // review sits right after vocab_repeat; listening_present + its 2 comprehension
+    // questions come after that, before the first guided_convo
     const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
     const firstGuidedConvoIndex = steps.findIndex(s => s.type === 'guided_convo')
-    expect(steps[vocabRepeatIndex + 1].type).toBe('listening_present')
-    expect(steps[vocabRepeatIndex + 2].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 1].type).toBe('review')
+    expect(steps[vocabRepeatIndex + 2].type).toBe('listening_present')
     expect(steps[vocabRepeatIndex + 3].type).toBe('exercise_choice')
-    expect(steps[vocabRepeatIndex + 4].type).toBe('guided_convo')
-    expect(firstGuidedConvoIndex).toBe(vocabRepeatIndex + 4)
+    expect(steps[vocabRepeatIndex + 4].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 5].type).toBe('guided_convo')
+    expect(firstGuidedConvoIndex).toBe(vocabRepeatIndex + 5)
   })
 
   it('explains a retry lesson using the methodology it was chosen with', async () => {
@@ -274,10 +276,11 @@ describe('POST /api/lesson/generate', () => {
 
     // Verify exactly 2 listening questions appear in steps
     const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
-    expect(steps[vocabRepeatIndex + 1].type).toBe('listening_present')
-    expect(steps[vocabRepeatIndex + 2].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 1].type).toBe('review')
+    expect(steps[vocabRepeatIndex + 2].type).toBe('listening_present')
     expect(steps[vocabRepeatIndex + 3].type).toBe('exercise_choice')
-    expect(steps[vocabRepeatIndex + 4].type).toBe('guided_convo')
+    expect(steps[vocabRepeatIndex + 4].type).toBe('exercise_choice')
+    expect(steps[vocabRepeatIndex + 5].type).toBe('guided_convo')
   })
 
   it('falls back to a minimal deterministic lesson when the AI call throws', async () => {
@@ -510,5 +513,37 @@ describe('POST /api/lesson/generate', () => {
 
     const promptArg = mockChatCreate.mock.calls[0][0]
     expect(promptArg.messages[0].content).toContain('avoid grammar jargon')
+  })
+
+  it('includes a review flashcard step right after vocab_repeat, with a fixed Portuguese instruction', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    const progressChain = makeChain([])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-review' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const insertedRow = insertChain.insert.mock.calls[0][0]
+    const steps = insertedRow.lesson_plan_json.steps as Array<{ type: string; instruction_pt?: string }>
+
+    const vocabRepeatIndex = steps.findIndex(s => s.type === 'vocab_repeat')
+    const reviewStep = steps[vocabRepeatIndex + 1]
+    expect(reviewStep.type).toBe('review')
+    expect(reviewStep.instruction_pt).toBe('Vamos revisar o que você aprendeu! Tente lembrar antes de ver a tradução.')
   })
 })

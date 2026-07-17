@@ -233,6 +233,12 @@ function buildSteps(
   }
 
   steps.push({
+    id: nextId('rv'),
+    type: 'review',
+    instruction_pt: 'Vamos revisar o que você aprendeu! Tente lembrar antes de ver a tradução.',
+  })
+
+  steps.push({
     id: nextId('ln'),
     type: 'listening_present',
     teacher_script: content.listening_passage.teacher_script,
