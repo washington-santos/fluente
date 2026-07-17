@@ -312,16 +312,21 @@ export async function POST() {
     const npc = getNpcForTopic(topic.key)
     if (npc) {
       try {
-        const { data: encounter } = await supabase
+        const { data: encounter, error: encounterError } = await supabase
           .from('npc_encounters')
           .select('encounter_count, last_summary_pt')
           .eq('user_id', user.id)
           .eq('npc_key', npc.key)
           .maybeSingle()
-        npcKey = npc.key
-        npcIntroPt = encounter && (encounter as { encounter_count: number }).encounter_count > 0
-          ? `Você vai reencontrar ${npc.name}! Da última vez: ${(encounter as { last_summary_pt: string }).last_summary_pt}`
-          : `Hoje você vai conhecer ${npc.name}! ${npc.emoji}`
+
+        if (encounterError) {
+          console.error('npc_encounters lookup failed:', encounterError.message)
+        } else {
+          npcKey = npc.key
+          npcIntroPt = encounter && (encounter as { encounter_count: number }).encounter_count > 0
+            ? `Você vai reencontrar ${npc.name}! Da última vez: ${(encounter as { last_summary_pt: string }).last_summary_pt}`
+            : `Hoje você vai conhecer ${npc.name}! ${npc.emoji}`
+        }
       } catch (err) {
         console.error('npc_encounters lookup failed:', err)
       }
