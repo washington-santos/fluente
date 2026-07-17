@@ -12,6 +12,13 @@ import {
 } from '@/lib/mastery'
 import { checkAndApplyReinforcementReturn, checkAndApplyLevelPromotion } from '@/lib/levels'
 import { checkAndAwardBadges } from '@/lib/badges'
+import { getPortugueseTier, type PortugueseTier } from '@/lib/language-mix'
+
+const FEEDBACK_INSTRUCTIONS: Record<PortugueseTier, string> = {
+  full: 'feedback_pt: 2-3 motivating Portuguese sentences. Highlight progress, frame weaknesses positively. NEVER say "reprovado", "falhou", "errado".\nhighlight_pt: Their single biggest strength, 1 sentence in Portuguese.',
+  reduced: 'feedback_pt: 1-2 short sentences mixing Portuguese and English naturally. Highlight progress, frame weaknesses positively. NEVER say "reprovado", "falhou", "errado".\nhighlight_pt: Their single biggest strength, 1 short sentence mixing Portuguese and English.',
+  minimal: 'feedback_pt: 1 short sentence, mostly in English, with Portuguese only for a word of encouragement if natural. Frame weaknesses positively. NEVER say "reprovado", "falhou", "errado".\nhighlight_pt: Their single biggest strength, 1 short sentence mostly in English.',
+}
 
 export async function POST(
   _request: Request,
@@ -80,8 +87,7 @@ Score each 0–100:
 - confidence: Participated eagerly, low hesitation?
 - fluency: Natural, flowing speech?
 
-feedback_pt: 2-3 motivating Portuguese sentences. Highlight progress, frame weaknesses positively. NEVER say "reprovado", "falhou", "errado".
-highlight_pt: Their single biggest strength, 1 sentence in Portuguese.
+${FEEDBACK_INSTRUCTIONS[getPortugueseTier(cefrLevel)]}
 
 Respond ONLY valid JSON:
 {"speaking":75,"listening":80,"pronunciation":68,"vocabulary":90,"grammar":84,"confidence":79,"fluency":76,"feedback_pt":"...","highlight_pt":"..."}`

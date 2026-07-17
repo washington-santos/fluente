@@ -312,4 +312,80 @@ describe('POST /api/session/[id]/assess', () => {
     expect(mockCheckAndAwardBadges).toHaveBeenCalledWith(expect.anything(), 'u1')
     expect(body.newly_awarded_badges).toEqual(['primeira_conversa'])
   })
+
+  it('includes the full-Portuguese feedback instruction in the prompt for an A1 student', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const sessionChain = makeChain({ id: 'sess-1', user_id: 'u1', topic: 'travel', lesson_topic_id: 'travel' })
+    const userChain = makeChain({ name: 'Ana', cefr_level: 'A1' })
+    const messagesChain = makeChain([
+      { role: 'user', text: 'Hi' }, { role: 'assistant', text: 'Hello' },
+      { role: 'user', text: 'How are you' }, { role: 'assistant', text: 'Good' },
+      { role: 'user', text: 'Great' },
+    ])
+    const progressChain = makeChain(null)
+    const insertChain = makeChain(null)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sessions') return sessionChain
+      if (table === 'users') return userChain
+      if (table === 'messages') return messagesChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'topic_assessments') return insertChain
+      return makeChain(null)
+    })
+
+    mockChatCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({
+        speaking: 75, listening: 80, pronunciation: 70, vocabulary: 78, grammar: 72, confidence: 80, fluency: 74,
+        feedback_pt: 'Muito bem!', highlight_pt: 'Ótimo!',
+      }) } }],
+    })
+
+    await POST(
+      new Request('http://localhost/api/session/sess-1/assess', { method: 'POST' }),
+      { params: { id: 'sess-1' } },
+    )
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    expect(promptArg.messages[0].content).toContain('feedback_pt: 2-3 motivating Portuguese sentences.')
+  })
+
+  it('includes the minimal-Portuguese feedback instruction in the prompt for a C1 student', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
+
+    const sessionChain = makeChain({ id: 'sess-1', user_id: 'u1', topic: 'travel', lesson_topic_id: 'travel' })
+    const userChain = makeChain({ name: 'Ana', cefr_level: 'C1' })
+    const messagesChain = makeChain([
+      { role: 'user', text: 'Hi' }, { role: 'assistant', text: 'Hello' },
+      { role: 'user', text: 'How are you' }, { role: 'assistant', text: 'Good' },
+      { role: 'user', text: 'Great' },
+    ])
+    const progressChain = makeChain(null)
+    const insertChain = makeChain(null)
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'sessions') return sessionChain
+      if (table === 'users') return userChain
+      if (table === 'messages') return messagesChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'topic_assessments') return insertChain
+      return makeChain(null)
+    })
+
+    mockChatCreate.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({
+        speaking: 85, listening: 88, pronunciation: 82, vocabulary: 90, grammar: 87, confidence: 85, fluency: 86,
+        feedback_pt: 'Great job!', highlight_pt: 'Excellent fluency!',
+      }) } }],
+    })
+
+    await POST(
+      new Request('http://localhost/api/session/sess-1/assess', { method: 'POST' }),
+      { params: { id: 'sess-1' } },
+    )
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    expect(promptArg.messages[0].content).toContain('feedback_pt: 1 short sentence, mostly in English')
+  })
 })
