@@ -217,6 +217,19 @@ export default async function DashboardPage() {
           <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
         </Link>
 
+        <Link
+          href="/dashboard/medalhas"
+          className="flex items-center justify-between p-4 rounded-xl bg-surface-light-card dark:bg-surface-dark-card hover:opacity-80 transition-opacity"
+        >
+          <div>
+            <p className="text-sm font-semibold text-content-light dark:text-content-dark">Suas medalhas</p>
+            <p className="text-xs text-content-light-secondary dark:text-content-dark-secondary mt-0.5">
+              Conquistas desbloqueadas pela sua constância e evolução
+            </p>
+          </div>
+          <span className="text-content-light-secondary dark:text-content-dark-secondary text-sm">›</span>
+        </Link>
+
         <MissionCounterBadge count={u.missions_completed_count ?? 0} />
 
         {suggestDowngrade && lowerLevel && (
