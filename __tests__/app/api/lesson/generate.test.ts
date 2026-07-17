@@ -423,4 +423,64 @@ describe('POST /api/lesson/generate', () => {
     expect(steps[0].npc_key).toBeUndefined()
     expect(steps[0].npc_intro_pt).toBeUndefined()
   })
+
+  it('includes the full-Portuguese explanation instruction in the prompt for an A1 student', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+    // The file's default getStudentContext mock already returns cefrLevel: 'A1'.
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'A1' })
+    const progressChain = makeChain([])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-lang-a1' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    expect(promptArg.messages[0].content).toContain('Write every "explanation_pt" field as 1-2 full sentences in Portuguese.')
+  })
+
+  it('includes the minimal-Portuguese explanation instruction in the prompt for a C1 student', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockChatCreate.mockResolvedValue({ choices: [{ message: { content: JSON.stringify(validAiContent) } }] })
+    vi.mocked(getStudentContext).mockResolvedValueOnce({
+      userId: 'user-1', name: 'Ana', cefrLevel: 'C1', personalContext: [], goal: null,
+      focusAreas: [], taughtTopicIds: [], topicsNeedingReview: [], frequentErrors: [],
+      recentSessionSummary: null, biggestDifficulty: null, streakDays: 0,
+    })
+
+    const userChain = makeChain({ teacher_id: 'teacher-1', cefr_level: 'C1' })
+    const progressChain = makeChain([])
+    const dangling = makeChain(null)
+    const insertChain = makeChain({ id: 'session-lang-c1' })
+
+    let sessionsCall = 0
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'users') return userChain
+      if (table === 'user_topic_progress') return progressChain
+      if (table === 'sessions') {
+        sessionsCall++
+        return sessionsCall === 1 ? dangling : insertChain
+      }
+      return makeChain(null)
+    })
+
+    const res = await POST()
+    expect(res.status).toBe(200)
+
+    const promptArg = mockChatCreate.mock.calls[0][0]
+    expect(promptArg.messages[0].content).toContain('Write every "explanation_pt" field mostly in English')
+  })
 })

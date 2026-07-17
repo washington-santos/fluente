@@ -7,6 +7,7 @@ import { getLessonShape } from '@/lib/lesson-shape'
 import { METHODOLOGY_INSTRUCTIONS, METHODOLOGY_NAMES_PT } from '@/lib/mastery'
 import { explainLessonChoice } from '@/lib/lesson-explanation'
 import { getNpcForTopic } from '@/lib/npcs'
+import { getPortugueseTier, type PortugueseTier } from '@/lib/language-mix'
 import type { Topic } from '@/lib/topics'
 import type { Methodology } from '@/lib/mastery'
 import type { CefrLevel } from '@/types'
@@ -75,6 +76,12 @@ interface AiLessonContent {
   guided_convo_opening_pt: string
   challenge_opening: string
   challenge_opening_pt: string
+}
+
+const EXPLANATION_INSTRUCTIONS: Record<PortugueseTier, string> = {
+  full: 'Write every "explanation_pt" field as 1-2 full sentences in Portuguese.',
+  reduced: 'Write every "explanation_pt" field as 1 short sentence, mixing in English grammar/vocabulary terms naturally.',
+  minimal: 'Write every "explanation_pt" field mostly in English, with at most a couple of Portuguese words only if a term has no clear English equivalent.',
 }
 
 function fallbackAiContent(topic: Topic): AiLessonContent {
@@ -357,6 +364,8 @@ OBJECTIVES: ${topic.objectivesPt.join(', ')}
 GRAMMAR FOCUS: ${topic.grammarFocus}
 VOCABULARY COUNT: exactly ${shape.vocabCount} words/phrases, appropriate for ${cefrLevel}
 ${retryNote}
+
+LANGUAGE MIX: ${EXPLANATION_INSTRUCTIONS[getPortugueseTier(cefrLevel)]}
 
 Return ONLY valid JSON:
 {
