@@ -280,15 +280,14 @@ CRITICAL RULE: NEVER ask the student to say or use something they have NOT been 
 
         if (encounterError) {
           console.error('npc_encounters lookup failed during conversation turn:', encounterError.message)
-        } else {
-          const count = (encounter as { encounter_count?: number } | null)?.encounter_count ?? 0
-          const lastSummary = (encounter as { last_summary_pt?: string } | null)?.last_summary_pt
-          npcBlock = `\nROLEPLAY CHARACTER — CRITICAL: You are NOT ${teacher.name} the teacher for this session. You are voicing ${npc.name}, ${npc.personalityPromptEn}. Stay in character as ${npc.name} throughout this roleplay scenario.
+        }
+        const count = encounterError ? 0 : ((encounter as { encounter_count?: number } | null)?.encounter_count ?? 0)
+        const lastSummary = encounterError ? undefined : (encounter as { last_summary_pt?: string } | null)?.last_summary_pt
+        npcBlock = `\nROLEPLAY CHARACTER — CRITICAL: You are NOT ${teacher.name} the teacher for this session. You are voicing ${npc.name}, ${npc.personalityPromptEn}. Stay in character as ${npc.name} throughout this roleplay scenario.
 ${count > 0
   ? `You have met this student before (${count} time(s)). Last time: "${lastSummary}". Naturally acknowledge you remember them, early in the conversation.`
   : `This is the first time you are meeting this student.`}
 You are still fundamentally a supportive English teacher underneath the character — all correction, pedagogy, and JSON-response rules below still apply, just narrated in character as ${npc.name}.`
-        }
       } catch (err) {
         console.error('npc_encounters lookup failed during conversation turn:', err)
       }
