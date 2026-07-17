@@ -171,4 +171,21 @@ describe('LessonEngine', () => {
     // ex-2 was cloned as an immediate retry — the same question appears again
     await waitFor(() => expect(screen.getByText('Q2?')).toBeInTheDocument())
   })
+
+  it('labels the roleplay chat bubble with the NPC name (not the teacher) when the intro step carries a matching npc_key, keeping the teacher photo', async () => {
+    const lesson: GeneratedLesson = {
+      ...mockLesson,
+      steps: [
+        { id: 'intro', type: 'intro', title_pt: 'Compras', description_pt: 'Pratique compras.', npc_key: 'anna' },
+        { id: 'gc-1', type: 'guided_convo', instruction_pt: 'inst', teacher_opens_with: 'Hi, welcome!', allowed_vocabulary: ['hello'], min_exchanges: 1 },
+        { id: 'summary', type: 'summary' },
+      ],
+    }
+    render(<LessonEngine lesson={lesson} sessionId="sess-1" teacherName="Mrs. Carol" teacherImageUrl="/avatar.png" ttsVoice="alloy" onComplete={vi.fn()} />)
+    fireEvent.click(screen.getByText('Começar →'))
+
+    await waitFor(() => expect(screen.getByAltText('Anna')).toBeInTheDocument())
+    expect(screen.queryByAltText('Mrs. Carol')).not.toBeInTheDocument()
+    expect(screen.getByAltText('Anna')).toHaveAttribute('src', expect.stringContaining('avatar.png'))
+  })
 })

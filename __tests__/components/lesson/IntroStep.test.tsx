@@ -28,4 +28,10 @@ describe('IntroStep', () => {
     expect(screen.getByText('Apresentações pessoais')).toBeInTheDocument()
     expect(screen.getByText('Você vai aprender a se apresentar.')).toBeInTheDocument()
   })
+
+  it('shows the NPC intro note when npc_intro_pt is present', () => {
+    const step: StepType = { ...baseStep, npc_intro_pt: 'Hoje você vai conhecer Anna! 🛍️' }
+    render(<IntroStep step={step} vocabulary={[]} learningObjectives={[]} onContinue={vi.fn()} />)
+    expect(screen.getByText('Hoje você vai conhecer Anna! 🛍️')).toBeInTheDocument()
+  })
 })

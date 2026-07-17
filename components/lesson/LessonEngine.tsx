@@ -15,6 +15,7 @@ import { ExerciseFillBlankStep } from '@/components/lesson/ExerciseFillBlankStep
 import { GuidedConvoStep } from '@/components/lesson/GuidedConvoStep'
 import { ReviewStep } from '@/components/lesson/ReviewStep'
 import { shouldEnterStruggleMode } from '@/lib/adaptive-difficulty'
+import { getNpcByKey } from '@/lib/npcs'
 
 interface LessonEngineProps {
   lesson: GeneratedLesson
@@ -33,6 +34,10 @@ export function LessonEngine({ lesson, sessionId, teacherName, teacherImageUrl, 
   const [struggleEvents, setStruggleEvents] = useState(0)
   const [strugglingMode, setStrugglingMode] = useState(false)
   const [extraExample, setExtraExample] = useState<(ExtraExample & { word: string }) | null>(null)
+
+  const introStep = lesson.steps.find((s): s is import('@/types/lesson').IntroStep => s.type === 'intro')
+  const npc = introStep?.npc_key ? getNpcByKey(introStep.npc_key) : null
+  const displayTeacherName = npc?.name ?? teacherName
 
   // Applies the one-time structural adaptations (shorter dialogues ahead, an
   // extra worked example for the next new word) exactly once, right when
@@ -185,7 +190,7 @@ export function LessonEngine({ lesson, sessionId, teacherName, teacherImageUrl, 
             key={step.id}
             step={step}
             sessionId={sessionId}
-            teacherName={teacherName}
+            teacherName={displayTeacherName}
             teacherImageUrl={teacherImageUrl}
             ttsVoice={ttsVoice}
             strugglingMode={strugglingMode}
