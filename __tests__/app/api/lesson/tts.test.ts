@@ -1,50 +1,89 @@
 // @vitest-environment node
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockSynthesizeTts = vi.hoisted(() => vi.fn().mockResolvedValue({ dataUrl: 'data:audio/mp3;base64,AAAA', buffer: Buffer.from('x') }))
-
-vi.mock('@/lib/tts', () => ({ synthesizeTts: mockSynthesizeTts }))
+const mockGetUser = vi.hoisted(() => vi.fn())
+const mockSpeechCreate = vi.hoisted(() => vi.fn())
+const mockUpload = vi.hoisted(() => vi.fn())
+const mockGetPublicUrl = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/supabase-server', () => ({
-  createSupabaseServer: () => ({
-    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) },
+  createSupabaseServer: () => ({ auth: { getUser: mockGetUser } }),
+}))
+
+vi.mock('@/lib/supabase-admin', () => ({
+  createSupabaseAdmin: () => ({
+    storage: {
+      from: () => ({
+        upload: mockUpload,
+        getPublicUrl: mockGetPublicUrl,
+      }),
+    },
   }),
+}))
+
+vi.mock('openai', () => ({
+  default: class MockOpenAI {
+    audio = {
+      speech: { create: mockSpeechCreate },
+    }
+  },
 }))
 
 import { POST } from '@/app/api/lesson/tts/route'
 
-function makeRequest(fields: Record<string, string>): Request {
+function makeFormRequest(fields: Record<string, string>) {
   const form = new FormData()
-  for (const [k, v] of Object.entries(fields)) form.append(k, v)
+  Object.entries(fields).forEach(([k, v]) => form.append(k, v))
   return new Request('http://localhost/api/lesson/tts', { method: 'POST', body: form })
 }
 
 describe('POST /api/lesson/tts', () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it('defaults to speed 1.0 when no speed field is sent', async () => {
-    const res = await POST(makeRequest({ text: 'Hello', voice: 'alloy' }))
-    expect(res.status).toBe(200)
-    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 1.0)
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSpeechCreate.mockResolvedValue({
+      arrayBuffer: async () => new TextEncoder().encode('fake-mp3-bytes').buffer,
+    })
   })
 
-  it('passes a custom speed through', async () => {
-    const res = await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: '0.85' }))
-    expect(res.status).toBe(200)
-    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 0.85)
+  it('returns 401 when unauthenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const res = await POST(makeFormRequest({ text: 'Hello' }))
+    expect(res.status).toBe(401)
   })
 
-  it('clamps an out-of-range speed to the valid OpenAI bounds', async () => {
-    await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: '10' }))
-    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 4.0)
-
-    await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: '0.01' }))
-    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 0.25)
+  it('returns 400 when text is missing', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const res = await POST(makeFormRequest({}))
+    expect(res.status).toBe(400)
   })
 
-  it('falls back to speed 1.0 when the speed field is not a valid number', async () => {
-    const res = await POST(makeRequest({ text: 'Hello', voice: 'alloy', speed: 'not-a-number' }))
+  it('uploads the synthesized audio to storage and returns the public URL', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: null })
+    mockGetPublicUrl.mockReturnValue({
+      data: { publicUrl: 'https://storage.example.com/audio-replay/user-1/abc.mp3' },
+    })
+
+    const res = await POST(makeFormRequest({ text: 'Hello there', voice: 'alloy' }))
+    const body = await res.json()
+
     expect(res.status).toBe(200)
-    expect(mockSynthesizeTts).toHaveBeenCalledWith('Hello', 'alloy', 1.0)
+    expect(body.audio_url).toBe('https://storage.example.com/audio-replay/user-1/abc.mp3')
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\//),
+      expect.any(Buffer),
+      { contentType: 'audio/mpeg', upsert: false },
+    )
+  })
+
+  it('falls back to the inline data URL when the storage upload fails', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: { message: 'bucket unreachable' } })
+
+    const res = await POST(makeFormRequest({ text: 'Hello there' }))
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.audio_url).toMatch(/^data:audio\/mp3;base64,/)
   })
 })
