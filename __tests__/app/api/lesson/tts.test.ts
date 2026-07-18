@@ -86,4 +86,49 @@ describe('POST /api/lesson/tts', () => {
     expect(res.status).toBe(200)
     expect(body.audio_url).toMatch(/^data:audio\/mp3;base64,/)
   })
+
+  it('defaults to speed 1.0 when no speed field is sent', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: null })
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/audio-replay/user-1/abc.mp3' } })
+
+    const res = await POST(makeFormRequest({ text: 'Hello', voice: 'alloy' }))
+
+    expect(res.status).toBe(200)
+    expect(mockSpeechCreate.mock.calls[0][0].speed).toBe(1.0)
+  })
+
+  it('passes a custom speed through', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: null })
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/audio-replay/user-1/abc.mp3' } })
+
+    const res = await POST(makeFormRequest({ text: 'Hello', voice: 'alloy', speed: '0.85' }))
+
+    expect(res.status).toBe(200)
+    expect(mockSpeechCreate.mock.calls[0][0].speed).toBe(0.85)
+  })
+
+  it('clamps an out-of-range speed to the valid OpenAI bounds', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: null })
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/audio-replay/user-1/abc.mp3' } })
+
+    await POST(makeFormRequest({ text: 'Hello', voice: 'alloy', speed: '10' }))
+    expect(mockSpeechCreate.mock.calls[0][0].speed).toBe(4.0)
+
+    await POST(makeFormRequest({ text: 'Hello', voice: 'alloy', speed: '0.01' }))
+    expect(mockSpeechCreate.mock.calls[1][0].speed).toBe(0.25)
+  })
+
+  it('falls back to speed 1.0 when the speed field is not a valid number', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockUpload.mockResolvedValue({ error: null })
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/audio-replay/user-1/abc.mp3' } })
+
+    const res = await POST(makeFormRequest({ text: 'Hello', voice: 'alloy', speed: 'not-a-number' }))
+
+    expect(res.status).toBe(200)
+    expect(mockSpeechCreate.mock.calls[0][0].speed).toBe(1.0)
+  })
 })
